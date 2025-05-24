@@ -8,7 +8,7 @@ using OpenTelemetry.Trace;
 
 namespace AuthenticationSample.Logging;
 
-public static class LoggingExtensions
+public static class LoggingApplicationBuilderExtensions
 {
     public static IHostApplicationBuilder AddLogging(
         this IHostApplicationBuilder builder,

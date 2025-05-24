@@ -1,4 +1,5 @@
 using AuthenticationSample.Authentication.Grpc.Services;
+using AuthenticationSample.Api.Cors;
 using AuthenticationSample.Logging;
 using dotenv.net;
 
@@ -21,21 +22,29 @@ builder.AddLogging(options =>
 // Add mapping
 builder.Services.AddAutoMapper(typeof(Program));
 
-// Add health checks
-builder.Services.AddHealthChecks();
-
 // Add services to the container.
 builder.Services.AddGrpc();
 
+// Add CORS policy
+builder.Services.AddAuthenticationSampleCors(
+    options => builder.Configuration.GetSection("Cors").Bind(options));
+
+// Add health checks
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-app.UseGrpcWeb();
+// Capture AWS SDK logs
+app.Services.GetRequiredService<ILoggerFactory>()
+    .ConfigureAWSSDKLogging();
 
 // Configure the HTTP request pipeline.
-app.MapGrpcService<GreeterService>().EnableGrpcWeb();
-app.MapGet("/",
-    () =>
-        "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
+app.UseCors(CorsExtensions.CorsPolicyName);
+app.UseGrpcWeb();
+
+app.MapGrpcService<GreeterService>()
+    .EnableGrpcWeb()
+    .RequireCors();
 
 app.MapHealthChecks("/health");
 

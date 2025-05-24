@@ -43,12 +43,12 @@ bash start_database.sh -r
 
 # Generate Authentication grpc services
 bash Microservices/.builds/protoc-gen/gen-grpc-web.sh \
-    -i $working_dir/Microservices/Authentication/src/Authentication.Service/Protos/greet.proto \
+    -i $working_dir/Microservices/Authentication/src/Authentication.Grpc/Protos/greet.proto \
     -o $working_dir/Clients/authentication-sample/src/app/services
 
 # Start Next.js application
 echo "Starting Authentication client..."
-osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && npm run dev\""
+osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && npm run dev --experimental-https \""
 cd $working_dir
 
 echo "Authentication client started in a new terminal window"
