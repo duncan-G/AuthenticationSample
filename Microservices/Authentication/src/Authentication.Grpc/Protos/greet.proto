@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option csharp_namespace = "AuthenticationSample.Authentication.Service";
+option csharp_namespace = "AuthenticationSample.Authentication.Grpc";
 
 package greet;
 

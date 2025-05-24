@@ -4,7 +4,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D0D920DF-B6E
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F9446962-6147-483E-B261-9E6BEBB1F626}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.Service", "src\Authentication.Service\Authentication.Service.csproj", "{8AEC190A-95D7-49E7-A5E1-98F82712FA0B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.Grpc", "src\Authentication.Grpc\Authentication.Grpc.csproj", "{8AEC190A-95D7-49E7-A5E1-98F82712FA0B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.Core", "src\Authentication.Core\Authentication.Core.csproj", "{C4A86C69-E442-49F1-87F7-2B1D97590EFD}"
 EndProject
@@ -21,6 +21,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.SchemaBuilder", "src\Authentication.SchemaBuilder\Authentication.SchemaBuilder.csproj", "{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{55CAEFE5-AC55-4769-823D-1DFCE45F77C5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logging", "..\..\Libraries\Logging\Logging.csproj", "{C386FA90-0784-4A66-B38D-0B7E06BC39DB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "..\..\Libraries\Api\Api.csproj", "{50346C62-34CC-4A5D-A922-EBFDB3637E2A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,6 +60,14 @@ Global
 		{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C386FA90-0784-4A66-B38D-0B7E06BC39DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C386FA90-0784-4A66-B38D-0B7E06BC39DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C386FA90-0784-4A66-B38D-0B7E06BC39DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C386FA90-0784-4A66-B38D-0B7E06BC39DB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8AEC190A-95D7-49E7-A5E1-98F82712FA0B} = {D0D920DF-B6E6-4EA7-ADB6-59322520735D}
@@ -65,5 +77,7 @@ Global
 		{6E77C544-DEFA-4F1D-9E23-694A4DF4E9BA} = {F9446962-6147-483E-B261-9E6BEBB1F626}
 		{F5709DBB-90D6-4944-B8DC-E6C1A6780932} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
 		{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD} = {D0D920DF-B6E6-4EA7-ADB6-59322520735D}
+		{C386FA90-0784-4A66-B38D-0B7E06BC39DB} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
+		{50346C62-34CC-4A5D-A922-EBFDB3637E2A} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
 	EndGlobalSection
 EndGlobal

@@ -1,6 +1,6 @@
+using AuthenticationSample.Authentication.Grpc.Services;
 using AuthenticationSample.Logging;
 using dotenv.net;
-using AuthenticationSample.Authentication.Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

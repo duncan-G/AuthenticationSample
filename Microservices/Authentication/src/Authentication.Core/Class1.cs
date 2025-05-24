@@ -1,4 +1,4 @@
-﻿namespace Authentication.Core;
+﻿namespace AuthenticationSample.Authentication.Core;
 
 public class Class1
 {

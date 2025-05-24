@@ -4,7 +4,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>AuthenticationSample.Authentication.Service</RootNamespace>
+        <RootNamespace>AuthenticationSample.Authentication.Grpc</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
