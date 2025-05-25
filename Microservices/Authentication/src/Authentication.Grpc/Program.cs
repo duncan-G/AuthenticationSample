@@ -1,6 +1,5 @@
-using AuthenticationSample.Api;
-using AuthenticationSample.Authentication.Grpc.Services;
 using AuthenticationSample.Api.Cors;
+using AuthenticationSample.Authentication.Grpc.Services;
 using AuthenticationSample.Logging;
 using dotenv.net;
 
@@ -11,9 +10,7 @@ DotEnv.Load();
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-    .AddEnvironmentVariables("Authentication:");
-
-builder.ConfigureKestrel();
+    .AddEnvironmentVariables("Authentication__");
 
 // Configure logging
 builder.AddLogging(options =>
@@ -29,8 +26,7 @@ builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddGrpc();
 
 // Add CORS policy
-builder.Services.AddAuthenticationSampleCors(
-    options => builder.Configuration.GetSection("Cors").Bind(options));
+builder.Services.AddAuthenticationSampleCors(options => builder.Configuration.GetSection("Cors").Bind(options));
 
 // Add health checks
 builder.Services.AddHealthChecks();

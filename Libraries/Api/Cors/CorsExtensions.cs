@@ -20,7 +20,7 @@ public static class CorsExtensions
                 .AllowAnyHeader()
                 .WithExposedHeaders("Grpc-Status", "Grpc-Message", "Grpc-Encoding", "Grpc-Accept-Encoding");
         }));
-        
+
         return services;
     }
 }

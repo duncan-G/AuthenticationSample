@@ -33,7 +33,7 @@ public class GreeterService(ILogger<GreeterService> logger) : Greeter.GreeterBas
     public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
     {
         logger.LogInformation("SayHello called with name: {Name}", request.Name);
-        
+
         string message;
         if (Random.NextDouble() < 0.8)
         {
@@ -46,25 +46,15 @@ public class GreeterService(ILogger<GreeterService> logger) : Greeter.GreeterBas
             // Special responses 20% of the time
             var name = request.Name.ToLower();
             if (name.Contains("world"))
-            {
                 message = $"Hello, {request.Name}! You've got the whole world in your name! 🌍";
-            }
             else if (name.Contains("test"))
-            {
                 message = $"Testing, testing... Hello {request.Name}! 🧪";
-            }
             else if (request.Name.Length > 15)
-            {
                 message = $"Wow, {request.Name}, that's quite a long name! Hello there! 📏";
-            }
             else if (string.IsNullOrWhiteSpace(request.Name))
-            {
                 message = "Hello, mysterious stranger! What should I call you?";
-            }
             else
-            {
                 message = $"{request.Name}? That's a wonderful name! Hello! ✨";
-            }
         }
 
         return Task.FromResult(new HelloReply

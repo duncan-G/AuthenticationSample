@@ -239,8 +239,6 @@ logs
 *.pem
 
 # Environment variables
-.env
-.env.staging
-
+*.env
 
 certificates

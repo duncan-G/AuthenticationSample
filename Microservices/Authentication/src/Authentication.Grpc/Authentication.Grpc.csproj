@@ -14,12 +14,12 @@
 
     <ItemGroup>
         <PackageReference Include="Grpc.AspNetCore" Version="2.64.0"/>
-        <PackageReference Include="Grpc.AspNetCore.Web" Version="2.71.0" />
+        <PackageReference Include="Grpc.AspNetCore.Web" Version="2.71.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\Libraries\Api\Api.csproj" />
-      <ProjectReference Include="..\..\..\..\Libraries\Logging\Logging.csproj" />
+        <ProjectReference Include="..\..\..\..\Libraries\Api\Api.csproj"/>
+        <ProjectReference Include="..\..\..\..\Libraries\Logging\Logging.csproj"/>
     </ItemGroup>
 
 </Project>

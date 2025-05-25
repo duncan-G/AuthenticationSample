@@ -17,7 +17,7 @@ public static class LoggingApplicationBuilderExtensions
         LoggingOptions options = new();
         configureOptions(options);
 
-        ILoggingBuilder loggingBuilder = builder.Logging
+        var loggingBuilder = builder.Logging
             .AddOpenTelemetry(otlOptions =>
             {
                 otlOptions.IncludeFormattedMessage = true;
@@ -30,7 +30,7 @@ public static class LoggingApplicationBuilderExtensions
             loggingBuilder.AddFilter("Microsoft.SemanticKernel", LogLevel.Trace);
         }
 
-        OpenTelemetryBuilder otelBuilder = builder.Services.AddOpenTelemetry();
+        var otelBuilder = builder.Services.AddOpenTelemetry();
 
         otelBuilder.ConfigureResource(r => r
             .AddAttributes([
@@ -47,7 +47,7 @@ public static class LoggingApplicationBuilderExtensions
                         aciOptions.EnableAspNetCoreSignalRSupport = true;
                         aciOptions.Filter = context =>
                         {
-                            string? path = context.Request.Path.Value;
+                            var path = context.Request.Path.Value;
                             return !path?.StartsWith("/healthz", StringComparison.OrdinalIgnoreCase) ?? true;
                         };
                     })
@@ -55,10 +55,7 @@ public static class LoggingApplicationBuilderExtensions
                     .AddHttpClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation(efiOption => { efiOption.SetDbStatementForText = true; })
                     .AddSource("Npgsql");
-                if (options.AddSemanticKernelInstrumentation)
-                {
-                    traceBuilder.AddSource("Microsoft.SemanticKernel*");
-                }
+                if (options.AddSemanticKernelInstrumentation) traceBuilder.AddSource("Microsoft.SemanticKernel*");
 
                 if (options.AddAWSInstrumentation)
                 {
@@ -77,10 +74,7 @@ public static class LoggingApplicationBuilderExtensions
                     .AddProcessInstrumentation()
                     .AddMeter("Npgsql");
 
-                if (options.AddSemanticKernelInstrumentation)
-                {
-                    metricsBuilder.AddMeter("Microsoft.SemanticKernel*");
-                }
+                if (options.AddSemanticKernelInstrumentation) metricsBuilder.AddMeter("Microsoft.SemanticKernel*");
 
                 if (options.AddAWSInstrumentation)
                 {
@@ -92,11 +86,8 @@ public static class LoggingApplicationBuilderExtensions
             })
             .WithLogging();
 
-        bool useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-        if (useOtlpExporter)
-        {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
-        }
+        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        if (useOtlpExporter) builder.Services.AddOpenTelemetry().UseOtlpExporter();
 
         return builder;
     }

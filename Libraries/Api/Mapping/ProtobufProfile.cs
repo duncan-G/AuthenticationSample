@@ -4,13 +4,15 @@ using Google.Protobuf.Collections;
 namespace AuthenticationSample.Api.Mapping;
 
 /// <summary>
-/// Mapping between IReadOnlyList and RepeatedField defined in Google.Protobuf.Collections
+///     Mapping between IReadOnlyList and RepeatedField defined in Google.Protobuf.Collections
 /// </summary>
 public class ProtobufUser : Profile
 {
-    public ProtobufUser() =>
+    public ProtobufUser()
+    {
         CreateMap(typeof(IReadOnlyList<>), typeof(RepeatedField<>))
             .ConvertUsing(typeof(ReadOnlyListToRepeatedFieldConverter<,>));
+    }
 
     private class
         ReadOnlyListToRepeatedFieldConverter<TSource, TDest> : ITypeConverter<IReadOnlyList<TSource>,

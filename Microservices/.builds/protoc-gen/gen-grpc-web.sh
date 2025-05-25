@@ -82,6 +82,7 @@ proto_directory_path=$(dirname "$proto_file_path")
 docker run \
     -v $proto_directory_path:/home/protos \
     -v $output_directory_path:/home/api \
+    --name protoc-gen-grpc-web \
     protoc-gen-grpc-web -I="/home/protos" $file_name \
     --plugin=protoc-gen-js=/usr/local/bin/protoc-gen-js \
     --js_out=import_style=commonjs:"/home/api/$output_sub_directory" \
