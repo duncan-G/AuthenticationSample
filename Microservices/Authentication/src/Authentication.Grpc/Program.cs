@@ -1,3 +1,4 @@
+using AuthenticationSample.Api;
 using AuthenticationSample.Authentication.Grpc.Services;
 using AuthenticationSample.Api.Cors;
 using AuthenticationSample.Logging;
@@ -11,6 +12,8 @@ builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
     .AddEnvironmentVariables("Authentication:");
+
+builder.ConfigureKestrel();
 
 // Configure logging
 builder.AddLogging(options =>

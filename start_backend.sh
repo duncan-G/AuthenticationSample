@@ -28,7 +28,7 @@ fi
 docker swarm init
 
 # Create network
-echo "Creating Docker network for Swarm called net"
+echo "Creating Docker network for swarm called net"
 docker network prune -f
 if docker network inspect net &>/dev/null; then
     docker network rm net
@@ -36,19 +36,30 @@ fi
 docker network create -d overlay --attachable --driver overlay net
 
 # Run Aspire Dashboard
+echo "Running Aspire Dashboard"
 docker stack deploy --compose-file Microservices/.builds/aspire/aspire.stack.debug.yaml aspire
 
 # Run Postgres
 bash start_database.sh -r
 
 # Generate Authentication grpc services
+echo "Generating grpc services"
 bash Microservices/.builds/protoc-gen/gen-grpc-web.sh \
     -i $working_dir/Microservices/Authentication/src/Authentication.Grpc/Protos/greet.proto \
     -o $working_dir/Clients/authentication-sample/src/app/services
 
 # Start Next.js application
-echo "Starting Authentication client..."
-osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && npm run dev --experimental-https \""
+echo "Starting client..."
+osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && npm run dev \""
 cd $working_dir
 
-echo "Authentication client started in a new terminal window"
+# Deploy Authentication microservice if containerization is enabled
+if [ "$containerize_microservices" = true ]; then
+    echo "Deploying Authentication microservice to swarm"
+    cd Microservices/Authentication
+    dotnet publish --os linux --arch x64 /t:PublishContainer /p:EnvironmentName=Staging
+
+    env IMAGE_NAME=authentication-sample/authentication \
+        docker stack deploy --compose-file Microservices/.builds/service.stack.debug.yaml authentication
+fi
+
