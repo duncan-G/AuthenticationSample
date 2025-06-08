@@ -10,7 +10,7 @@ DotEnv.Load();
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-    .AddEnvironmentVariables("Authentication__");
+    .AddEnvironmentVariables("Authentication_");
 
 // Configure logging
 builder.AddLogging(options =>

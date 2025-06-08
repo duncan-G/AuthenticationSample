@@ -19,7 +19,7 @@ static_resources:
   listeners:
   - name: http_listener
     address:
-      socket_address: { address: 0.0.0.0, port_value: 10000 }
+      socket_address: { address: 0.0.0.0, port_value: 443 }
     filter_chains:
       filters:
         - name: envoy.filters.network.http_connection_manager
@@ -91,7 +91,7 @@ static_resources:
 
   - name: quic_listener
     address:
-      socket_address: { protocol: UDP, address: 0.0.0.0, port_value: 10000 }
+      socket_address: { protocol: UDP, address: 0.0.0.0, port_value: 443 }
     udp_listener_config:
       quic_options: {}
     filter_chains:

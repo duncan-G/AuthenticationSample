@@ -6,8 +6,7 @@ services:
     networks:
       - net
     ports:
-      - "10000:8000" # Authentication Service
-
+      - "10000:443" # Application Service
       - "4000:9901"  # Envoy admin
       - "4001:20000" # Aspire dashboard
       - "4002:20001" # PgAdmin
