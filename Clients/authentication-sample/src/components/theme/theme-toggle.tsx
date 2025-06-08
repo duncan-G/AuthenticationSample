@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useTheme } from "./theme-provider"
 
 export function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme()
+  const { toggleTheme } = useTheme()
 
     return (
     <Button variant="outline" size="icon" onClick={toggleTheme} className="h-9 w-9">

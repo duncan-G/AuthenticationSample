@@ -240,7 +240,11 @@ logs
 
 # Environment variables
 .env
-.env.staging
+.env.docker
 
-
+# Certificates
 certificates
+
+# Pids
+pids
+

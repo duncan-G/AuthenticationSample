@@ -1,11 +1,12 @@
+using Grpc.AspNetCore.Web;
 using Grpc.Core;
 
 namespace AuthenticationSample.Authentication.Grpc.Services;
 
 public class GreeterService(ILogger<GreeterService> logger) : Greeter.GreeterBase
 {
-    private static readonly string[] Greetings = new[]
-    {
+    private static readonly string[] Greetings =
+    [
         "Hello, {0}! Welcome to our service.",
         "Hi there, {0}! Great to see you.",
         "Greetings, {0}! How are you today?",
@@ -26,7 +27,7 @@ public class GreeterService(ILogger<GreeterService> logger) : Greeter.GreeterBas
         "Hello {0}! Let's create something special.",
         "Hi {0}! Your success is our priority.",
         "Welcome aboard, {0}! Let's begin."
-    };
+    ];
 
     private static readonly Random Random = new();
 

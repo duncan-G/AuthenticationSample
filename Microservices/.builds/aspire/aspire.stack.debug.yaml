@@ -6,12 +6,11 @@ services:
     ports:
       - "18888:18888"
       - "4317:18889"
-      - "4318:18890"
     environment:
       - DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT=100000
       - DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT=100000
       - DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT=100000
-      - Dashboard__Frontend__BrowserToken=aspire
+      - Dashboard__Frontend__BrowserToken=${ASPIRE_BROWSER_TOKEN}
     networks:
       - net
     deploy:

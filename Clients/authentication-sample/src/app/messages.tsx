@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import {GreeterClient} from "@/app/services/greet/GreetServiceClientPb";
 import {HelloRequest} from "@/app/services/greet/greet_pb";
 import { ThemeToggle } from "@/components/theme/theme-toggle"
+import { config } from '@/lib/config'
 
 interface Message {
   id: string
@@ -23,7 +24,10 @@ export default function Component() {
   const [inputValue, setInputValue] = useState("")
   const [error, setError] = useState('');
   const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
-  const client = new GreeterClient('https://localhost:10000');
+  if (!config.greeterServiceUrl) {
+    throw new Error('NEXT_PUBLIC_GREETER_SERVICE_URL is not set')
+  }
+  const client = new GreeterClient(config.greeterServiceUrl);
 
   const removeMessage = (messageId: string) => {
     // Clear timer for this message
@@ -94,9 +98,10 @@ export default function Component() {
 
   // Clean up timers on unmount
   useEffect(() => {
+    const currentTimers = timersRef.current;
     return () => {
-      timersRef.current.forEach((timer) => clearTimeout(timer))
-      timersRef.current.clear()
+      currentTimers.forEach((timer) => clearTimeout(timer))
+      currentTimers.clear()
     }
   }, [])
 

@@ -26,7 +26,10 @@ builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddGrpc();
 
 // Add CORS policy
-builder.Services.AddAuthenticationSampleCors(options => builder.Configuration.GetSection("Cors").Bind(options));
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddAuthenticationSampleCors(options => builder.Configuration.GetSection("Cors").Bind(options));
+}
 
 // Add health checks
 builder.Services.AddHealthChecks();
@@ -38,12 +41,19 @@ app.Services.GetRequiredService<ILoggerFactory>()
     .ConfigureAWSSDKLogging();
 
 // Configure the HTTP request pipeline.
-app.UseCors(CorsExtensions.CorsPolicyName);
-app.UseGrpcWeb();
+if (app.Environment.IsDevelopment())
+{
+    app.UseGrpcWeb();
+    app.UseCors(CorsExtensions.CorsPolicyName);
+    app.MapGrpcService<GreeterService>()
+        .EnableGrpcWeb()
+        .RequireCors();
+}
+else
+{
+    app.MapGrpcService<GreeterService>();
+}
 
-app.MapGrpcService<GreeterService>()
-    .EnableGrpcWeb()
-    .RequireCors();
 
 app.MapHealthChecks("/health");
 
