@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  app:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    ports:
+      - "18888:18888"
+      - "4317:18889"
+    environment:
+      - DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT=100000
+      - DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT=100000
+      - DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT=100000
+      - Dashboard__Frontend__BrowserToken=${ASPIRE_BROWSER_TOKEN}
+    networks:
+      - net
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        order: stop-first
+networks:
+  net:
+    external: true

@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  app:
+    image: envoyproxy/envoy:v1.33-latest
+    networks:
+      - net
+    ports:
+      - "10000:443" # Application Service
+      - "4000:9901"  # Envoy admin
+      - "4001:20000" # Aspire dashboard
+      - "4002:20001" # PgAdmin
+    configs:
+      - source: envoy_config
+        target: /etc/envoy/envoy.yaml
+      - source: envoy_clusters
+        target: /etc/envoy/discovery/envoy.cds.yaml
+      - source: envoy_secrets
+        target: /etc/envoy/discovery/envoy.sds.yaml
+      - source: envoy_routes
+        target: /etc/envoy/discovery/envoy.rds.yaml
+    secrets:
+      - source: cert.pem
+        target: /etc/envoy/certs/cert.pem
+      - source: cert.key
+        target: /etc/envoy/certs/cert.key
+    deploy:
+      labels:
+        version: ${VERSION}
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        order: stop-first
+
+networks:
+  net:
+    external: true
+
+configs:
+  envoy_config:
+    name: envoy_config_${VERSION}
+    external: true
+  envoy_clusters:
+    name: envoy_clusters_${VERSION}
+    external: true
+  envoy_secrets:
+    name: envoy_secrets_${VERSION}
+    external: true
+  envoy_routes:
+    name: envoy_routes_${VERSION}
+    external: true
+
+secrets:
+  cert.pem:
+    external: true
+  cert.key:
+    external: true

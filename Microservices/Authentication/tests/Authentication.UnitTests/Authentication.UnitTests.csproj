@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
-        <RootNamespace>Ultra.Authentication.UnitTests</RootNamespace>
+        <RootNamespace>AuthenticationSample.Authentication.UnitTests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

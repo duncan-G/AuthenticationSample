@@ -240,4 +240,11 @@ logs
 
 # Environment variables
 .env
+.env.docker
+
+# Certificates
+certificates
+
+# Pids
+pids
 
