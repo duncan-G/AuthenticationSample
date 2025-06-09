@@ -43,7 +43,7 @@ function start_client_linux() {
     if [[ "$container" = true ]]; then
         cd $working_dir/Clients/authentication-sample
         npm run build
-        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && npm run dev:container; exec bash"
+        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && npm run dev; exec bash"
         cd $working_dir
     else
         gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && npm run dev; exec bash"
