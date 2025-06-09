@@ -30,20 +30,20 @@ trust_certificate() {
     
     echo "Exporting certificate for trust..."
     
-    # Export certificate to .crt format with sudo
-    sudo openssl pkcs12 -in "$cert_path" -clcerts -nokeys -out "$temp_cert" -passin pass:"$cert_password"
+    # Export certificate to .crt format
+    openssl pkcs12 -in "$cert_path" -clcerts -nokeys -out "$temp_cert" -passin pass:"$cert_password"
     
     # Remove existing certificate if it exists
-    sudo security remove-trusted-cert -d "$temp_cert" 2>/dev/null || true
+    security remove-trusted-cert -d "$temp_cert" 2>/dev/null || true
     
     # Add to keychain and trust it with more specific trust settings
-    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain -p ssl -p basic "$temp_cert"
+    security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain -p ssl -p basic "$temp_cert"
     
     # Also add to user's keychain
     security add-trusted-cert -d -r trustRoot -k ~/Library/Keychains/login.keychain -p ssl -p basic "$temp_cert"
     
     # Clean up temporary file
-    sudo rm "$temp_cert"
+    rm "$temp_cert"
     
     echo "Certificate has been added to trusted certificates"
 }
@@ -63,23 +63,24 @@ generate_certificate() {
     echo "Generating new self-signed certificate"
     
     # Generate private key and CSR
-    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -subj "/CN=localhost" \
         -addext "subjectAltName = DNS:localhost,IP:127.0.0.1" \
         -keyout "$cert_dir/cert.key" \
         -out "$cert_dir/cert.pem"
 
     # Convert to PFX format for .NET
-    sudo openssl pkcs12 -export \
+    openssl pkcs12 -export \
         -out "$cert_path" \
         -inkey "$cert_dir/cert.key" \
         -in "$cert_dir/cert.pem" \
         -passout pass:"$cert_password"
 
     # Ensure correct permissions
-    sudo chmod 644 "$cert_dir/cert.pem" "$cert_dir/cert.key" "$cert_path"
+    chmod 644 "$cert_dir/cert.pem" "$cert_dir/cert.key" "$cert_path"
     
-    echo "Certificates generated successfully"
+    
+    "Certificates generated successfully"
     
     # Trust the certificate
     trust_certificate "$cert_dir" "$cert_password"

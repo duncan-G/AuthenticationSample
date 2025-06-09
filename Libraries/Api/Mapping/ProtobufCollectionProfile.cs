@@ -6,9 +6,9 @@ namespace AuthenticationSample.Api.Mapping;
 /// <summary>
 ///     Mapping between IReadOnlyList and RepeatedField defined in Google.Protobuf.Collections
 /// </summary>
-public class ProtobufUser : Profile
+public class ProtobufCollectionProfile : Profile
 {
-    public ProtobufUser()
+    public ProtobufCollectionProfile()
     {
         CreateMap(typeof(IReadOnlyList<>), typeof(RepeatedField<>))
             .ConvertUsing(typeof(ReadOnlyListToRepeatedFieldConverter<,>));
