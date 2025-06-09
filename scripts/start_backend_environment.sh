@@ -33,14 +33,45 @@ trust_certificate() {
     # Export certificate to .crt format
     openssl pkcs12 -in "$cert_path" -clcerts -nokeys -out "$temp_cert" -passin pass:"$cert_password"
     
-    # Remove existing certificate if it exists
-    security remove-trusted-cert -d "$temp_cert" 2>/dev/null || true
-    
-    # Add to keychain and trust it with more specific trust settings
-    security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain -p ssl -p basic "$temp_cert"
-    
-    # Also add to user's keychain
-    security add-trusted-cert -d -r trustRoot -k ~/Library/Keychains/login.keychain -p ssl -p basic "$temp_cert"
+    # Detect OS and use appropriate trust commands
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS specific trust commands
+        echo "Adding certificate to macOS keychain..."
+        
+        # Remove existing certificate if it exists
+        security remove-trusted-cert -d "$temp_cert" 2>/dev/null || true
+        
+        # Add to keychain and trust it with more specific trust settings
+        security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain -p ssl -p basic "$temp_cert"
+        
+        # Also add to user's keychain
+        security add-trusted-cert -d -r trustRoot -k ~/Library/Keychains/login.keychain -p ssl -p basic "$temp_cert"
+        
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux specific trust commands
+        echo "Adding certificate to Linux trust store..."
+        
+        # Create certificates directory if it doesn't exist
+        sudo mkdir -p /usr/local/share/ca-certificates
+        
+        # Copy certificate to system certificates directory
+        sudo cp "$temp_cert" /usr/local/share/ca-certificates/aspnetapp.crt
+        
+        # Update CA certificates
+        sudo update-ca-certificates
+        
+        # For browsers that use NSS (like Firefox), we need to add to NSS database
+        if command -v certutil &> /dev/null; then
+            # Find the NSS database location
+            for profile in ~/.mozilla/firefox/*.default*; do
+                if [ -d "$profile" ]; then
+                    certutil -A -n "aspnetapp" -t "C,," -i "$temp_cert" -d "$profile"
+                fi
+            done
+        fi
+    else
+        echo "Warning: Unsupported operating system for certificate trust. Certificate has been exported but not automatically trusted."
+    fi
     
     # Clean up temporary file
     rm "$temp_cert"
@@ -106,7 +137,6 @@ docker swarm init
 
 # Create network
 echo "Creating Docker network for swarm called net"
-docker network prune -f
 if docker network inspect net &>/dev/null; then
     docker network rm net
 fi

@@ -50,18 +50,6 @@ function start_client_linux() {
     fi
 }
 
-function start_client_windows() {
-    echo "Starting client..."
-    if [[ "$container" = true ]]; then
-        cd $working_dir/Clients/authentication-sample
-        npm run build
-        powershell -NoExit -Command "cd '$working_dir/Clients/authentication-sample'; npm run dev:container"
-        cd $working_dir
-    else
-        powershell -NoExit -Command "cd '$working_dir/Clients/authentication-sample'; npm run dev"
-    fi
-}
-
 # Generate Authentication TypeScript services
 echo "Generating grpc services"
 bash Microservices/.builds/protoc-gen/gen-grpc-web.sh \
@@ -76,6 +64,4 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     start_client_macos
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     start_client_linux
-elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
-    start_client_windows
 fi
