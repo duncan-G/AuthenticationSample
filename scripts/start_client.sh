@@ -19,20 +19,22 @@ done
 # Shift parsed options so remaining arguments can be accessed
 shift $((OPTIND -1))
 
+# Load environment variables from .env.docker
+if [[ "$container" = true ]]; then
+    cd $working_dir/Clients/authentication-sample
+    if [ -f .env.docker ]; then
+        export $(cat .env.docker | xargs)
+    else
+        echo "Warning: .env.docker file not found"
+    fi
+    cd $working_dir
+fi
+
 function start_client_macos() {
     echo "Starting client..."
     if [[ "$container" = true ]]; then
-        cd $working_dir/Clients/authentication-sample
-        # Load environment variables from .env.docker
-        if [ -f .env.docker ]; then
-            export $(cat .env.docker | xargs)
-        else
-            echo "Warning: .env.docker file not found"
-        fi
-
         osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && \
             NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev \""
-        cd $working_dir
     else
         osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && npm run dev \""
     fi
@@ -41,10 +43,8 @@ function start_client_macos() {
 function start_client_linux() {
     echo "Starting client..."
     if [[ "$container" = true ]]; then
-        cd $working_dir/Clients/authentication-sample
-        npm run build
-        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && npm run dev; exec bash"
-        cd $working_dir
+        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && \
+            NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev; exec bash"
     else
         gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && npm run dev; exec bash"
     fi

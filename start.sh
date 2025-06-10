@@ -8,6 +8,7 @@ working_dir=$(pwd)
 client=false
 client_container=false
 backend_environment=false
+generate_certificate=false
 database=false
 clean_database=false
 microservices=false
@@ -20,7 +21,8 @@ show_help() {
     echo "Options:"
     echo "  -c, --client                        Start the client application"
     echo "  -C, --client-container              Start the client when running server in containers"
-    echo "  -b, --backend-environment           Start the backend environment"
+    echo "  -b, --backend                       Start the backend environment"
+    echo "  -B, --backend-certificate           Start the backend environment with a new self-signed certificate"
     echo "  -d, --database                      Start the database"
     echo "  -D, --clean-database                Clean and restart the database"
     echo "  -m, --microservices                 Start the microservices"
@@ -31,11 +33,12 @@ show_help() {
 }
 
 # Parse options
-while getopts ":cCbDdMmp-:" opt; do
+while getopts ":cCbBDdMmp-:" opt; do
     case ${opt} in
         c ) client=true ;;
         C ) client=true; client_container=true ;;
         b ) backend_environment=true ;;
+        B ) backend_environment=true; generate_certificate=true ;;
         d ) database=true ;;
         D ) database=true; clean_database=true ;;
         m ) microservices=true ;;
@@ -45,7 +48,8 @@ while getopts ":cCbDdMmp-:" opt; do
         - ) case "${OPTARG}" in
             client ) client=true ;;
             client-container ) client=true; client_container=true ;;
-            swarm ) swarm=true ;;
+            backend ) backend_environment=true ;;
+            backend-certificate ) backend_environment=true; generate_certificate=true ;;
             database ) database=true ;;
             clean-database ) clean_database=true ;;
             microservices ) microservices=true ;;
@@ -76,7 +80,11 @@ start_client() {
 start_backend_environment() {
     echo "Starting backend environment..."
     script_path="./scripts/start_backend_environment.sh"
-    "$script_path"
+    if [ "$generate_certificate" = true ]; then
+        "$script_path" --certificate
+    else
+        "$script_path"
+    fi
 }
 
 # Function to handle database

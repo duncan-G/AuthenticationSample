@@ -1,121 +1,96 @@
 #!/bin/bash
 
 working_dir=$(pwd)
-
+generate_new_certificate=false
 # Function to check if certificate is valid
 check_certificate() {
     local cert_dir="$1"
     local cert_password="$2"
     
-    # Check both PFX and PEM files
-    if [ ! -f "$cert_dir/aspnetapp.pfx" ] || [ ! -f "$cert_dir/cert.pem" ] || [ ! -f "$cert_dir/cert.key" ]; then
+    echo "Checking ASP.NET Core developer certificate..."
+    
+    # Check if ASP.NET Core developer certificate exists
+    if ! dotnet dev-certs https --check &>/dev/null; then
+        echo "No ASP.NET Core developer certificate found"
         return 1
     fi
+    echo "✓ ASP.NET Core developer certificate exists"
     
-    # Check if PFX certificate is valid and not expired
+    # Check if exported certificate files exist
+    if [ ! -f "$cert_dir/aspnetapp.pfx" ]; then
+        echo "Missing exported PFX certificate file: $cert_dir/aspnetapp.pfx"
+        return 1
+    fi
+    if [ ! -f "$cert_dir/cert.pem" ]; then
+        echo "Missing exported PEM certificate file: $cert_dir/cert.pem"
+        return 1
+    fi
+    echo "✓ Exported certificate files exist"
+    
+    # Check if certificate is not expired (valid for at least 30 days)
     if ! openssl pkcs12 -in "$cert_dir/aspnetapp.pfx" -passin pass:"$cert_password" -nokeys 2>/dev/null | \
          openssl x509 -noout -checkend 2592000 2>/dev/null; then
+        echo "Certificate will expire within 30 days or is already expired"
         return 1
     fi
+    echo "✓ Certificate is valid for at least 30 more days"
     
+    echo "✓ All certificate checks passed"
     return 0
 }
 
-# Function to trust the certificate
-trust_certificate() {
-    local cert_dir="$1"
-    local cert_password="$2"
-    local cert_path="$cert_dir/aspnetapp.pfx"
-    local temp_cert="$cert_dir/aspnetapp.crt"
-    
-    echo "Exporting certificate for trust..."
-    
-    # Export certificate to .crt format
-    openssl pkcs12 -in "$cert_path" -clcerts -nokeys -out "$temp_cert" -passin pass:"$cert_password"
-    
-    # Detect OS and use appropriate trust commands
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS specific trust commands
-        echo "Adding certificate to macOS keychain..."
-        
-        # Remove existing certificate if it exists
-        security remove-trusted-cert -d "$temp_cert" 2>/dev/null || true
-        
-        # Add to keychain and trust it with more specific trust settings
-        security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain -p ssl -p basic "$temp_cert"
-        
-        # Also add to user's keychain
-        security add-trusted-cert -d -r trustRoot -k ~/Library/Keychains/login.keychain -p ssl -p basic "$temp_cert"
-        
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Linux specific trust commands
-        echo "Adding certificate to Linux trust store..."
-        
-        # Create certificates directory if it doesn't exist
-        sudo mkdir -p /usr/local/share/ca-certificates
-        
-        # Copy certificate to system certificates directory
-        sudo cp "$temp_cert" /usr/local/share/ca-certificates/aspnetapp.crt
-        
-        # Update CA certificates
-        sudo update-ca-certificates
-        
-        # For browsers that use NSS (like Firefox), we need to add to NSS database
-        if command -v certutil &> /dev/null; then
-            # Find the NSS database location
-            for profile in ~/.mozilla/firefox/*.default*; do
-                if [ -d "$profile" ]; then
-                    certutil -A -n "aspnetapp" -t "C,," -i "$temp_cert" -d "$profile"
-                fi
-            done
-        fi
-    else
-        echo "Warning: Unsupported operating system for certificate trust. Certificate has been exported but not automatically trusted."
-    fi
-    
-    # Clean up temporary file
-    rm "$temp_cert"
-    
-    echo "Certificate has been added to trusted certificates"
-}
-
-# Function to generate self-signed certificate
+# Function to generate and export certificates
 generate_certificate() {
     local cert_dir="$1"
     local cert_password="$2"
-    local cert_path="$cert_dir/aspnetapp.pfx"
     
     # Check if certificate exists and is valid
-    if check_certificate "$cert_dir" "$cert_password"; then
-        echo "Using existing valid certificate"
+    if [ "$generate_new_certificate" = false ] && check_certificate "$cert_dir" "$cert_password"; then
+        echo "Using existing valid ASP.NET Core developer certificate"
         return 0
     fi
     
-    echo "Generating new self-signed certificate"
-    
-    # Generate private key and CSR
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -subj "/CN=localhost" \
-        -addext "subjectAltName = DNS:localhost,IP:127.0.0.1" \
-        -keyout "$cert_dir/cert.key" \
-        -out "$cert_dir/cert.pem"
+    echo "Setting up ASP.NET Core developer certificate"
 
-    # Convert to PFX format for .NET
-    openssl pkcs12 -export \
-        -out "$cert_path" \
-        -inkey "$cert_dir/cert.key" \
-        -in "$cert_dir/cert.pem" \
-        -passout pass:"$cert_password"
+    rm -rf "$cert_dir"
+    mkdir "$cert_dir"
 
-    # Ensure correct permissions
-    chmod 644 "$cert_dir/cert.pem" "$cert_dir/cert.key" "$cert_path"
+    # Clean up any existing untrusted certificates
+    dotnet dev-certs https --clean
     
+    # Create and trust the ASP.NET Core developer certificate
+    dotnet dev-certs https --trust
     
-    "Certificates generated successfully"
+    echo "Exporting certificates for container use..."
     
-    # Trust the certificate
-    trust_certificate "$cert_dir" "$cert_password"
+    # Export the certificate for use in containers
+    dotnet dev-certs https -ep "$cert_dir/aspnetapp.pfx" -p "$cert_password"
+    
+    # Also export in PEM format for other uses
+    dotnet dev-certs https -ep "$cert_dir/cert.pem" --format PEM
+    
+    # Extract private key from PFX for Docker secrets
+    openssl pkcs12 -in "$cert_dir/aspnetapp.pfx" -nocerts -out "$cert_dir/cert.key" -passin pass:"$cert_password" -passout pass: -nodes
+    
+    echo "ASP.NET Core developer certificate created, trusted, and exported successfully"
 }
+
+# Parse options
+while getopts ":c-certificate" opt; do
+  case ${opt} in
+    c | certificate ) 
+      generate_new_certificate=true
+      ;;
+    \? ) 
+      echo "Usage: $0 [-c | -certificate]"
+      exit 1
+      ;;
+  esac
+done
+
+# Shift parsed options so remaining arguments can be accessed
+shift $((OPTIND -1))
+
 
 # Verify required environment variables
 if [ -z "$CERTIFICATE_PASSWORD" ]; then
@@ -142,12 +117,8 @@ if docker network inspect net &>/dev/null; then
 fi
 docker network create -d overlay --attachable --driver overlay net
 
-# Create certificates directory if it doesn't exist
-echo "Creating certificates"
-cert_dir="$working_dir/certificates"
-mkdir -p "$cert_dir"
-
 # Generate certificate
+cert_dir="$working_dir/certificates"
 generate_certificate "$cert_dir" "$CERTIFICATE_PASSWORD"
 
 # Create Docker secrets from the generated certificates
