@@ -28,3 +28,4 @@ cd $working_dir
 postgres_image_name="authentication-sample/postgres"
 cd "Microservices/.builds/postgres"
 docker build -t $postgres_image_name:latest .
+cd $working_dir

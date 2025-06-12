@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 }
 
@@ -254,10 +258,6 @@ resource "aws_iam_role_policy_attachment" "public_cloudwatch_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-resource "aws_iam_role_policy_attachment" "public_s3_access" {
-  role       = aws_iam_role.public_instance_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
-}
 
 # Custom policy for public instance to read Docker swarm SSM parameters
 resource "aws_iam_policy" "public_ssm_docker_access" {
@@ -341,8 +341,6 @@ resource "aws_iam_instance_profile" "private_instance_profile" {
 ########################
 
 resource "aws_instance" "public" {
-  depends_on = [time_sleep.wait_for_manager]
-  
   ami                         = data.aws_ami.amazon_linux.id
   instance_type               = var.public_instance_type
   subnet_id                   = aws_subnet.public.id
@@ -372,12 +370,6 @@ resource "aws_instance" "private" {
     Name = "private-instance-manager"
     Environment = "private"
   }
-}
-
-# Wait for manager (private) to be fully running before starting worker (public)
-resource "time_sleep" "wait_for_manager" {
-  depends_on = [aws_instance.private]
-  create_duration = "3m"
 }
 
 ########################

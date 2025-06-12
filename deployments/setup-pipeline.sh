@@ -154,8 +154,7 @@ create_iam_policy() {
       "Action": [
         "ec2:*",
         "iam:*",
-        "ssm:*",
-        "time:*"
+        "ssm:*"
       ],
       "Resource": "*"
     },
@@ -195,7 +194,7 @@ create_trust_policy() {
       "Principal": {
         "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
       },
-      "Action": "sts:AssumeRole",
+      "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"

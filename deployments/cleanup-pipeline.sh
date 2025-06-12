@@ -101,7 +101,6 @@ get_user_input() {
     echo
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"
-    echo "  AWS Account ID: $AWS_ACCOUNT_ID"
     echo
     
     print_warning "This will DELETE the following resources:"
