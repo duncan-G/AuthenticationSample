@@ -2,6 +2,83 @@
 
 Simple setup guide for deploy/teardown pipeline with OIDC authentication.
 
+## 🔐 Prerequisites
+
+### AWS IAM Identity Center Setup Required
+
+Before running this setup, configure IAM Identity Center with the appropriate permissions using the AWS Console.
+
+#### Step 1: Enable IAM Identity Center
+
+1. **Go to AWS Console** → **IAM Identity Center** → **Enable**
+2. **Choose organization instance** (recommended) if you have AWS Organizations
+3. **Choose identity source:**
+   - **IAM Identity Center** - Create users directly in Identity Center
+   - **Active Directory** - Connect existing AD
+   - **External identity provider** - Connect SAML/OIDC provider
+
+#### Step 2: Create Permission Set
+
+1. **Go to IAM Identity Center** → **Permission sets** → **Create permission set**
+2. **Choose Custom permission set** → **Next**
+3. **Permission set name:** `TerraformPipelineSetup`
+4. **Description:** "Minimal permissions for terraform pipeline setup"
+5. **Session duration:** 1 hour (or as needed)
+6. **Permissions policies** → **Create a custom permissions policy**
+7. **Click JSON tab** and paste the contents from `setup-pipeline-permissions.json`
+8. **Click Next** → **Create permission set**
+
+#### Step 3: Create or Add User
+
+**Option A: Create new user in Identity Center**
+1. **Go to Users** → **Add user**
+2. **Username:** `terraform-pipeline-user`
+3. **Fill in required details** → **Create user**
+
+**Option B: Use existing user** (if using external identity provider)
+
+#### Step 4: Assign User to Account with Permission Set
+
+1. **Go to AWS accounts** → **Select your account** → **Assign users or groups**
+2. **Select Users** → Choose your user → **Next**
+3. **Select permission sets** → Choose `TerraformPipelineSetup` → **Next**
+4. **Submit**
+
+#### Step 5: Configure AWS CLI with SSO
+
+1. **Get your SSO start URL:**
+   - Go to **IAM Identity Center** → **Dashboard**
+   - Copy the **AWS access portal URL**
+
+2. **Configure AWS CLI:**
+```bash
+aws configure sso --profile terraform-setup
+# SSO session name: terraform-setup
+# SSO start URL: [Your AWS access portal URL from step 1]
+# SSO region: us-west-1 (or your IAM Identity Center region)
+# SSO registration scopes: sso:account:access
+# Account ID: [Your AWS Account ID]
+# Role name: TerraformPipelineSetup
+# CLI default client Region: us-west-1
+# CLI default output format: json
+```
+
+3. **Login to SSO:**
+```bash
+aws sso login --profile terraform-setup
+```
+
+**Required permissions (from setup-pipeline-permissions.json):**
+- `sts:GetCallerIdentity` - Get AWS account ID
+- `iam:*OpenIDConnectProvider*` - Create/manage GitHub OIDC provider
+- `iam:CreatePolicy`, `iam:GetPolicy` - Create terraform execution policy
+- `iam:CreateRole`, `iam:GetRole`, `iam:AttachRolePolicy` - Create GitHub Actions role
+
+**Security Benefits:**
+- ✅ **Principle of least privilege** - Only permissions needed for pipeline setup
+- ✅ **Minimal attack surface** - Limited scope if credentials compromised  
+- ✅ **Auditable** - Clear understanding of what the setup can access
+
 ## 🏗️ Setup Steps
 
 ### 1. Configure AWS Variables
@@ -105,6 +182,11 @@ aws iam attach-role-policy \
 
 echo "✅ Setup complete!"
 echo "Role ARN: arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform"
+```
+
+**💡 Automated Setup:** You can run all the above steps automatically using:
+```bash
+AWS_PROFILE=terraform-setup ./setup-pipeline.sh
 ```
 
 ## 🔐 GitHub Secret

@@ -23,7 +23,7 @@ provider "aws" {
 variable "region" {
   description = "AWS region for all resources"
   type        = string
-  default     = "us-west-2"
+  default     = "us-west-1"
 }
 
 variable "public_instance_type" {
