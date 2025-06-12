@@ -76,8 +76,8 @@ jobs:
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
+      with: 
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsTerraform
         role-session-name: GitHubActions-Terraform-${{ github.run_id }}
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
@@ -251,7 +251,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsTerraform
         role-session-name: GitHubActions-Terraform-Apply-${{ github.run_id }}
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
