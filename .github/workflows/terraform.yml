@@ -25,16 +25,17 @@ on:
   # Automatic plan on pull requests
   pull_request:
     branches: [ main, infra ]
-    paths: [ 'deployments/**' ]
+    paths: [ 'terraform/**' ]
 
   # Only plan on main branch pushes (no auto-deploy)
   push:
     branches: [ main ]
-    paths: [ 'deployments/**' ]
+    paths: [ 'terraform/**' ]
 
 env:
   AWS_DEFAULT_REGION: us-west-1
   TERRAFORM_VERSION: "1.12.2"
+  TF_LOG: DEBUG
   
 permissions:
   contents: read
@@ -56,7 +57,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./deployments
+        working-directory: ./terraform
 
     outputs:
       plan-exitcode: ${{ steps.plan.outputs.exitcode }}
@@ -151,7 +152,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: terraform-plan-${{ github.event.inputs.environment || 'staging' }}-${{ github.run_id }}
-        path: deployments/tfplan-*
+        path: terraform/tfplan-*
         retention-days: 5
 
     - name: Update Pull Request
@@ -235,7 +236,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./deployments
+        working-directory: ./terraform
 
     steps:
     - name: Checkout
@@ -267,7 +268,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: terraform-plan-${{ github.event.inputs.environment }}-${{ github.run_id }}
-        path: deployments/
+        path: terraform/
 
     - name: Terraform Apply
       id: apply
