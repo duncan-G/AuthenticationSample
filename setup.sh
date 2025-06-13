@@ -12,6 +12,10 @@ docker pull dpage/pgadmin4:latest
 docker pull mcr.microsoft.com/dotnet/aspire-dashboard:latest
 docker pull envoyproxy/envoy:v1.33-latest
 
+# Pull mcp servers
+docker pull mcp/aws-documentation:latest
+docker pull mcp/aws-terraform:latest
+
 # Build protoc-gen image
 docker build -t protoc-gen-grpc-web:latest ./Microservices/.builds/protoc-gen
 
