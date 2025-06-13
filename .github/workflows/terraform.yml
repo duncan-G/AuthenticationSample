@@ -74,6 +74,16 @@ jobs:
         terraform_version: ${{ env.TERRAFORM_VERSION }}
         terraform_wrapper: false
 
+    - name: Show OIDC claims
+      env:
+        REQ_URL:   ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+        REQ_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+      run: |
+        curl -s -H "Authorization: bearer $REQ_TOKEN" "$REQ_URL" > id.json
+        TOKEN=$(jq -r .value id.json)
+        echo "::add-mask::$TOKEN"          # hide it in the log
+        echo "$TOKEN" | cut -d'.' -f2 | base64 -d | jq '{sub, aud}'
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with: 
