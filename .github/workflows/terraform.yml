@@ -47,12 +47,12 @@ jobs:
   terraform-plan:
     name: 'Terraform Plan'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'staging' }}
+    # environment: ${{ github.event.inputs.environment || 'staging' }}
     
-    # Only allow one terraform run at a time per environment
-    concurrency:
-      group: terraform-${{ github.event.inputs.environment || 'staging' }}
-      cancel-in-progress: false
+    # # Only allow one terraform run at a time per environment
+    # concurrency:
+    #   group: terraform-${{ github.event.inputs.environment || 'staging' }}
+    #   cancel-in-progress: false
 
     defaults:
       run:
