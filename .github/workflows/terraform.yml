@@ -16,11 +16,11 @@ on:
       environment:
         description: 'Target Environment'
         required: true
-        default: 'staging'
+        default: 'terraform-staging'
         type: choice
         options:
-          - staging
-          - production
+          - terraform-staging
+          - terraform-production
 
   # Automatic plan on pull requests
   pull_request:
@@ -47,11 +47,11 @@ jobs:
   terraform-plan:
     name: 'Terraform Plan'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'staging' }}
+    environment: ${{ github.event.inputs.environment || 'terraform-staging' }}
     
     # Only allow one terraform run at a time per environment
     concurrency:
-      group: terraform-${{ github.event.inputs.environment || 'staging' }}
+      group: terraform-${{ github.event.inputs.environment || 'terraform-staging' }}
       cancel-in-progress: false
 
     defaults:
@@ -122,7 +122,7 @@ jobs:
     - name: Terraform Workspace
       id: workspace
       run: |
-        WORKSPACE="${{ github.event.inputs.environment || 'staging' }}"
+        WORKSPACE="${{ github.event.inputs.environment || 'terraform-staging' }}"
         echo "🏗️  Setting up workspace: $WORKSPACE"
         
         # Create workspace if it doesn't exist
@@ -166,7 +166,7 @@ jobs:
       if: steps.plan.outputs.exitcode == 2
       uses: actions/upload-artifact@v4
       with:
-        name: terraform-plan-${{ github.event.inputs.environment || 'staging' }}-${{ github.run_id }}
+        name: terraform-plan-${{ github.event.inputs.environment || 'terraform-staging' }}-${{ github.run_id }}
         path: terraform/tfplan-*
         retention-days: 5
 
@@ -223,7 +223,7 @@ jobs:
       if: always()
       run: |
         echo "## Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment**: ${{ github.event.inputs.environment || 'staging' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ github.event.inputs.environment || 'terraform-staging' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action || 'plan' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Workspace**: $(terraform workspace show)" >> $GITHUB_STEP_SUMMARY
         echo "- **Plan Exit Code**: ${{ steps.plan.outputs.exitcode }}" >> $GITHUB_STEP_SUMMARY

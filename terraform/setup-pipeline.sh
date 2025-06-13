@@ -197,12 +197,10 @@ create_trust_policy() {
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
           "token.actions.githubusercontent.com:sub": [
-            "repo:${GITHUB_REPO_FULL}:ref:refs/heads/main",
-            "repo:${GITHUB_REPO_FULL}:pull_request"
+            "repo:${GITHUB_REPO_FULL}:environment:terraform-staging",
+            "repo:${GITHUB_REPO_FULL}:environment:terraform-production"
           ]
         }
       }
