@@ -202,8 +202,7 @@ create_trust_policy() {
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
             "repo:${GITHUB_REPO_FULL}:ref:refs/heads/main",
-            "repo:${GITHUB_REPO_FULL}:ref:refs/heads/infra/*",
-            "repo:${GITHUB_REPO_FULL}:pull_request"
+            "repo:${GITHUB_REPO_FULL}:pull_request:ref:refs/heads/infra/*"
           ]
         }
       }

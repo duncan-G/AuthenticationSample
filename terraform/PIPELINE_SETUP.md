@@ -161,8 +161,14 @@ Add this secret to your GitHub repository (Settings → Secrets → Actions):
 - Choose environment: `staging` or `production`
 
 ### Automatic Workflows:
-- **Pull Request** → Shows terraform plan with changes
 - **Push to main** → Runs terraform plan (no auto-deploy for safety)
+- **Pull Request from infra/* branches** → Shows terraform plan with changes
+
+The GitHub Actions workflow can only run automatically when:
+1. Changes are pushed to the `main` branch
+2. A pull request is created from a branch starting with `infra/`
+
+For all other branches or manual runs, you'll need to use the workflow dispatch trigger.
 
 ## 🏗️ Infrastructure Resources
 
