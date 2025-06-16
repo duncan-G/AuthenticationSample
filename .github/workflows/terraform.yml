@@ -24,13 +24,13 @@ on:
 
   # Automatic plan on pull requests
   pull_request:
-    branches: [ main, infra ]
-    paths: [ 'terraform/**' ]
+    branches: [ main ]
+    paths: [ 'terraform/modules/**' ]
 
   # Only plan on main branch pushes (no auto-deploy)
   push:
     branches: [ main ]
-    paths: [ 'terraform/**' ]
+    paths: [ 'terraform/modules/**' ]
 
 env:
   AWS_DEFAULT_REGION: us-west-1
@@ -233,7 +233,6 @@ jobs:
         echo "- **Environment**: ${{ github.event.inputs.environment || 'terraform-staging' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action || 'plan' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Workspace**: $(terraform workspace show)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Plan Exit Code**: ${{ steps.plan.outputs.exitcode }}" >> $GITHUB_STEP_SUMMARY
         
         case "${{ steps.plan.outputs.exitcode }}" in
           "0") echo "- **Result**: ✅ No changes needed" >> $GITHUB_STEP_SUMMARY ;;
@@ -334,7 +333,6 @@ jobs:
         echo "## Terraform Apply Results" >> $GITHUB_STEP_SUMMARY
         echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Apply Exit Code**: ${{ steps.apply.outputs.exitcode }}" >> $GITHUB_STEP_SUMMARY
         
         case "${{ steps.apply.outputs.exitcode }}" in
           "0") echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY ;;
