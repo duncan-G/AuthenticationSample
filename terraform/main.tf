@@ -219,7 +219,7 @@ resource "aws_iam_role" "public_instance_role" {
   })
 
   tags = {
-    Name = "EC2-Public-Instance-Role"
+    Name        = "EC2-Public-Instance-Role"
     Environment = "public"
   }
 }
@@ -242,7 +242,7 @@ resource "aws_iam_role" "private_instance_role" {
   })
 
   tags = {
-    Name = "EC2-Private-Instance-Role"
+    Name        = "EC2-Private-Instance-Role"
     Environment = "private"
   }
 }
@@ -351,7 +351,7 @@ resource "aws_instance" "public" {
   user_data = file("${path.module}/install-docker-worker.sh")
 
   tags = {
-    Name = "public-instance-worker"
+    Name        = "public-instance-worker"
     Environment = "public"
   }
 }
@@ -367,7 +367,7 @@ resource "aws_instance" "private" {
   user_data = file("${path.module}/install-docker-manager.sh")
 
   tags = {
-    Name = "private-instance-manager"
+    Name        = "private-instance-manager"
     Environment = "private"
   }
 }

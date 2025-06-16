@@ -74,21 +74,6 @@ jobs:
         terraform_version: ${{ env.TERRAFORM_VERSION }}
         terraform_wrapper: false
 
-    - id: oidc
-      name: Request OIDC token
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const id = await core.getIDToken()
-          core.setOutput('token', id)
-
-    - name: Dump {sub,aud}
-      env:
-        TOKEN: ${{ steps.oidc.outputs.token }}
-      run: |
-        echo "::add-mask::$TOKEN"
-        echo "$TOKEN" | cut -d'.' -f2 | base64 -d | jq '{sub,aud}'
-
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with: 
