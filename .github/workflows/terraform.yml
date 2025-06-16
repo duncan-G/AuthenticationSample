@@ -131,7 +131,11 @@ jobs:
         # Set plan file name based on action
         PLAN_FILE="tfplan-${{ github.event.inputs.action || 'plan' }}"
         
-        # Determine plan type and capture exit code
+        # Temporarily disable exit-on-error to capture Terraform's exit codes
+        # Terraform returns exit code 2 for successful plans with changes (not an error!)
+        set +e
+        
+        # Determine plan type
         case "${{ github.event.inputs.action }}" in
           "destroy")
             echo "🔥 Planning infrastructure destruction..."
@@ -145,11 +149,14 @@ jobs:
             ;;
         esac
         
+        # Restore exit-on-error behavior
+        set -e
+        
         # Save exit code and plan file for other steps
         echo "exitcode=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
         echo "plan-file=$PLAN_FILE" >> $GITHUB_OUTPUT
         
-        # Only fail on actual errors (exit code 1), not on successful plans with changes (exit code 2)
+        # Handle Terraform exit codes properly
         if [ $PLAN_EXIT_CODE -eq 1 ]; then
           echo "❌ Terraform plan failed with errors"
           exit 1
