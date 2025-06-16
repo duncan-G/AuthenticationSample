@@ -35,7 +35,6 @@ on:
 env:
   AWS_DEFAULT_REGION: us-west-1
   TERRAFORM_VERSION: "1.12.2"
-  TF_LOG: DEBUG
   
 permissions:
   contents: read
