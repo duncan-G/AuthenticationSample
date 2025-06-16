@@ -131,20 +131,36 @@ jobs:
         # Set plan file name based on action
         PLAN_FILE="tfplan-${{ github.event.inputs.action || 'plan' }}"
         
-        # Determine plan type
+        # Determine plan type and capture exit code
         case "${{ github.event.inputs.action }}" in
           "destroy")
             echo "🔥 Planning infrastructure destruction..."
             terraform plan -destroy -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode
+            PLAN_EXIT_CODE=$?
             ;;
           *)
             echo "🚀 Planning infrastructure deployment..."
             terraform plan -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode
+            PLAN_EXIT_CODE=$?
             ;;
         esac
         
-        # Save plan file for apply job
+        # Save exit code and plan file for other steps
+        echo "exitcode=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
         echo "plan-file=$PLAN_FILE" >> $GITHUB_OUTPUT
+        
+        # Only fail on actual errors (exit code 1), not on successful plans with changes (exit code 2)
+        if [ $PLAN_EXIT_CODE -eq 1 ]; then
+          echo "❌ Terraform plan failed with errors"
+          exit 1
+        elif [ $PLAN_EXIT_CODE -eq 2 ]; then
+          echo "📋 Terraform plan completed successfully - changes detected"
+        elif [ $PLAN_EXIT_CODE -eq 0 ]; then
+          echo "✅ Terraform plan completed successfully - no changes needed"
+        else
+          echo "❓ Unexpected exit code: $PLAN_EXIT_CODE"
+          exit 1
+        fi
 
     - name: Upload Plan File
       if: steps.plan.outputs.exitcode == 2
@@ -284,6 +300,18 @@ jobs:
         fi
         
         terraform apply -auto-approve -input=false "$PLAN_FILE"
+        APPLY_EXIT_CODE=$?
+        
+        # Save exit code for other steps
+        echo "exitcode=$APPLY_EXIT_CODE" >> $GITHUB_OUTPUT
+        
+        # Handle apply exit codes
+        if [ $APPLY_EXIT_CODE -eq 0 ]; then
+          echo "✅ Terraform apply completed successfully"
+        else
+          echo "❌ Terraform apply failed with exit code: $APPLY_EXIT_CODE"
+          exit $APPLY_EXIT_CODE
+        fi
 
     - name: Terraform Output
       if: github.event.inputs.action == 'deploy'
@@ -299,5 +327,11 @@ jobs:
         echo "## Terraform Apply Results" >> $GITHUB_STEP_SUMMARY
         echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Status**: ${{ steps.apply.outcome == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Apply Exit Code**: ${{ steps.apply.outputs.exitcode }}" >> $GITHUB_STEP_SUMMARY
+        
+        case "${{ steps.apply.outputs.exitcode }}" in
+          "0") echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY ;;
+          *) echo "- **Status**: ❌ Failed" >> $GITHUB_STEP_SUMMARY ;;
+        esac
+        
         echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY 
