@@ -348,7 +348,7 @@ resource "aws_instance" "public" {
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
 
-  user_data = file("${path.module}/install-docker-worker.sh")
+  user_data = file("${path.module}/../install-docker-worker.sh")
 
   tags = {
     Name        = "public-instance-worker"
@@ -364,7 +364,7 @@ resource "aws_instance" "private" {
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
 
-  user_data = file("${path.module}/install-docker-manager.sh")
+  user_data = file("${path.module}/../install-docker-manager.sh")
 
   tags = {
     Name        = "private-instance-manager"
