@@ -152,7 +152,7 @@ create_iam_policy() {
         # Substitute variables in terraform-policy.json and write to a temp file
         sed \
             -e "s|\\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
-            terraform/terraform-policy.json > terraform-policy-temp.json
+            terraform-policy.json > terraform-policy-temp.json
         
         aws iam create-policy \
             --profile "$AWS_PROFILE" \
@@ -170,7 +170,7 @@ create_trust_policy() {
     sed \
         -e "s|\\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
-        terraform/github-trust-policy.json > github-trust-policy.json
+        github-trust-policy.json > github-trust-policy.json
     print_success "Trust policy created"
 }
 
