@@ -47,8 +47,8 @@ variable "private_instance_type" {
 # aws_availability_zones: Fetches the list of Availability Zones (AZs) in the current region
 # This allows us to reference AZs dynamically rather than hardcoding them
 # Used when creating subnets to ensure they are placed in valid AZs
-  # NOTE: We will currently only deploy to 1 AZ. If High Availability is needed,
-  # this will need to update to use multiple AZs.
+# NOTE: We will currently only deploy to 1 AZ. If High Availability is needed,
+# this will need to update to use multiple AZs.
 
 # aws_ami: Queries for the latest Amazon Linux 2023 AMI in the current region
 # Filters for x86_64 architecture and only AMIs owned by Amazon

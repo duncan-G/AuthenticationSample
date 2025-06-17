@@ -149,10 +149,15 @@ create_iam_policy() {
     if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/TerraformGitHubActionsOIDCPolicy" &> /dev/null; then
         print_warning "IAM policy already exists, skipping creation"
     else
+        # Substitute variables in terraform-policy.json and write to a temp file
+        sed \
+            -e "s|\\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
+            terraform/terraform-policy.json > terraform-policy-temp.json
+        
         aws iam create-policy \
             --profile "$AWS_PROFILE" \
             --policy-name TerraformGitHubActionsOIDCPolicy \
-            --policy-document file://terraform/terraform-policy.json
+            --policy-document file://terraform-policy-temp.json
         print_success "IAM policy created"
     fi
 }
@@ -184,7 +189,7 @@ create_iam_role() {
         aws iam create-role \
             --profile "$AWS_PROFILE" \
             --role-name GitHubActionsTerraform \
-            --assume-role-policy-document file://trust-policy.json
+            --assume-role-policy-document file://github-trust-policy.json
         print_success "IAM role created"
     fi
     
@@ -200,7 +205,7 @@ create_iam_role() {
 # Function to cleanup temporary files
 cleanup() {
     print_info "Cleaning up temporary files..."
-    rm -f github-trust-policy.json
+    rm -f github-trust-policy.json terraform-policy-temp.json
     print_success "Cleanup completed"
 }
 
