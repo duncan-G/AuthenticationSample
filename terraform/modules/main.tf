@@ -47,13 +47,17 @@ variable "private_instance_type" {
 # aws_availability_zones: Fetches the list of Availability Zones (AZs) in the current region
 # This allows us to reference AZs dynamically rather than hardcoding them
 # Used when creating subnets to ensure they are placed in valid AZs
+  # NOTE: We will currently only deploy to 1 AZ. If High Availability is needed,
+  # this will need to update to use multiple AZs.
 
 # aws_ami: Queries for the latest Amazon Linux 2023 AMI in the current region
 # Filters for x86_64 architecture and only AMIs owned by Amazon
 # This ensures we always get the latest patched Amazon Linux 2023 base image
 # Used as the base image when launching EC2 instances
 
-# NOTE: We will currently only deploy to 1 AZ. If High Availability is needed, we will need to add more AZs.
+# aws_caller_identity: Fetches the current AWS account ID
+# Used to dynamically reference the current account ID in IAM policies
+# This ensures that the policies are applied to the correct account
 
 ########################
 
@@ -68,6 +72,8 @@ data "aws_ami" "amazon_linux" {
     values = ["al2023-ami-*-x86_64-*"]
   }
 }
+
+data "aws_caller_identity" "current" {}
 
 ########################
 # Networking
@@ -276,7 +282,7 @@ resource "aws_iam_policy" "public_ssm_docker_access" {
           "ssm:GetParameters"
         ]
         Resource = [
-          "arn:aws:ssm:${var.region}:*:parameter/docker/swarm/*"
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
         ]
       }
     ]
@@ -315,7 +321,7 @@ resource "aws_iam_policy" "private_ssm_docker_access" {
           "ssm:GetParameters"
         ]
         Resource = [
-          "arn:aws:ssm:${var.region}:*:parameter/docker/swarm/*"
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
         ]
       }
     ]
