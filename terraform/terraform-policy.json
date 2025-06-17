@@ -52,7 +52,7 @@
         "ec2:AssociateAddress",
         "ec2:DisassociateAddress",
         "ec2:CreateVpcEndpoint",
-        "ec2:DeleteVpcEndpoint",
+        "ec2:DeleteVpcEndpoints",
         "ec2:CreateVpcPeeringConnection",
         "ec2:DeleteVpcPeeringConnection",
         "ec2:AcceptVpcPeeringConnection",
@@ -75,7 +75,7 @@
         "ssm:DeleteParameter",
         "ssm:DeleteParameters",
         "ssm:DescribeParameters",
-        "ssm:ListParameters"
+        "ssm:GetParametersByPath"
       ],
       "Resource": [
         "arn:aws:ssm:*:*:parameter/docker/swarm/*"
