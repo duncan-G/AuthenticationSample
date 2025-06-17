@@ -65,6 +65,58 @@ done
 # Shift parsed options so remaining arguments can be accessed
 shift $((OPTIND -1))
 
+# Validate that every key present in .env.template also exists – and is non-empty – in .env
+validate_env_file() {
+  local env_file="${1:-.env}"
+  local template_file="${2:-.env.template}"
+
+  # Fast-fail on missing files
+  if [[ ! -f $env_file ]]; then
+    printf '❌  %s not found – create it from %s\n' "$env_file" "$template_file"
+    return 1
+  fi
+
+  if [[ ! -f $template_file ]]; then
+    printf '⚠️   %s not found – skipping validation\n' "$template_file"
+    return 0
+  fi
+
+  # Grab variable names (ignore blank lines & comments) from each file
+  mapfile -t template_keys < <(grep -Ev '^\s*(#|$)' "$template_file" | cut -d'=' -f1 | sort -u)
+  mapfile -t env_keys      < <(grep -Ev '^\s*(#|$)' "$env_file"      | cut -d'=' -f1 | sort -u)
+
+  # Detect missing keys with
+  mapfile -t missing < <(comm -23 <(printf '%s\n' "${template_keys[@]}") \
+                               <(printf '%s\n' "${env_keys[@]}"))
+  
+  # Detect keys that are present but have empty values
+  empty=()
+  for key in "${template_keys[@]}"; do
+    # Skip keys that are already identified as missing
+    if [[ " ${missing[*]} " =~ " ${key} " ]]; then
+      continue
+    fi
+    
+    val=$(grep -E "^\s*$key\s*=" "$env_file" | head -n1 | cut -d'=' -f2-)
+    [[ -z $val ]] && empty+=("$key")
+  done
+
+  # Report & exit
+  if ((${#missing[@]} + ${#empty[@]})); then
+    [[ ${#missing[@]} -gt 0 ]] && {
+      printf '❌  Missing variables:\n'
+      printf '    • %s\n' "${missing[@]}"
+    }
+    [[ ${#empty[@]} -gt 0 ]] && {
+      printf '❌  Empty variables:\n'
+      printf '    • %s\n' "${empty[@]}"
+    }
+    return 1
+  fi
+
+  printf '✅  %s is valid\n' "$env_file"
+}
+
 # Function to start the client
 start_client() {
     echo "Starting client application..."
@@ -115,9 +167,15 @@ start_proxy() {
     script_path="./scripts/start_proxy.sh"
     "$script_path"
 }
+
 # Main execution
 cd "$working_dir"
 
+# Validate environment file before starting backend
+if ! validate_env_file; then
+    echo "Environment validation failed. Please fix the issues above."
+    exit 1
+fi
 
 # Load environment variables from .env file if it exists
 if [ -f ".env" ]; then
