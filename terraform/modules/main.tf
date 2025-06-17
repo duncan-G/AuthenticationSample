@@ -83,14 +83,14 @@ resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
   tags = {
-    Name = "main-vpc"
+    Name = "auth-sample-vpc"
   }
 }
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
   tags = {
-    Name = "main-igw"
+    Name = "auth-sample-igw"
   }
 }
 
@@ -100,7 +100,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
   availability_zone       = data.aws_availability_zones.available.names[0]
   tags = {
-    Name = "public-subnet"
+    Name = "auth-sample-public-subnet"
   }
 }
 
@@ -109,7 +109,7 @@ resource "aws_subnet" "private" {
   cidr_block        = "10.0.2.0/24"
   availability_zone = data.aws_availability_zones.available.names[0]
   tags = {
-    Name = "private-subnet"
+    Name = "auth-sample-private-subnet"
   }
 }
 
@@ -123,7 +123,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "public-rt"
+    Name = "auth-sample-public-rt"
   }
 }
 
@@ -139,7 +139,7 @@ resource "aws_route_table_association" "public" {
 ########################
 
 resource "aws_security_group" "instance" {
-  name_prefix = "instance-sg-"
+  name_prefix = "auth-sample-instance-sg-"
   description = "Allow HTTP, HTTPS, and Docker Swarm communication"
   vpc_id      = aws_vpc.main.id
 
@@ -201,7 +201,7 @@ resource "aws_security_group" "instance" {
   }
 
   tags = {
-    Name = "instance-sg"
+    Name = "auth-sample-instance-sg"
   }
 }
 
@@ -211,7 +211,7 @@ resource "aws_security_group" "instance" {
 
 # Public Instance Role (Web server, public-facing)
 resource "aws_iam_role" "public_instance_role" {
-  name = "EC2-Public-Instance-Role"
+  name = "auth-sample-ec2-public-instance-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -227,14 +227,14 @@ resource "aws_iam_role" "public_instance_role" {
   })
 
   tags = {
-    Name        = "EC2-Public-Instance-Role"
+    Name        = "auth-sample-ec2-public-instance-role"
     Environment = "public"
   }
 }
 
 # Private Instance Role (Backend services, database access)
 resource "aws_iam_role" "private_instance_role" {
-  name = "EC2-Private-Instance-Role"
+  name = "auth-sample-ec2-private-instance-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -250,7 +250,7 @@ resource "aws_iam_role" "private_instance_role" {
   })
 
   tags = {
-    Name        = "EC2-Private-Instance-Role"
+    Name        = "auth-sample-ec2-private-instance-role"
     Environment = "private"
   }
 }
@@ -269,7 +269,7 @@ resource "aws_iam_role_policy_attachment" "public_cloudwatch_agent" {
 
 # Custom policy for public instance to read Docker swarm SSM parameters
 resource "aws_iam_policy" "public_ssm_docker_access" {
-  name        = "PublicInstanceDockerSSMAccess"
+  name        = "auth-sample-public-instance-docker-ssm-access"
   description = "Allow read access to Docker swarm SSM parameters for public instance"
 
   policy = jsonencode({
@@ -307,7 +307,7 @@ resource "aws_iam_role_policy_attachment" "private_cloudwatch_agent" {
 
 # Custom policy for private instance to write Docker swarm SSM parameters
 resource "aws_iam_policy" "private_ssm_docker_access" {
-  name        = "PrivateInstanceDockerSSMAccess"
+  name        = "auth-sample-private-instance-docker-ssm-access"
   description = "Allow write access to Docker swarm SSM parameters for private instance"
 
   policy = jsonencode({
@@ -335,12 +335,12 @@ resource "aws_iam_role_policy_attachment" "private_ssm_docker_access" {
 
 # Instance Profiles
 resource "aws_iam_instance_profile" "public_instance_profile" {
-  name = "EC2-Public-Instance-Profile"
+  name = "auth-sample-ec2-public-instance-profile"
   role = aws_iam_role.public_instance_role.name
 }
 
 resource "aws_iam_instance_profile" "private_instance_profile" {
-  name = "EC2-Private-Instance-Profile"
+  name = "auth-sample-ec2-private-instance-profile"
   role = aws_iam_role.private_instance_role.name
 }
 
@@ -359,7 +359,7 @@ resource "aws_instance" "public" {
   user_data = file("${path.module}/../install-docker-worker.sh")
 
   tags = {
-    Name        = "public-instance-worker"
+    Name        = "auth-sample-public-instance-worker"
     Environment = "public"
   }
 }
@@ -375,7 +375,7 @@ resource "aws_instance" "private" {
   user_data = file("${path.module}/../install-docker-manager.sh")
 
   tags = {
-    Name        = "private-instance-manager"
+    Name        = "auth-sample-private-instance-manager"
     Environment = "private"
   }
 }
