@@ -31,7 +31,7 @@ AWS_PROFILE=your-profile ./setup-github-actions-oidc.sh
 - Repository name
 - AWS region (default: `us-west-1`)
 
-**Required AWS permissions:** Uses the `github-actions-terraform-policy.json` permission set for minimal, secure access.
+**Required AWS permissions:** Uses the `setup-github-actions-oidc-policy.json` permission set for minimal, secure access.
 
 ### 🗑️ `remove-github-actions-oidc.sh` - Pipeline Cleanup Script
 
@@ -91,7 +91,7 @@ Before running this setup, configure IAM Identity Center with the appropriate pe
 4. **Description:** "Minimal permissions for terraform pipeline setup"
 5. **Session duration:** 1 hour (or as needed)
 6. **Permissions policies** → **Create a custom permissions policy**
-7. **Click JSON tab** and paste the contents from `github-actions-terraform-policy.json`
+7. **Click JSON tab** and paste the contents from `setup-github-actions-oidc-policy.json`
 8. **Click Next** → **Create permission set**
 
 #### Step 3: Create or Add User

@@ -2,6 +2,17 @@
 
 container=false
 working_dir=$(pwd)
+PID_DIR="$working_dir/pids"
+PID_FILE="$PID_DIR/client.pid"
+
+# Create pids directory if it doesn't exist
+mkdir -p "$PID_DIR"
+
+# Check if client is already running and stop it
+if [ -f "$PID_FILE" ]; then
+    echo "Client is already running. Stopping existing client..."
+    bash "$working_dir/scripts/stop_client.sh"
+fi
 
 # Parse options
 while getopts ":c-container" opt; do
@@ -33,21 +44,29 @@ fi
 function start_client_macos() {
     echo "Starting client..."
     if [[ "$container" = true ]]; then
+        # Start the process and capture its PID
         osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && \
-            NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev \""
+            NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev && echo \\\$PPID > $PID_DIR/client.pid\""
     else
-        osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && npm run dev \""
+        osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && \
+            npm run dev && echo \\\$PPID > $PID_DIR/client.pid\""
     fi
+    echo "Client started. PID saved to $PID_DIR/client.pid"
 }
 
 function start_client_linux() {
     echo "Starting client..."
     if [[ "$container" = true ]]; then
+        # Start gnome-terminal and capture the PID of the npm process
         gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && \
-            NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev; exec bash"
+            NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev & \
+            echo \$! > $PID_DIR/client.pid; wait"
     else
-        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && npm run dev; exec bash"
+        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && \
+            npm run dev & \
+            echo \$! > $PID_DIR/client.pid; wait"
     fi
+    echo "Client started. PID saved to $PID_DIR/client.pid"
 }
 
 # Generate Authentication TypeScript services
@@ -58,7 +77,6 @@ bash Microservices/.builds/protoc-gen/gen-grpc-web.sh \
 docker container rm protoc-gen-grpc-web
 
 # Start Next.js application
-echo "Starting client..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
     start_client_macos

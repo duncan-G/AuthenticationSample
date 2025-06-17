@@ -42,6 +42,11 @@ cleanup() {
     echo -e "\n>> Shutting down services..."
     for pidfile in "$PID_DIR"/*.pid; do
         [[ -e $pidfile ]] || continue
+        
+        # Skip client.pid files - they are managed separately
+        if [[ $(basename "$pidfile") == "client.pid" ]]; then
+            continue
+        fi
 
         pid=$(<"$pidfile")
         name=$(basename "$pidfile" .pid)

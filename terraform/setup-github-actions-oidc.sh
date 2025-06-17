@@ -151,7 +151,7 @@ create_iam_policy() {
     else
         # Substitute variables in terraform-policy.json and write to a temp file
         sed \
-            -e "s|\\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
+            -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
             terraform-policy.json > terraform-policy-temp.json
         
         aws iam create-policy \
@@ -166,11 +166,19 @@ create_iam_policy() {
 create_trust_policy() {
     print_info "Creating trust policy..."
     
-    # Substitute variables in trust-policy.json and write to a temp file
+    # Substitute variables in github-trust-policy.json and write to the final file
     sed \
-        -e "s|\\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
-        -e "s|\\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
-        github-trust-policy.json > github-trust-policy.json
+        -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
+        -e "s|\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
+        github-trust-policy.json > github-trust-policy-temp.json
+    
+    # Debug: Show what was actually created
+    print_info "Generated trust policy file content:"
+    cat github-trust-policy-temp.json
+    print_info "File size: $(wc -c < github-trust-policy-temp.json) bytes"
+    print_info "Absolute file path: $(pwd)/github-trust-policy-temp.json"
+    print_info "File permissions: $(ls -la github-trust-policy-temp.json)"
+    
     print_success "Trust policy created"
 }
 
@@ -178,18 +186,23 @@ create_trust_policy() {
 create_iam_role() {
     print_info "Creating IAM role..."
     
+    # Get absolute path to the trust policy file
+    TRUST_POLICY_PATH="$(pwd)/github-trust-policy-temp.json"
+    
     # Check if role already exists
     if aws iam get-role --profile "$AWS_PROFILE" --role-name GitHubActionsTerraform &> /dev/null; then
         print_warning "IAM role already exists, updating trust policy"
         aws iam update-assume-role-policy \
             --profile "$AWS_PROFILE" \
             --role-name GitHubActionsTerraform \
-            --policy-document file://github-trust-policy.json
+            --policy-document "file://$TRUST_POLICY_PATH" \
+            --no-cli-pager
     else
         aws iam create-role \
             --profile "$AWS_PROFILE" \
             --role-name GitHubActionsTerraform \
-            --assume-role-policy-document file://github-trust-policy.json
+            --assume-role-policy-document "file://$TRUST_POLICY_PATH" \
+            --no-cli-pager
         print_success "IAM role created"
     fi
     
@@ -205,7 +218,7 @@ create_iam_role() {
 # Function to cleanup temporary files
 cleanup() {
     print_info "Cleaning up temporary files..."
-    rm -f github-trust-policy.json terraform-policy-temp.json
+    rm -f github-trust-policy-temp.json terraform-policy-temp.json
     print_success "Cleanup completed"
 }
 

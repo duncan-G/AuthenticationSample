@@ -104,10 +104,11 @@ if [ -z "$ASPIRE_BROWSER_TOKEN" ]; then
 fi
 
 # Start Docker Swarm
-echo "Starting Docker Swarm"
 if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" == "active" ]; then
+    echo "Leaving existing Docker Swarm"
     docker swarm leave --force
 fi
+echo "Initializing Docker Swarm"
 docker swarm init
 
 # Create network

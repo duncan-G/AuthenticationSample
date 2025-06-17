@@ -27,7 +27,8 @@
         "iam:CreatePolicy",
         "iam:GetPolicy",
         "iam:ListPolicyVersions",
-        "iam:DeletePolicy"
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion"
       ],
       "Resource": "arn:aws:iam::*:policy/TerraformGitHubActionsOIDCPolicy"
     },

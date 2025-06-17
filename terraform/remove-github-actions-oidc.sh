@@ -169,6 +169,30 @@ delete_iam_policy() {
     POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/TerraformGitHubActionsOIDCPolicy"
     
     if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "$POLICY_ARN" &> /dev/null; then
+        # Get all policy versions
+        print_info "Checking for policy versions..."
+        POLICY_VERSIONS=$(aws iam list-policy-versions \
+            --profile "$AWS_PROFILE" \
+            --policy-arn "$POLICY_ARN" \
+            --query 'Versions[?IsDefaultVersion==`false`].VersionId' \
+            --output text 2>/dev/null)
+        
+        # Delete non-default versions
+        if [ -n "$POLICY_VERSIONS" ]; then
+            print_info "Found non-default policy versions. Deleting them..."
+            for version in $POLICY_VERSIONS; do
+                print_info "Deleting policy version: $version"
+                aws iam delete-policy-version \
+                    --profile "$AWS_PROFILE" \
+                    --policy-arn "$POLICY_ARN" \
+                    --version-id "$version"
+            done
+            print_success "All non-default policy versions deleted"
+        else
+            print_info "No non-default policy versions found"
+        fi
+        
+        # Now delete the policy
         aws iam delete-policy \
             --profile "$AWS_PROFILE" \
             --policy-arn "$POLICY_ARN"
