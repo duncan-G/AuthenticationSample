@@ -6,7 +6,7 @@ Automated setup and management scripts for Terraform CI/CD pipeline with GitHub 
 
 This directory contains automated scripts to setup your Terraform CI/CD pipeline infrastructure:
 
-### 🚀 `setup-pipeline.sh` - Pipeline Setup Script
+### 🚀 `setup-github-actions-oidc.sh` - Pipeline Setup Script
 
 Interactive script that automatically creates all required AWS resources for GitHub Actions OIDC authentication.
 
@@ -19,10 +19,10 @@ Interactive script that automatically creates all required AWS resources for Git
 **Usage:**
 ```bash
 # Run with your configured AWS SSO profile
-AWS_PROFILE=your-profile ./setup-pipeline.sh
+AWS_PROFILE=your-profile ./setup-github-actions-oidc.sh
 
 # Or run interactively (script will prompt for profile)
-./setup-pipeline.sh
+./setup-github-actions-oidc.sh
 ```
 
 **Interactive prompts:**
@@ -31,9 +31,9 @@ AWS_PROFILE=your-profile ./setup-pipeline.sh
 - Repository name
 - AWS region (default: `us-west-1`)
 
-**Required AWS permissions:** Uses the `setup-pipeline-permissions.json` permission set for minimal, secure access.
+**Required AWS permissions:** Uses the `github-actions-terraform-policy.json` permission set for minimal, secure access.
 
-### 🗑️ `cleanup-pipeline.sh` - Pipeline Cleanup Script
+### 🗑️ `remove-github-actions-oidc.sh` - Pipeline Cleanup Script
 
 Safely removes all AWS resources created by the setup script.
 
@@ -45,10 +45,10 @@ Safely removes all AWS resources created by the setup script.
 **Usage:**
 ```bash
 # Run with your configured AWS SSO profile
-AWS_PROFILE=your-profile ./cleanup-pipeline.sh
+AWS_PROFILE=your-profile ./remove-github-actions-oidc.sh
 
 # Or run interactively
-./cleanup-pipeline.sh
+./remove-github-actions-oidc.sh
 ```
 
 ### 🐳 Docker Swarm Setup Scripts
@@ -91,7 +91,7 @@ Before running this setup, configure IAM Identity Center with the appropriate pe
 4. **Description:** "Minimal permissions for terraform pipeline setup"
 5. **Session duration:** 1 hour (or as needed)
 6. **Permissions policies** → **Create a custom permissions policy**
-7. **Click JSON tab** and paste the contents from `setup-pipeline-permissions.json`
+7. **Click JSON tab** and paste the contents from `github-actions-terraform-policy.json`
 8. **Click Next** → **Create permission set**
 
 #### Step 3: Create or Add User
@@ -146,7 +146,7 @@ Add this secret to your GitHub repository (Settings → Secrets → Actions):
 
 1. **Setup the pipeline:**
    ```bash
-   ./setup-pipeline.sh
+   ./setup-github-actions-oidc.sh
    ```
 
 2. **Add AWS_ACCOUNT_ID to GitHub secrets**
@@ -184,7 +184,7 @@ The Terraform configuration creates:
 When you're done, remove all pipeline infrastructure:
 
 ```bash
-./cleanup-pipeline.sh
+./remove-github-actions-oidc.sh
 ```
 
 ## 📋 Local Development

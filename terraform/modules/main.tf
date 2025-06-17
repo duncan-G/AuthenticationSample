@@ -53,6 +53,8 @@ variable "private_instance_type" {
 # This ensures we always get the latest patched Amazon Linux 2023 base image
 # Used as the base image when launching EC2 instances
 
+# NOTE: We will currently only deploy to 1 AZ. If High Availability is needed, we will need to add more AZs.
+
 ########################
 
 data "aws_availability_zones" "available" {}

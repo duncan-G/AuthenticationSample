@@ -145,30 +145,6 @@ create_oidc_provider() {
 create_iam_policy() {
     print_info "Creating IAM policy..."
     
-    cat > terraform-policy.json << EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ec2:*",
-        "iam:*",
-        "ssm:*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "sts:GetCallerIdentity"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-EOF
-
     # Check if policy already exists
     if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/TerraformGitHubActionsOIDCPolicy" &> /dev/null; then
         print_warning "IAM policy already exists, skipping creation"
@@ -176,7 +152,7 @@ EOF
         aws iam create-policy \
             --profile "$AWS_PROFILE" \
             --policy-name TerraformGitHubActionsOIDCPolicy \
-            --policy-document file://terraform-policy.json
+            --policy-document file://terraform/terraform-policy.json
         print_success "IAM policy created"
     fi
 }
@@ -185,29 +161,11 @@ EOF
 create_trust_policy() {
     print_info "Creating trust policy..."
     
-    cat > trust-policy.json << EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": [
-            "repo:${GITHUB_REPO_FULL}:environment:terraform-staging",
-            "repo:${GITHUB_REPO_FULL}:environment:terraform-production"
-          ]
-        }
-      }
-    }
-  ]
-}
-EOF
+    # Substitute variables in trust-policy.json and write to a temp file
+    sed \
+        -e "s|\\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
+        -e "s|\\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
+        terraform/github-trust-policy.json > github-trust-policy.json
     print_success "Trust policy created"
 }
 
@@ -221,7 +179,7 @@ create_iam_role() {
         aws iam update-assume-role-policy \
             --profile "$AWS_PROFILE" \
             --role-name GitHubActionsTerraform \
-            --policy-document file://trust-policy.json
+            --policy-document file://github-trust-policy.json
     else
         aws iam create-role \
             --profile "$AWS_PROFILE" \
@@ -242,7 +200,7 @@ create_iam_role() {
 # Function to cleanup temporary files
 cleanup() {
     print_info "Cleaning up temporary files..."
-    rm -f terraform-policy.json trust-policy.json
+    rm -f github-trust-policy.json
     print_success "Cleanup completed"
 }
 
