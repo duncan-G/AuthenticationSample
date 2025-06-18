@@ -1,11 +1,11 @@
-name: 'Terraform Infrastructure'
+name: 'Infrastructure Release'
 
 on:
   # Manual trigger with choice of action
   workflow_dispatch:
     inputs:
       action:
-        description: 'Terraform Action'
+        description: 'Infrastructure Action'
         required: true
         default: 'plan'
         type: choice
@@ -25,12 +25,12 @@ on:
   # Automatic plan on pull requests
   pull_request:
     branches: [ main ]
-    paths: [ 'terraform/modules/**' ]
+    paths: [ 'Infrastructure/modules/**' ]
 
   # Only plan on main branch pushes (no auto-deploy)
   push:
     branches: [ main ]
-    paths: [ 'terraform/modules/**' ]
+    paths: [ 'Infrastructure/modules/**' ]
 
 env:
   AWS_DEFAULT_REGION: us-west-1
@@ -56,7 +56,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./terraform/modules
+        working-directory: ./Infrastructure/modules
 
     outputs:
       plan-exitcode: ${{ steps.plan.outputs.exitcode }}
@@ -109,11 +109,8 @@ jobs:
         WORKSPACE="${{ github.event.inputs.environment || 'terraform-staging' }}"
         echo "🏗️  Setting up workspace: $WORKSPACE"
         
-        # Create workspace if it doesn't exist
-        if ! terraform workspace select "$WORKSPACE" 2>/dev/null; then
-          echo "Creating new workspace: $WORKSPACE"
-          terraform workspace new "$WORKSPACE"
-        fi
+        # Use -or-create flag to automatically create workspace if it doesn't exist
+        terraform workspace select -or-create "$WORKSPACE"
         
         echo "Current workspace: $(terraform workspace show)"
 
@@ -282,7 +279,7 @@ jobs:
     - name: Setup Workspace
       run: |
         WORKSPACE="${{ github.event.inputs.environment }}"
-        terraform workspace select "$WORKSPACE"
+        terraform workspace select -or-create "$WORKSPACE"
         echo "Current workspace: $(terraform workspace show)"
 
     - name: Download Plan File
