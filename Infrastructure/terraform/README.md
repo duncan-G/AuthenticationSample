@@ -203,4 +203,63 @@ terraform apply
 - Scripts include colorized output and progress indicators
 - All operations are idempotent (safe to run multiple times)
 - Resources are tagged for easy identification
-- Scripts validate AWS CLI access before proceeding 
+- Scripts validate AWS CLI access before proceeding
+
+# Terraform Infrastructure
+
+This directory contains the Terraform configuration for the authentication sample application infrastructure.
+
+## Backend Configuration
+
+The Terraform state is stored in an S3 bucket using partial backend configuration. The bucket name is provided via environment variables in the CI/CD pipeline.
+
+### Required Environment Variables
+
+In your GitHub repository secrets, you need to set:
+
+- `TF_STATE_BUCKET`: The name of the S3 bucket where Terraform state will be stored
+- `AWS_ACCOUNT_ID`: Your AWS account ID for IAM role assumption
+
+### Setting up GitHub Secrets
+
+1. Go to your GitHub repository
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Add the following secrets:
+   - `TF_STATE_BUCKET`: Your S3 bucket name (e.g., `my-terraform-state-bucket`)
+   - `AWS_ACCOUNT_ID`: Your AWS account ID
+
+### Local Development
+
+For local development, you can set the environment variable:
+
+```bash
+export TF_STATE_BUCKET="your-terraform-state-bucket"
+terraform init -backend-config="bucket=$TF_STATE_BUCKET"
+```
+
+### CI/CD Pipeline
+
+The GitHub Actions workflow automatically uses the `TF_STATE_BUCKET` secret to configure the backend during `terraform init`.
+
+## Usage
+
+The infrastructure supports multiple environments through Terraform workspaces:
+
+- `terraform-staging`: Staging environment
+- `terraform-production`: Production environment
+
+### Manual Deployment
+
+1. Go to **Actions** → **Infrastructure Release**
+2. Choose your action:
+   - `plan`: Generate a plan without applying
+   - `deploy`: Apply infrastructure changes
+   - `destroy`: Destroy infrastructure (use with caution)
+3. Select the target environment
+4. Click **Run workflow**
+
+### Automatic Planning
+
+- Pull requests to `main` branch automatically trigger a Terraform plan
+- The plan results are posted as a comment on the PR
+- No automatic deployment occurs - manual approval is required 

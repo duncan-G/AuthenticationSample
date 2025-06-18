@@ -25,12 +25,12 @@ on:
   # Automatic plan on pull requests
   pull_request:
     branches: [ main ]
-    paths: [ 'Infrastructure/modules/**' ]
+    paths: [ 'Infrastructure/terraform/modules/**' ]
 
   # Only plan on main branch pushes (no auto-deploy)
   push:
     branches: [ main ]
-    paths: [ 'Infrastructure/modules/**' ]
+    paths: [ 'Infrastructure/terraform/modules/**' ]
 
 env:
   AWS_DEFAULT_REGION: us-west-1
@@ -56,7 +56,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./Infrastructure/modules
+        working-directory: ./Infrastructure/terraform/modules
 
     outputs:
       plan-exitcode: ${{ steps.plan.outputs.exitcode }}
@@ -94,7 +94,19 @@ jobs:
       id: init
       run: |
         echo "🔧 Initializing Terraform..."
-        terraform init -no-color
+        
+        # Use environment variable for S3 bucket name
+        TF_STATE_BUCKET="${{ secrets.TF_STATE_BUCKET }}"
+        
+        if [ -z "$TF_STATE_BUCKET" ]; then
+          echo "❌ Error: TF_STATE_BUCKET environment variable is not set"
+          exit 1
+        fi
+        
+        # Initialize with partial backend configuration
+        terraform init \
+          -backend-config="bucket=$TF_STATE_BUCKET" \
+          -no-color
         
         # Verify backend configuration
         if ! terraform state list > /dev/null 2>&1; then
@@ -171,7 +183,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: terraform-plan-${{ github.event.inputs.environment || 'terraform-staging' }}-${{ github.run_id }}
-        path: Infrastructure/modules/tfplan-*
+        path: Infrastructure/terraform/modules/tfplan-*
         retention-days: 5
 
     - name: Update Pull Request
@@ -254,7 +266,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ./Infrastructure/modules
+        working-directory: ./Infrastructure/terraform/modules
 
     steps:
     - name: Checkout
@@ -274,7 +286,18 @@ jobs:
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
     - name: Terraform Init
-      run: terraform init -no-color
+      run: |
+        TF_STATE_BUCKET="${{ secrets.TF_STATE_BUCKET }}"
+        
+        if [ -z "$TF_STATE_BUCKET" ]; then
+          echo "❌ Error: TF_STATE_BUCKET environment variable is not set"
+          exit 1
+        fi
+        
+        # Initialize with partial backend configuration
+        terraform init \
+          -backend-config="bucket=$TF_STATE_BUCKET" \
+          -no-color
 
     - name: Setup Workspace
       run: |
@@ -286,7 +309,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: terraform-plan-${{ github.event.inputs.environment }}-${{ github.run_id }}
-        path: Infrastructure/modules/
+        path: Infrastructure/terraform/modules/
 
     - name: Terraform Apply
       id: apply

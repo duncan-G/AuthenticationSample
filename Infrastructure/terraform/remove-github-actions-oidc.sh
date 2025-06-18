@@ -98,15 +98,26 @@ get_user_input() {
     # Get AWS profile name
     prompt_user "Enter your AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
     
+    # Get GitHub organization/username
+    prompt_user "Enter your GitHub username/organization" "GITHUB_ORG"
+    
+    # Get repository name
+    prompt_user "Enter your repository name" "GITHUB_REPO"
+    
+    # Construct full repo name
+    GITHUB_REPO_FULL="${GITHUB_ORG}/${GITHUB_REPO}"
+    
     echo
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"
+    echo "  GitHub Repository: $GITHUB_REPO_FULL"
     echo
     
     print_warning "This will DELETE the following resources:"
     echo "  • IAM Role: GitHubActionsTerraform"
     echo "  • IAM Policy: TerraformGitHubActionsOIDCPolicy"
     echo "  • OIDC Provider: token.actions.githubusercontent.com"
+    echo "  • S3 Bucket: Terraform state backend (manual deletion required)"
     echo
     
     read -p "$(echo -e ${RED}Are you sure you want to delete these resources? ${NC}[y/N]: )" confirm
@@ -219,6 +230,29 @@ delete_oidc_provider() {
     fi
 }
 
+# Function to provide instructions for S3 bucket cleanup
+display_state_bucket_cleanup_instructions() {
+    
+    # Recalculate the bucket name using the same logic as setup script
+    BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
+    BUCKET_NAME="terraform-state-${BUCKET_HASH}"
+
+    echo
+    print_warning "S3 bucket cleanup is not automated for safety reasons."
+    echo
+    print_info "To manually delete the S3 bucket, run these commands:"
+    echo
+    echo -e "${YELLOW}# Delete all objects in the bucket:${NC}"
+    echo -e "${GREEN}aws s3 rm s3://$BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
+    echo
+    echo -e "${YELLOW}# Delete the bucket:${NC}"
+    echo -e "${GREEN}aws s3api delete-bucket --bucket $BUCKET_NAME --profile $AWS_PROFILE${NC}"
+    echo
+    print_warning "⚠️  WARNING: This will permanently delete your Terraform state!"
+    print_info "Make sure you have backed up your state or are certain you want to delete it."
+    echo
+}
+
 # Function to display final summary
 display_final_summary() {
     echo
@@ -228,14 +262,18 @@ display_final_summary() {
     echo "  ✅ IAM Role: GitHubActionsTerraform"
     echo "  ✅ IAM Policy: TerraformGitHubActionsOIDCPolicy"
     echo "  ✅ OIDC Provider: token.actions.githubusercontent.com"
+    echo "  ℹ️  S3 Bucket: Manual deletion required (see instructions above)"
     echo
     print_info "Additional cleanup steps:"
     echo "1. Remove the AWS_ACCOUNT_ID secret from your GitHub repository:"
     echo "   Settings → Secrets and variables → Actions → Delete 'AWS_ACCOUNT_ID'"
     echo
-    echo "2. Your GitHub Actions workflow will no longer work until you:"
-    echo "   • Run setup-pipeline.sh again, OR"
-    echo "   • Set up alternative AWS credentials"
+    echo "2. Remove the TF_STATE_BUCKET secret from your GitHub repository:"
+    echo "   Settings → Secrets and variables → Actions → Delete 'TF_STATE_BUCKET'"
+    echo
+    echo "3. Your GitHub Actions workflow will no longer work until you:"
+    echo "   • Run setup-github-actions-oidc.sh again, OR"
+    echo "   • Set up AWS permissions in AWS Dashboard"
     echo
     print_warning "Note: This cleanup does NOT delete your terraform infrastructure."
     print_info "To delete infrastructure, run: terraform destroy"
@@ -259,6 +297,7 @@ main() {
     delete_oidc_provider
     
     display_final_summary
+    display_state_bucket_cleanup_instructions
 }
 
 # Run main function

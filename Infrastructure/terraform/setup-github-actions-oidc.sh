@@ -141,6 +141,28 @@ create_oidc_provider() {
     fi
 }
 
+# Function to create S3 bucket for Terraform state
+create_terraform_state_backend() {
+    print_info "Creating S3 bucket for Terraform state backend..."
+
+    # Generate a unique bucket name using a hash of account ID and repo
+    BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
+    BUCKET_NAME="terraform-state-${BUCKET_HASH}"
+    
+    print_info "Generated bucket name: $BUCKET_NAME"
+
+    # Create S3 bucket if it doesn't exist
+    if ! aws s3api head-bucket --bucket "$BUCKET_NAME" --profile "$AWS_PROFILE" 2>/dev/null; then
+        aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
+        print_success "S3 bucket $BUCKET_NAME created."
+    else
+        print_warning "S3 bucket $BUCKET_NAME already exists."
+    fi
+
+    # Enable versioning on the bucket
+    aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
+}
+
 # Function to create IAM policy
 create_iam_policy() {
     print_info "Creating IAM policy..."
@@ -228,14 +250,20 @@ display_final_instructions() {
     print_success "🎉 Pipeline setup completed successfully!"
     echo
     print_info "Next steps:"
-    echo "1. Add this secret to your GitHub repository:"
+    echo "1. Add these secrets to your GitHub repository:"
     echo "   Settings → Secrets and variables → Actions → New repository secret"
     echo
     echo -e "${YELLOW}   Secret Name: ${NC}AWS_ACCOUNT_ID"
     echo -e "${YELLOW}   Secret Value: ${NC}$AWS_ACCOUNT_ID"
     echo
+    echo -e "${YELLOW}   Secret Name: ${NC}TF_STATE_BUCKET"
+    echo -e "${YELLOW}   Secret Value: ${NC}$BUCKET_NAME"
+    echo
     echo "2. Your IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/GitHubActionsTerraform${NC}"
+    echo
+    echo "3. Your Terraform State Bucket:"
+    echo -e "${GREEN}   $BUCKET_NAME${NC}"
     echo
     print_info "You can now use the GitHub Actions workflow!"
     echo "   • Manual: Actions → 'Terraform Infrastructure' → Run workflow"
@@ -255,6 +283,7 @@ main() {
     print_info "Starting pipeline setup..."
     
     create_oidc_provider
+    create_terraform_state_backend
     create_iam_policy
     create_trust_policy
     create_iam_role

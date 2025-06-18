@@ -14,6 +14,13 @@ terraform {
       version = "~> 0.9"
     }
   }
+  backend "s3" {
+    # Partial configuration - bucket will be provided via environment variable
+    # or command line during terraform init
+    key            = "auth-sample/terraform.tfstate"
+    region         = "us-west-1"
+    encrypt        = true
+  }
 }
 
 provider "aws" {

@@ -138,4 +138,4 @@ docker secret create aspnetapp.pfx "$cert_dir/aspnetapp.pfx"
 # Run Aspire Dashboard
 echo "Running Aspire Dashboard"
 env ASPIRE_BROWSER_TOKEN=$ASPIRE_BROWSER_TOKEN \
-    docker stack deploy --compose-file Microservices/.builds/aspire/aspire.stack.debug.yaml aspire
+    docker stack deploy --compose-file Infrastructure/aspire/aspire.stack.debug.yaml aspire

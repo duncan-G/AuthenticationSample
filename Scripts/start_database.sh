@@ -72,7 +72,7 @@ env PGADMIN_PATH="$working_dir/Microservices/.builds/postgres/pg_admin" \
     DATABASE_NAME=$DATABASE_NAME \
     DATABASE_USER=$DATABASE_USER \
     DATABASE_PASSWORD=$DATABASE_PASSWORD \
-    docker stack deploy --compose-file Microservices/.builds/postgres/postgres.stack.debug.yaml postgres
+    docker stack deploy --compose-file Infrastructure/postgres/postgres.stack.debug.yaml postgres
 
 # Run Schema Builders
 if [ "$rebuild" = true ]; then
