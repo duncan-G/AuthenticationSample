@@ -53,6 +53,7 @@
         "ec2:DeleteRouteTable",
         "ec2:CreateRoute",
         "ec2:DeleteRoute",
+        "ec2:DescribeVpcs",
         "ec2:CreateInternetGateway",
         "ec2:DeleteInternetGateway",
         "ec2:CreateNatGateway",
