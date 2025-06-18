@@ -213,10 +213,10 @@ if [ "$start_all" = true ]; then
     backend_environment=true
     client=true
     microservices=true
-    proxy=true
     
     # If starting all in containers, set container flags
     if [ "$start_all_containers" = true ]; then
+        proxy=true
         client_container=true
         containerize_microservices=true
     fi

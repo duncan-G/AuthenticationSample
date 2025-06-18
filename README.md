@@ -13,6 +13,13 @@ A modern, production-ready authentication system built with microservices archit
 - **🔐 TLS/SSL**: Automatic certificate generation and management
 - **📈 Production Ready**: Includes logging, monitoring, and health checks
 
+## 🔒 Security Notes
+
+- All `.env` and `.env.docker` files are git-ignored
+- `.env.template` files are committed to the repository
+- Never commit sensitive values in environment files
+- Use strong, unique passwords for each environment
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -82,7 +89,7 @@ The `start.sh` script provides granular control over which components to start:
 # Microservices (containerized)
 ./start.sh -M
 
-# API Gateway (Envoy proxy)
+# API Gateway (Envoy proxy) Only needed when using containers
 ./start.sh -p
 
 # Frontend application
