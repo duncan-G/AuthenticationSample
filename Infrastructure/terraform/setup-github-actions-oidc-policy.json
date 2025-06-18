@@ -59,7 +59,7 @@
       ],
       "Resource": [
         "arn:aws:s3:::terraform-state-*",
-        "arn:aws:s3:::terraform-state-*/"
+        "arn:aws:s3:::terraform-state-*/*"
       ]
     }
   ]
