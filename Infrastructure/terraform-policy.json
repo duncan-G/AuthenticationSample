@@ -45,6 +45,7 @@
       "Sid": "VPCManagement",
       "Effect": "Allow",
       "Action": [
+        "ec2:DescribeVpcs",
         "ec2:CreateVpc",
         "ec2:DeleteVpc",
         "ec2:CreateSubnet",
