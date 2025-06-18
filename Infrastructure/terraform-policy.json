@@ -45,6 +45,7 @@
       "Sid": "VPCManagement",
       "Effect": "Allow",
       "Action": [
+        "ec2:DescribeVpcs",
         "ec2:CreateVpc",
         "ec2:DeleteVpc",
         "ec2:CreateSubnet",
@@ -53,7 +54,6 @@
         "ec2:DeleteRouteTable",
         "ec2:CreateRoute",
         "ec2:DeleteRoute",
-        "ec2:DescribeVpcs",
         "ec2:CreateInternetGateway",
         "ec2:DeleteInternetGateway",
         "ec2:CreateNatGateway",
