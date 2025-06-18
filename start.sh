@@ -14,11 +14,15 @@ clean_database=false
 microservices=false
 containerize_microservices=false
 proxy=false
+start_all=false
+start_all_containers=false
 
 # Help message
 show_help() {
     echo "Usage: $0 [options]"
     echo "Options:"
+    echo "  -a, --all                           Start all services"
+    echo "  -A, --all-containers                Start all services with microservices in containers"
     echo "  -c, --client                        Start the client application"
     echo "  -C, --client-container              Start the client when running server in containers"
     echo "  -b, --backend                       Start the backend environment"
@@ -33,8 +37,10 @@ show_help() {
 }
 
 # Parse options
-while getopts ":cCbBDdMmp-:" opt; do
+while getopts ":aAcCbBDdMmp-:" opt; do
     case ${opt} in
+        a ) start_all=true ;;
+        A ) start_all=true; start_all_containers=true ;;
         c ) client=true ;;
         C ) client=true; client_container=true ;;
         b ) backend_environment=true ;;
@@ -46,6 +52,8 @@ while getopts ":cCbBDdMmp-:" opt; do
         p ) proxy=true ;;
         h ) show_help ;;
         - ) case "${OPTARG}" in
+            all ) start_all=true ;;
+            all-containers ) start_all=true; start_all_containers=true ;;
             client ) client=true ;;
             client-container ) client=true; client_container=true ;;
             backend ) backend_environment=true ;;
@@ -120,7 +128,7 @@ validate_env_file() {
 # Function to start the client
 start_client() {
     echo "Starting client application..."
-    script_path="./scripts/start_client.sh"
+    script_path="./Scripts/start_client.sh"
     if [ "$client_container" = true ]; then
         "$script_path" --container
     else
@@ -131,7 +139,7 @@ start_client() {
 # Function to start the backend environment
 start_backend_environment() {
     echo "Starting backend environment..."
-    script_path="./scripts/start_backend_environment.sh"
+    script_path="./Scripts/start_backend_environment.sh"
     if [ "$generate_certificate" = true ]; then
         "$script_path" --certificate
     else
@@ -142,7 +150,7 @@ start_backend_environment() {
 # Function to handle database
 handle_database() {
     echo "Starting database..."
-    script_path="./scripts/start_database.sh"
+    script_path="./Scripts/start_database.sh"
     if [ "$clean_database" = true ]; then
         "$script_path" --clean
     else
@@ -153,7 +161,7 @@ handle_database() {
 # Function to start the microservices
 start_microservices() {
     echo "Starting microservices..."
-    script_path="./scripts/start_microservices.sh"
+    script_path="./Scripts/start_microservices.sh"
     if [ "$containerize_microservices" = true ]; then
         "$script_path" --containerize
     else
@@ -164,7 +172,7 @@ start_microservices() {
 # Function to start the proxy
 start_proxy() {
     echo "Starting proxy..."
-    script_path="./scripts/start_proxy.sh"
+    script_path="./Scripts/start_proxy.sh"
     "$script_path"
 }
 
@@ -194,10 +202,24 @@ if [ -z "$CERTIFICATE_PASSWORD" ]; then
     exit 1
 fi
 
-
 # If no options are provided, show help
-if [ "$client" = false ] && [ "$backend_environment" = false ] && [ "$database" = false ] && [ "$microservices" = false ] && [ "$proxy" = false ]; then
+if [ "$client" = false ] && [ "$backend_environment" = false ] && [ "$database" = false ] && [ "$microservices" = false ] && [ "$proxy" = false ] && [ "$start_all" = false ]; then
     show_help
+fi
+
+# Handle start all flags
+if [ "$start_all" = true ]; then
+    database=true
+    backend_environment=true
+    client=true
+    microservices=true
+    proxy=true
+    
+    # If starting all in containers, set container flags
+    if [ "$start_all_containers" = true ]; then
+        client_container=true
+        containerize_microservices=true
+    fi
 fi
 
 # Start components based on flags
