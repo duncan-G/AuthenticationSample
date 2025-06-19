@@ -12,7 +12,7 @@
 
 ## Terraform CI/CD pipeline
 
-Terraform running on Github Actions requires permissions to manipulate AWS resources. This documentation covers how to set that up.
+Terraform running on Github Actions requires permissions to manipulate AWS resources. The following covers how to set that up.
 
 
 ### 🔐 Prerequisites
