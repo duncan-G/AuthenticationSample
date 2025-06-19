@@ -109,9 +109,10 @@ Add the following secrets to repository (Settings → Secrets → Actions):
 |--------|-------|
 | `AWS_ACCOUNT_ID` | Your AWS Account ID |
 | `TF_APP_NAME` | Your chosen app name (kebab case preferred) |
-| `TF_STATE_BUCKET` | Bucket name that was created when  `setup-github-actions-oidc.sh` was executed.
+| `TF_STATE_BUCKET` | Bucket name that was created when  `setup-github-actions-oidc.sh` was executed. |
 
-
+**Optional Environment Variables:**
+- `AWS_DEFAULT_REGION` - AWS region for infrastructure deployment (defaults to `us-west-1`)
 
 ### 🚀 GitHub Actions Usage
 (See `<APP_ROOT>/.github/workflows/infrastrucutre-release.yml`)

@@ -17,8 +17,8 @@ terraform {
   backend "s3" {
     # Partial configuration - bucket will be provided via environment variable
     # or command line during terraform init
-    key     = "auth-sample/terraform.tfstate"
-    region  = "us-west-1"
+    key     = "${var.app_name}/terraform.tfstate"
+    region  = var.region
     encrypt = true
   }
 }
@@ -32,9 +32,8 @@ provider "aws" {
 ########################
 
 variable "region" {
-  description = "AWS region for all resources"
+  description = "AWS region for all resources (Set ia TF_VAR_region environment variable)"
   type        = string
-  default     = "us-west-1"
 }
 
 variable "public_instance_type" {

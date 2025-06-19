@@ -33,7 +33,7 @@ on:
     paths: [ 'Infrastructure/terraform/modules/**' ]
 
 env:
-  AWS_DEFAULT_REGION: us-west-1
+  AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION || 'us-west-1' }}
   TERRAFORM_VERSION: "1.12.2"
   TF_VAR_app_name: ${{ secrets.TF_APP_NAME }}
   
