@@ -39,7 +39,7 @@ variable "region" {
 variable "public_instance_type" {
   description = "EC2 instance type for the public instance"
   type        = string
-  default     = "t3.micro"
+  default     = "t4g.micro"
 }
 
 variable "private_instance_type" {
@@ -80,7 +80,12 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-x86_64-*"]
+    values = ["al2023-ami-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["arm64"]
   }
 }
 
