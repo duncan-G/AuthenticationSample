@@ -18,7 +18,7 @@ terraform {
     # Partial configuration (because variables are not allowed in backend config) -
     # bucket will be provided via command line during terraform init.
     # See .github/workflows/infrastructure-release.yml for more details.
-    key = "terraform.tfstate"
+    key     = "terraform.tfstate"
     encrypt = true
   }
 }
