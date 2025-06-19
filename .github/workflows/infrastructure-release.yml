@@ -36,7 +36,7 @@ env:
   AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION || 'us-west-1' }}
   TERRAFORM_VERSION: "1.12.2"
   TF_VAR_app_name: ${{ secrets.TF_APP_NAME }}
-  TF_VAR_region: ${{ env.AWS_DEFAULT_REGION }}
+  TF_VAR_region: ${{ vars.AWS_DEFAULT_REGION || 'us-west-1' }}
   
 permissions:
   contents: read
