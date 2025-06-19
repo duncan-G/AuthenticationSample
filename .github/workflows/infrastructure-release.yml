@@ -81,6 +81,22 @@ jobs:
         role-session-name: GitHubActions-Terraform-${{ github.run_id }}
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
+    - name: Get and Decode OIDC Token
+      id: oidc-token
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const id = await core.getIDToken()
+          core.setOutput('token', id)
+          console.log('🔍 OIDC Token retrieved successfully')
+
+    - name: Display OIDC Claims
+      run: |
+        TOKEN="${{ steps.oidc-token.outputs.token }}"
+        echo "::add-mask::$TOKEN"
+        echo "🔍 Decoding OIDC token claims..."
+        echo "$TOKEN" | cut -d'.' -f2 | base64 -d | jq '{sub,aud,iss,iat,exp,repository,ref,sha,actor,event_name,workflow,run_id,run_number,job}'
+
     - name: Terraform Format Check
       id: fmt
       run: |

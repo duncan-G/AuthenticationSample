@@ -217,7 +217,11 @@ delete_iam_policy() {
 delete_oidc_provider() {
     print_info "Deleting OIDC provider..."
     
-    OIDC_ARN="arn:aws:iam::${AWS_ACCOUNT_o
+    OIDC_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+    
+    if aws iam get-open-id-connect-provider --profile "$AWS_PROFILE" --open-id-connect-provider-arn "$OIDC_ARN" &> /dev/null; then
+        aws iam delete-open-id-connect-provider \
+            --profile "$AWS_PROFILE" \
             --open-id-connect-provider-arn "$OIDC_ARN"
         print_success "OIDC provider deleted"
     else
