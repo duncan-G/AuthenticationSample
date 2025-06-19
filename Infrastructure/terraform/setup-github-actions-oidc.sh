@@ -93,16 +93,18 @@ get_aws_account_id() {
 # Function to get user input
 get_user_input() {
     print_info "Please provide the following information:"
-    echo
     
-    # Get AWS profile name
-    prompt_user "Enter your AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
+    # Get AWS profile
+    prompt_user "Enter AWS profile name" "AWS_PROFILE" "terraform-setup"
     
     # Get GitHub organization/username
     prompt_user "Enter your GitHub username/organization" "GITHUB_ORG"
     
     # Get repository name
     prompt_user "Enter your repository name" "GITHUB_REPO"
+    
+    # Get app name for Terraform resource naming
+    prompt_user "Enter application name (used for Terraform resource naming)" "TF_APP_NAME"
     
     # Get AWS region
     prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
@@ -114,6 +116,7 @@ get_user_input() {
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"
     echo "  GitHub Repository: $GITHUB_REPO_FULL"
+    echo "  Terraform App Name: $TF_APP_NAME"
     echo "  AWS Region: $AWS_REGION"
     echo
     
@@ -168,17 +171,19 @@ create_iam_policy() {
     print_info "Creating IAM policy..."
     
     # Check if policy already exists
-    if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/TerraformGitHubActionsOIDCPolicy" &> /dev/null; then
+    if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/terraform-github-actions-oidc-policy" &> /dev/null; then
         print_warning "IAM policy already exists, skipping creation"
     else
         # Substitute variables in terraform-policy.json and write to a temp file
         sed \
+            -e "s|\${APP_NAME}|$TF_APP_NAME|g" \
             -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
+            -e "s|\${BUCKET_NAME}|$BUCKET_NAME|g" \
             terraform-policy.json > terraform-policy-temp.json
         
         aws iam create-policy \
             --profile "$AWS_PROFILE" \
-            --policy-name TerraformGitHubActionsOIDCPolicy \
+            --policy-name terraform-github-actions-oidc-policy \
             --policy-document file://terraform-policy-temp.json
         print_success "IAM policy created"
     fi
@@ -193,14 +198,6 @@ create_trust_policy() {
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
         github-trust-policy.json > github-trust-policy-temp.json
-    
-    # Debug: Show what was actually created
-    print_info "Generated trust policy file content:"
-    cat github-trust-policy-temp.json
-    print_info "File size: $(wc -c < github-trust-policy-temp.json) bytes"
-    print_info "Absolute file path: $(pwd)/github-trust-policy-temp.json"
-    print_info "File permissions: $(ls -la github-trust-policy-temp.json)"
-    
     print_success "Trust policy created"
 }
 
@@ -212,17 +209,17 @@ create_iam_role() {
     TRUST_POLICY_PATH="$(pwd)/github-trust-policy-temp.json"
     
     # Check if role already exists
-    if aws iam get-role --profile "$AWS_PROFILE" --role-name GitHubActionsTerraform &> /dev/null; then
+    if aws iam get-role --profile "$AWS_PROFILE" --role-name github-actions-terraform &> /dev/null; then
         print_warning "IAM role already exists, updating trust policy"
         aws iam update-assume-role-policy \
             --profile "$AWS_PROFILE" \
-            --role-name GitHubActionsTerraform \
+            --role-name github-actions-terraform \
             --policy-document "file://$TRUST_POLICY_PATH" \
             --no-cli-pager
     else
         aws iam create-role \
             --profile "$AWS_PROFILE" \
-            --role-name GitHubActionsTerraform \
+            --role-name github-actions-terraform \
             --assume-role-policy-document "file://$TRUST_POLICY_PATH" \
             --no-cli-pager
         print_success "IAM role created"
@@ -231,8 +228,8 @@ create_iam_role() {
     # Attach policy to role
     aws iam attach-role-policy \
         --profile "$AWS_PROFILE" \
-        --role-name GitHubActionsTerraform \
-        --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/TerraformGitHubActionsOIDCPolicy"
+        --role-name github-actions-terraform \
+        --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/terraform-github-actions-oidc-policy"
     
     print_success "Policy attached to role"
 }
@@ -259,8 +256,11 @@ display_final_instructions() {
     echo -e "${YELLOW}   Secret Name: ${NC}TF_STATE_BUCKET"
     echo -e "${YELLOW}   Secret Value: ${NC}$BUCKET_NAME"
     echo
+    echo -e "${YELLOW}   Secret Name: ${NC}TF_APP_NAME"
+    echo -e "${YELLOW}   Secret Value: ${NC}$TF_APP_NAME"
+    echo
     echo "2. Your IAM Role ARN:"
-    echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/GitHubActionsTerraform${NC}"
+    echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
     echo
     echo "3. Your Terraform State Bucket:"
     echo -e "${GREEN}   $BUCKET_NAME${NC}"

@@ -30,7 +30,7 @@
         "iam:DeletePolicy",
         "iam:DeletePolicyVersion"
       ],
-      "Resource": "arn:aws:iam::*:policy/TerraformGitHubActionsOIDCPolicy"
+      "Resource": "arn:aws:iam::*:policy/terraform-github-actions-oidc-policy"
     },
     {
       "Sid": "IAMRolePermissions",
@@ -44,17 +44,15 @@
         "iam:DetachRolePolicy",
         "iam:DeleteRole"
       ],
-      "Resource": "arn:aws:iam::*:role/GitHubActionsTerraform"
+      "Resource": "arn:aws:iam::*:role/github-actions-terraform"
     },
     {
       "Sid": "TerraformStateS3Permissions",
       "Effect": "Allow",
       "Action": [
-        "s3:GetObject",
         "s3:CreateBucket",
-        "s3:PutObject",
-        "s3:DeleteObject",
         "s3:ListBucket",
+        "s3:DeleteBucket",
         "s3:PutBucketVersioning"
       ],
       "Resource": [

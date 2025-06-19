@@ -35,6 +35,7 @@ on:
 env:
   AWS_DEFAULT_REGION: us-west-1
   TERRAFORM_VERSION: "1.12.2"
+  TF_VAR_app_name: ${{ secrets.TF_APP_NAME }}
   
 permissions:
   contents: read
@@ -76,7 +77,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with: 
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsTerraform
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
         role-session-name: GitHubActions-Terraform-${{ github.run_id }}
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
@@ -281,7 +282,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsTerraform
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
         role-session-name: GitHubActions-Terraform-Apply-${{ github.run_id }}
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
 

@@ -114,8 +114,8 @@ get_user_input() {
     echo
     
     print_warning "This will DELETE the following resources:"
-    echo "  • IAM Role: GitHubActionsTerraform"
-    echo "  • IAM Policy: TerraformGitHubActionsOIDCPolicy"
+    echo "  • IAM Role: github-actions-terraform"
+    echo "  • IAM Policy: terraform-github-actions-oidc-policy"
     echo "  • OIDC Provider: token.actions.githubusercontent.com"
     echo "  • S3 Bucket: Terraform state backend (manual deletion required)"
     echo
@@ -138,12 +138,12 @@ get_user_input() {
 detach_policy_from_role() {
     print_info "Detaching policy from IAM role..."
     
-    ROLE_NAME="GitHubActionsTerraform"
-    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/TerraformGitHubActionsOIDCPolicy"
+    ROLE_NAME="github-actions-terraform"
+    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/terraform-github-actions-oidc-policy"
     
     # Check if role exists and has policy attached
     if aws iam get-role --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" &> /dev/null; then
-        if aws iam list-attached-role-policies --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" | grep -q "TerraformGitHubActionsOIDCPolicy"; then
+        if aws iam list-attached-role-policies --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" | grep -q "terraform-github-actions-oidc-policy"; then
             aws iam detach-role-policy \
                 --profile "$AWS_PROFILE" \
                 --role-name "$ROLE_NAME" \
@@ -161,7 +161,7 @@ detach_policy_from_role() {
 delete_iam_role() {
     print_info "Deleting IAM role..."
     
-    ROLE_NAME="GitHubActionsTerraform"
+    ROLE_NAME="github-actions-terraform"
     
     if aws iam get-role --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" &> /dev/null; then
         aws iam delete-role \
@@ -177,7 +177,7 @@ delete_iam_role() {
 delete_iam_policy() {
     print_info "Deleting IAM policy..."
     
-    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/TerraformGitHubActionsOIDCPolicy"
+    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/terraform-github-actions-oidc-policy"
     
     if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "$POLICY_ARN" &> /dev/null; then
         # Get all policy versions
@@ -217,12 +217,7 @@ delete_iam_policy() {
 delete_oidc_provider() {
     print_info "Deleting OIDC provider..."
     
-    OIDC_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
-    
-    # Check if OIDC provider exists
-    if aws iam list-open-id-connect-providers --profile "$AWS_PROFILE" | grep -q "token.actions.githubusercontent.com"; then
-        aws iam delete-open-id-connect-provider \
-            --profile "$AWS_PROFILE" \
+    OIDC_ARN="arn:aws:iam::${AWS_ACCOUNT_o
             --open-id-connect-provider-arn "$OIDC_ARN"
         print_success "OIDC provider deleted"
     else
@@ -230,7 +225,7 @@ delete_oidc_provider() {
     fi
 }
 
-# Function to provide instructions for S3 bucket cleanup
+# Function to provide instructions for S3o bucket cleanup
 display_state_bucket_cleanup_instructions() {
     
     # Recalculate the bucket name using the same logic as setup script
@@ -259,8 +254,8 @@ display_final_summary() {
     print_success "🎉 Pipeline cleanup completed successfully!"
     echo
     print_info "Resources that were processed:"
-    echo "  ✅ IAM Role: GitHubActionsTerraform"
-    echo "  ✅ IAM Policy: TerraformGitHubActionsOIDCPolicy"
+    echo "  ✅ IAM Role: github-actions-terraform"
+    echo "  ✅ IAM Policy: terraform-github-actions-oidc-policy"
     echo "  ✅ OIDC Provider: token.actions.githubusercontent.com"
     echo "  ℹ️  S3 Bucket: Manual deletion required (see instructions above)"
     echo

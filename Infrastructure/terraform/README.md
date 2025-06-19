@@ -1,27 +1,66 @@
-# Terraform CI/CD Pipeline Setup
+# Production Infrastructure
 
-Automated setup and management scripts for Terraform CI/CD pipeline with GitHub Actions and AWS OIDC authentication.
+### Table of Contents
+- [Terraform CI/CD pipeline](#terraform-cicd-pipeline)
+  - [Prerequisites](#prerequisites)
+  - [Setup scripts](#setup-scripts)
+  - [Github repo setup](#github-repo-setup)
+  - [Github actions usage](#github-actions-usage)
+- [Infrastructure](#infrastructure)
+   - [Docker Swarm Setup Scripts](#usage)
 
-## 🛠️ Available Scripts
 
-This directory contains automated scripts to setup your Terraform CI/CD pipeline infrastructure:
+## Terraform CI/CD pipeline
 
-### 🚀 `setup-github-actions-oidc.sh` - Pipeline Setup Script
+Terraform running on Github Actions requires permissions to manipulate AWS resources. This documentation covers how to set that up.
+
+
+### 🔐 Prerequisites
+
+#### AWS IAM Identity Center Setup
+
+Before running this setup, you need to configure IAM Identity Center with a user with permissions defined in `setup-github-actions-oidc-policy.json`.
+
+##### Required Setup Steps
+
+1. **Enable IAM Identity Center** - [AWS Documentation](https://docs.aws.amazon.com/singlesignon/latest/userguide/getting-started-enable-identity-center.html)
+
+2. **Create a Permission Set** with the following policy:
+   - `setup-github-actions-oidc-policy.json`
+3. **Create or assign a user** to your AWS account with the permission set
+
+4. **Configure AWS CLI with SSO**
+##### Quick AWS CLI Setup
+
+After completing the IAM Identity Center setup:
+
+```bash
+aws configure sso --profile terraform-setup
+# Follow the prompts to configure your SSO profile.
+# Note: You can call your profile whatever you want
+
+aws sso login --profile terraform-setup
+```
+
+### 🛠️ Setup Scripts
+
+
+#### 🚀 `setup-github-actions-oidc.sh` - Github Action Permission Setup Script
 
 Interactive script that automatically creates all required AWS resources for GitHub Actions OIDC authentication.
 
 **What it creates:**
-- GitHub OIDC Identity Provider in AWS
-- IAM Policy with Terraform execution permissions
-- IAM Role for GitHub Actions with trust policy
-- Proper trust relationships for your GitHub repository
+- GitHub OIDC Identity Provider
+- S3 bucket to store terraform state
+- IAM Policy with permissions Terraform needs (See `terraform-policy.json`)
+- Trust policy allowing AWS to trust Github actions (See `github-trust-policy.json`)
+- IAM Role with afformentioned policies that GitHub Actions will use when making requests to AWS
+
+> **NOTE:** The name of the S3 Bucket created is `terraform-state-<md5_hash[8]>`, where `md5_hash[8]` is the first 8 characters of an MD5 hash calucated based on AWS Account Id and repository name. The script will print out this hash. You will need in a later step.
 
 **Usage:**
 ```bash
-# Run with your configured AWS SSO profile
-AWS_PROFILE=your-profile ./setup-github-actions-oidc.sh
-
-# Or run interactively (script will prompt for profile)
+# Run interactively (script will prompt for )
 ./setup-github-actions-oidc.sh
 ```
 
@@ -29,27 +68,86 @@ AWS_PROFILE=your-profile ./setup-github-actions-oidc.sh
 - AWS SSO profile name (default: `terraform-setup`)
 - GitHub username/organization
 - Repository name
+- App name (used to tag all AWS resource terraform creates)
 - AWS region (default: `us-west-1`)
 
-**Required AWS permissions:** Uses the `setup-github-actions-oidc-policy.json` permission set for minimal, secure access.
+#### 🗑️ `remove-github-actions-oidc.sh` - Pipeline Cleanup Script
 
-### 🗑️ `remove-github-actions-oidc.sh` - Pipeline Cleanup Script
-
-Safely removes all AWS resources created by the setup script.
+Safely removes most AWS resources created by the setup script.
 
 **What it deletes:**
-- IAM Role: `GitHubActionsTerraform`
-- IAM Policy: `TerraformGitHubActionsOIDCPolicy`
+- IAM Role: `github-actions-terraform`
+- IAM Policy: `terraform-github-actions-oidc-policy`
 - OIDC Provider: `token.actions.githubusercontent.com`
+
+*Does not remove S3 bucket used to store terraform state. You will need to do that manually.*
 
 **Usage:**
 ```bash
-# Run with your configured AWS SSO profile
-AWS_PROFILE=your-profile ./remove-github-actions-oidc.sh
-
-# Or run interactively
+# Run interactively
 ./remove-github-actions-oidc.sh
 ```
+
+
+**Interactive prompts:**
+- AWS SSO profile name (default: `terraform-setup`)
+- GitHub username/organization
+- Repository name
+
+**💡 Pro Tips:**
+- All operations are idempotent (safe to run multiple times)
+- Scripts validate AWS CLI access before proceeding
+
+
+### GitHub Repository Setup
+
+Add `terraform-staging` and `terraform-production` environments to repository. (Settings → Environments → New environment)
+
+Add the following secrets to repository (Settings → Secrets → Actions):
+
+| Secret | Value |
+|--------|-------|
+| `AWS_ACCOUNT_ID` | Your AWS Account ID |
+| `TF_APP_NAME` | Your chosen app name (kebab case preferred) |
+| `TF_STATE_BUCKET` | Bucket name that was created when  `setup-github-actions-oidc.sh` was executed.
+
+
+
+### 🚀 GitHub Actions Usage
+(See `<APP_ROOT>/.github/workflows/infrastrucutre-release.yml`)
+The github action will always plan automatically, but deployment or destruction of the infrastructure must be triggered manually.
+ 
+#### Automatic Planning
+
+- Pull requests to `main` branch automatically trigger a Terraform plan
+- The plan results are posted as a comment on the PR
+- No automatic deployment occurs - manual approval is required
+
+
+#### Manual Workflows:
+
+1. Go to **Actions** → **Infrastructure Release**
+2. Choose your action:
+   - `plan`: Generate a plan without applying
+   - `deploy`: Apply infrastructure changes
+   - `destroy`: Destroy infrastructure (use with caution)
+3. Select the target environment: `terraform-staging` or `terraform-production`
+4. Click **Run workflow**
+
+> NOTE: AWS will only trust a workflow whose environment is either `terraform-staging` or `terraform-production`. (see `github-trust-policy.json`)
+
+## 🏗️ Infrastructure
+
+The Terraform configuration creates:
+- **VPC** with public and private subnets and internet
+- **EC2 instances**
+   - 1 public instnace
+   - 1 private instance
+   - 1 internet gateway
+- **Security groups** for Docker Swarm communication  
+- **IAM roles** for EC2 instances to access AWS resources
+- **Docker Swarm** cluster with automated setup
+
 
 ### 🐳 Docker Swarm Setup Scripts
 
@@ -65,201 +163,3 @@ Scripts for setting up Docker Swarm cluster on EC2 instances:
 - Installs Docker on EC2 instance  
 - Retrieves swarm join token from SSM
 - Joins the Docker Swarm as worker node
-- Polls for manager readiness (up to 5 minutes)
-
-
-## 🔐 Prerequisites
-
-### AWS IAM Identity Center Setup Required
-
-Before running this setup, configure IAM Identity Center with the appropriate permissions using the AWS Console.
-
-#### Step 1: Enable IAM Identity Center
-
-1. **Go to AWS Console** → **IAM Identity Center** → **Enable**
-2. **Choose organization instance** (recommended) if you have AWS Organizations
-3. **Choose identity source:**
-   - **IAM Identity Center** - Create users directly in Identity Center
-   - **Active Directory** - Connect existing AD
-   - **External identity provider** - Connect SAML/OIDC provider
-
-#### Step 2: Create Permission Set
-
-1. **Go to IAM Identity Center** → **Permission sets** → **Create permission set**
-2. **Choose Custom permission set** → **Next**
-3. **Permission set name:** `TerraformPipelineSetup`
-4. **Description:** "Minimal permissions for terraform pipeline setup"
-5. **Session duration:** 1 hour (or as needed)
-6. **Permissions policies** → **Create a custom permissions policy**
-7. **Click JSON tab** and paste the contents from `setup-github-actions-oidc-policy.json`
-8. **Click Next** → **Create permission set**
-
-#### Step 3: Create or Add User
-
-**Option A: Create new user in Identity Center**
-1. **Go to Users** → **Add user**
-2. **Username:** `terraform-pipeline-user`
-3. **Fill in required details** → **Create user**
-
-**Option B: Use existing user** (if using external identity provider)
-
-#### Step 4: Assign User to Account with Permission Set
-
-1. **Go to AWS accounts** → **Select your account** → **Assign users or groups**
-2. **Select Users** → Choose your user → **Next**
-3. **Select permission sets** → Choose `TerraformPipelineSetup` → **Next**
-4. **Submit**
-
-#### Step 5: Configure AWS CLI with SSO
-
-1. **Get your SSO start URL:**
-   - Go to **IAM Identity Center** → **Dashboard**
-   - Copy the **AWS access portal URL**
-
-2. **Configure AWS CLI:**
-```bash
-aws configure sso --profile terraform-setup
-# SSO session name: terraform-setup
-# SSO start URL: [Your AWS access portal URL from step 1]
-# SSO region: us-west-1 (or your IAM Identity Center region)
-# SSO registration scopes: sso:account:access
-# Account ID: [Your AWS Account ID]
-# Role name: TerraformPipelineSetup
-# CLI default client Region: us-west-1
-# CLI default output format: json
-```
-
-3. **Login to SSO:**
-```bash
-aws sso login --profile terraform-setup
-```
-
-### GitHub Repository Setup
-
-Add this secret to your GitHub repository (Settings → Secrets → Actions):
-
-| Secret | Value |
-|--------|-------|
-| `AWS_ACCOUNT_ID` | Your AWS Account ID |
-
-## 🏃‍♂️ Quick Start
-
-1. **Setup the pipeline:**
-   ```bash
-   ./setup-github-actions-oidc.sh
-   ```
-
-2. **Add AWS_ACCOUNT_ID to GitHub secrets**
-
-3. **Your pipeline is ready!** 🎉
-
-## 🚀 GitHub Actions Usage
-
-### Manual Workflows:
-- **Actions** → "Terraform Infrastructure" → "Run workflow"
-- Choose action: `plan`, `deploy`, or `destroy`  
-- Choose environment: `staging` or `production`
-
-### Automatic Workflows:
-- **Push to main** → Runs terraform plan (no auto-deploy for safety)
-- **Pull Request from infra/* branches** → Shows terraform plan with changes
-
-The GitHub Actions workflow can only run automatically when:
-1. Changes are pushed to the `main` branch
-2. A pull request is created from a branch starting with `infra/`
-
-For all other branches or manual runs, you'll need to use the workflow dispatch trigger.
-
-## 🏗️ Infrastructure Resources
-
-The Terraform configuration creates:
-- **VPC** with public and private subnets
-- **EC2 instances** (public worker, private manager)
-- **Security groups** for Docker Swarm communication  
-- **IAM roles** with SSM and CloudWatch permissions
-- **Docker Swarm** cluster with automated setup
-
-## 🧹 Cleanup
-
-When you're done, remove all pipeline infrastructure:
-
-```bash
-./remove-github-actions-oidc.sh
-```
-
-## 📋 Local Development
-
-```bash
-cd deployments
-terraform init
-terraform workspace select staging  # or production
-terraform plan
-terraform apply
-```
-
----
-
-**💡 Pro Tips:**
-- Scripts include colorized output and progress indicators
-- All operations are idempotent (safe to run multiple times)
-- Resources are tagged for easy identification
-- Scripts validate AWS CLI access before proceeding
-
-# Terraform Infrastructure
-
-This directory contains the Terraform configuration for the authentication sample application infrastructure.
-
-## Backend Configuration
-
-The Terraform state is stored in an S3 bucket using partial backend configuration. The bucket name is provided via environment variables in the CI/CD pipeline.
-
-### Required Environment Variables
-
-In your GitHub repository secrets, you need to set:
-
-- `TF_STATE_BUCKET`: The name of the S3 bucket where Terraform state will be stored
-- `AWS_ACCOUNT_ID`: Your AWS account ID for IAM role assumption
-
-### Setting up GitHub Secrets
-
-1. Go to your GitHub repository
-2. Navigate to **Settings** → **Secrets and variables** → **Actions**
-3. Add the following secrets:
-   - `TF_STATE_BUCKET`: Your S3 bucket name (e.g., `my-terraform-state-bucket`)
-   - `AWS_ACCOUNT_ID`: Your AWS account ID
-
-### Local Development
-
-For local development, you can set the environment variable:
-
-```bash
-export TF_STATE_BUCKET="your-terraform-state-bucket"
-terraform init -backend-config="bucket=$TF_STATE_BUCKET"
-```
-
-### CI/CD Pipeline
-
-The GitHub Actions workflow automatically uses the `TF_STATE_BUCKET` secret to configure the backend during `terraform init`.
-
-## Usage
-
-The infrastructure supports multiple environments through Terraform workspaces:
-
-- `terraform-staging`: Staging environment
-- `terraform-production`: Production environment
-
-### Manual Deployment
-
-1. Go to **Actions** → **Infrastructure Release**
-2. Choose your action:
-   - `plan`: Generate a plan without applying
-   - `deploy`: Apply infrastructure changes
-   - `destroy`: Destroy infrastructure (use with caution)
-3. Select the target environment
-4. Click **Run workflow**
-
-### Automatic Planning
-
-- Pull requests to `main` branch automatically trigger a Terraform plan
-- The plan results are posted as a comment on the PR
-- No automatic deployment occurs - manual approval is required 

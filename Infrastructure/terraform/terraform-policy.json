@@ -37,7 +37,7 @@
       "Resource": "*",
       "Condition": {
         "StringLike": {
-          "aws:RequestTag/Name": "auth-sample-*"
+          "aws:RequestTag/Name": "${APP_NAME}-*"
         }
       }
     },
@@ -72,7 +72,7 @@
       "Resource": "*",
       "Condition": {
         "StringLike": {
-          "aws:RequestTag/Name": "auth-sample-*"
+          "aws:RequestTag/Name": "${APP_NAME}-*"
         }
       }
     },
@@ -121,16 +121,16 @@
         "iam:ListAttachedRolePolicies"
       ],
       "Resource": [
-        "arn:aws:iam::*:role/auth-sample-*",
-        "arn:aws:iam::*:policy/auth-sample-*",
-        "arn:aws:iam::*:instance-profile/auth-sample-*"
+        "arn:aws:iam::*:role/${APP_NAME}-*",
+        "arn:aws:iam::*:policy/${APP_NAME}-*",
+        "arn:aws:iam::*:instance-profile/${APP_NAME}-*"
       ]
     },
     {
       "Sid": "PassRoleConstraint",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/auth-sample-*",
+      "Resource": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${APP_NAME}-*",
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": "ec2.amazonaws.com"
@@ -142,6 +142,19 @@
       "Effect": "Allow",
       "Action": "sts:GetCallerIdentity",
       "Resource": "*"
+    },
+    {
+      "Sid": "S3BucketPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::${BUCKET_NAME}",
+        "arn:aws:s3:::${BUCKET_NAME}/*"
+      ]
     }
   ]
 }
