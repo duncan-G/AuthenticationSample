@@ -15,8 +15,9 @@ terraform {
     }
   }
   backend "s3" {
-    # Partial configuration - bucket and keywill be provided via environment variable
-    # or command line during terraform init. See .github/workflows/infrastructure-release.yml for more details.
+    # Partial configuration (because variables are not allowed in backend config) -
+    # bucket and key will be provided via command line during terraform init.
+    # See .github/workflows/infrastructure-release.yml for more details.
     encrypt = true
   }
 }
