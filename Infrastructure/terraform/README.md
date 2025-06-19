@@ -17,6 +17,9 @@ Terraform running on Github Actions requires permissions to manipulate AWS resou
 
 ### 🔐 Prerequisites
 
+- AWS CLI
+- Github CLI
+
 #### AWS IAM Identity Center Setup
 
 Before running this setup, you need to configure IAM Identity Center with a user with permissions defined in `setup-github-actions-oidc-policy.json`.
@@ -55,8 +58,10 @@ Interactive script that automatically creates all required AWS resources for Git
 - IAM Policy with permissions Terraform needs (See `terraform-policy.json`)
 - Trust policy allowing AWS to trust Github actions (See `github-trust-policy.json`)
 - IAM Role with afformentioned policies that GitHub Actions will use when making requests to AWS
+- Add secrets, variables and environemnts to github repository
 
-> **NOTE:** The name of the S3 Bucket created is `terraform-state-<md5_hash[8]>`, where `md5_hash[8]` is the first 8 characters of an MD5 hash calucated based on AWS Account Id and repository name. The script will print out this hash. You will need in a later step.
+> **NOTE:** The name of the S3 Bucket created is `terraform-state-<md5_hash[8]>`, where `md5_hash[8]` is the first 8 characters of an MD5 hash calucated based on AWS AccountId and repository name. The script will print out this name.
+You will need it later if you choose not to let the script add variables to your github repository.
 
 **Usage:**
 ```bash
@@ -66,10 +71,10 @@ Interactive script that automatically creates all required AWS resources for Git
 
 **Interactive prompts:**
 - AWS SSO profile name (default: `terraform-setup`)
-- GitHub username/organization
-- Repository name
 - App name (used to tag all AWS resource terraform creates)
 - AWS region (default: `us-west-1`)
+- Github staging environment name
+- Github production environment name
 
 #### 🗑️ `remove-github-actions-oidc.sh` - Pipeline Cleanup Script
 
@@ -91,8 +96,6 @@ Safely removes most AWS resources created by the setup script.
 
 **Interactive prompts:**
 - AWS SSO profile name (default: `terraform-setup`)
-- GitHub username/organization
-- Repository name
 
 **💡 Pro Tips:**
 - All operations are idempotent (safe to run multiple times)
@@ -101,7 +104,10 @@ Safely removes most AWS resources created by the setup script.
 
 ### GitHub Repository Setup
 
-Add `terraform-staging` and `terraform-production` environments to repository. (Settings → Environments → New environment)
+If you chose not to add secrets, variables and environments using `setup-github-actions-oidc.sh`:
+
+Add staging and production environments to repository. (Settings → Environments → New environment)
+Shoule have the same names as the arguments used when you ran  `setup-github-actions-oidc.sh`.
 
 Add the following secrets to repository (Settings → Secrets → Actions):
 
@@ -135,7 +141,9 @@ The github action will always plan automatically, but deployment or destruction 
 3. Select the target environment: `terraform-staging` or `terraform-production`
 4. Click **Run workflow**
 
-> NOTE: AWS will only trust a workflow whose environment is either `terraform-staging` or `terraform-production`. (see `github-trust-policy.json`)
+> NOTE: Github will send a cliam that includes the environment.
+AWS will only trust a workflow from the environment that you defined.
+(see `github-trust-policy.json`)
 
 ## 🏗️ Infrastructure
 

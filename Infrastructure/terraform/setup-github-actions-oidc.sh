@@ -7,88 +7,14 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
+# Source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/print-utils.sh"
+source "$SCRIPT_DIR/prompt-utils.sh"
+source "$SCRIPT_DIR/aws-utils.sh"
+source "$SCRIPT_DIR/github-utils.sh"
 
-# Function to print colored output
-print_info() {
-    echo -e "${CYAN}ℹ️  $1${NC}"
-}
-
-print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-print_header() {
-    echo -e "${WHITE}"
-    echo "================================================="
-    echo "   🚀 Terraform Pipeline Setup Script"
-    echo "================================================="
-    echo -e "${NC}"
-}
-
-# Function to prompt user for input
-prompt_user() {
-    local prompt="$1"
-    local var_name="$2"
-    local default_value="$3"
-    
-    if [ -n "$default_value" ]; then
-        read -p "$(echo -e ${WHITE}$prompt ${NC}[${default_value}]: )" input
-        if [ -z "$input" ]; then
-            input="$default_value"
-        fi
-    else
-        read -p "$(echo -e ${WHITE}$prompt: ${NC})" input
-        while [ -z "$input" ]; do
-            print_warning "This field is required!"
-            read -p "$(echo -e ${WHITE}$prompt: ${NC})" input
-        done
-    fi
-    
-    eval "$var_name='$input'"
-}
-
-# Function to check if AWS CLI is configured
-check_aws_cli() {
-    print_info "Checking AWS CLI configuration..."
-    
-    if ! command -v aws &> /dev/null; then
-        print_error "AWS CLI not found. Please install AWS CLI first."
-        exit 1
-    fi
-    
-    print_success "AWS CLI is available"
-}
-
-# Function to get AWS account ID
-get_aws_account_id() {
-    print_info "Getting AWS Account ID using profile: $AWS_PROFILE..."
-    
-    AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text 2>/dev/null)
-    if [ -z "$AWS_ACCOUNT_ID" ]; then
-        print_error "Failed to get AWS Account ID using profile '$AWS_PROFILE'"
-        print_info "Please ensure:"
-        print_info "1. Profile '$AWS_PROFILE' exists in your AWS config"
-        print_info "2. You have run 'aws sso login --profile $AWS_PROFILE'"
-        print_info "3. Your SSO session is still valid"
-        exit 1
-    fi
-    print_success "AWS Account ID: $AWS_ACCOUNT_ID"
-}
+print_header "🚀 Terraform Pipeline Setup Script"
 
 # Function to get user input
 get_user_input() {
@@ -97,20 +23,15 @@ get_user_input() {
     # Get AWS profile
     prompt_user "Enter AWS profile name" "AWS_PROFILE" "terraform-setup"
     
-    # Get GitHub organization/username
-    prompt_user "Enter your GitHub username/organization" "GITHUB_ORG"
-    
-    # Get repository name
-    prompt_user "Enter your repository name" "GITHUB_REPO"
-    
     # Get app name for Terraform resource naming
     prompt_user "Enter application name (used for Terraform resource naming)" "TF_APP_NAME"
     
     # Get AWS region
     prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
     
-    # Construct full repo name
-    GITHUB_REPO_FULL="${GITHUB_ORG}/${GITHUB_REPO}"
+    # Get environment names
+    prompt_user "Enter staging environment name" "STAGING_ENVIRONMENT" "terraform-staging"
+    prompt_user "Enter production environment name" "PRODUCTION_ENVIRONMENT" "terraform-production"
     
     echo
     print_info "Configuration Summary:"
@@ -118,10 +39,11 @@ get_user_input() {
     echo "  GitHub Repository: $GITHUB_REPO_FULL"
     echo "  Terraform App Name: $TF_APP_NAME"
     echo "  AWS Region: $AWS_REGION"
+    echo "  Staging Environment: $STAGING_ENVIRONMENT"
+    echo "  Production Environment: $PRODUCTION_ENVIRONMENT"
     echo
     
-    read -p "$(echo -e ${YELLOW}Do you want to proceed? ${NC}[y/N]: )" confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
         exit 0
     fi
@@ -197,6 +119,8 @@ create_trust_policy() {
     sed \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
+        -e "s|\${STAGING_ENVIRONMENT}|$STAGING_ENVIRONMENT|g" \
+        -e "s|\${PRODUCTION_ENVIRONMENT}|$PRODUCTION_ENVIRONMENT|g" \
         github-trust-policy.json > github-trust-policy-temp.json
     print_success "Trust policy created"
 }
@@ -246,23 +170,14 @@ display_final_instructions() {
     echo
     print_success "🎉 Pipeline setup completed successfully!"
     echo
-    print_info "Next steps:"
-    echo "1. Add these secrets to your GitHub repository:"
-    echo "   Settings → Secrets and variables → Actions → New repository secret"
+    
     echo
-    echo -e "${YELLOW}   Secret Name: ${NC}AWS_ACCOUNT_ID"
-    echo -e "${YELLOW}   Secret Value: ${NC}$AWS_ACCOUNT_ID"
-    echo
-    echo -e "${YELLOW}   Secret Name: ${NC}TF_STATE_BUCKET"
-    echo -e "${YELLOW}   Secret Value: ${NC}$BUCKET_NAME"
-    echo
-    echo -e "${YELLOW}   Secret Name: ${NC}TF_APP_NAME"
-    echo -e "${YELLOW}   Secret Value: ${NC}$TF_APP_NAME"
-    echo
-    echo "2. Your IAM Role ARN:"
+    print_info "Your setup is complete and ready to use!"
+    
+    echo "Your IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
     echo
-    echo "3. Your Terraform State Bucket:"
+    echo "Your Terraform State Bucket:"
     echo -e "${GREEN}   $BUCKET_NAME${NC}"
     echo
     print_info "You can now use the GitHub Actions workflow!"
@@ -273,11 +188,31 @@ display_final_instructions() {
 
 # Main execution
 main() {
-    print_header
-    
     check_aws_cli
+    check_github_cli
+
+    GITHUB_REPO_FULL=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+    validate_repo "$GITHUB_REPO_FULL"
+
     get_user_input
-    get_aws_account_id
+
+    # Check AWS profile and authentication
+    if ! check_aws_profile "$AWS_PROFILE"; then
+        exit 1
+    fi
+    
+    if ! check_aws_authentication "$AWS_PROFILE"; then
+        exit 1
+    fi
+    
+    # Get AWS account ID
+    AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    # Validate AWS region
+    validate_aws_region "$AWS_REGION"
     
     echo
     print_info "Starting pipeline setup..."
@@ -287,13 +222,23 @@ main() {
     create_iam_policy
     create_trust_policy
     create_iam_role
-    cleanup
     
+    # Create GitHub secrets and environments
+    add_github_secrets "$GITHUB_REPO_FULL" \
+        "AWS_ACCOUNT_ID:$AWS_ACCOUNT_ID" \
+        "TF_STATE_BUCKET:$BUCKET_NAME" \
+        "TF_APP_NAME:$TF_APP_NAME"
+    
+    add_github_variables "$GITHUB_REPO_FULL" \
+        "AWS_DEFAULT_REGION:$AWS_REGION"
+    
+    create_github_environments "$GITHUB_REPO_FULL" \
+        "$STAGING_ENVIRONMENT" \
+        "$PRODUCTION_ENVIRONMENT"
+    
+    cleanup
     display_final_instructions
 }
-
-# Handle script interruption
-trap cleanup EXIT
 
 # Run main function
 main "$@" 

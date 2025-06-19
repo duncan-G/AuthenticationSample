@@ -11,8 +11,8 @@
                 "StringEquals": {
                     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
                     "token.actions.githubusercontent.com:sub": [
-                        "repo:${GITHUB_REPO_FULL}:environment:terraform-staging",
-                        "repo:${GITHUB_REPO_FULL}:environment:terraform-production"
+                        "repo:${GITHUB_REPO_FULL}:environment:${STAGING_ENVIRONMENT}",
+                        "repo:${GITHUB_REPO_FULL}:environment:${PRODUCTION_ENVIRONMENT}"
                       ]
                 }
             }

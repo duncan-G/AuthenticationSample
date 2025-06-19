@@ -7,88 +7,14 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
+# Source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/print-utils.sh"
+source "$SCRIPT_DIR/prompt-utils.sh"
+source "$SCRIPT_DIR/aws-utils.sh"
+source "$SCRIPT_DIR/github-utils.sh"
 
-# Function to print colored output
-print_info() {
-    echo -e "${CYAN}ℹ️  $1${NC}"
-}
-
-print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-print_header() {
-    echo -e "${WHITE}"
-    echo "================================================="
-    echo "   🗑️  Terraform Pipeline Cleanup Script"
-    echo "================================================="
-    echo -e "${NC}"
-}
-
-# Function to prompt user for input
-prompt_user() {
-    local prompt="$1"
-    local var_name="$2"
-    local default_value="$3"
-    
-    if [ -n "$default_value" ]; then
-        read -p "$(echo -e ${WHITE}$prompt ${NC}[${default_value}]: )" input
-        if [ -z "$input" ]; then
-            input="$default_value"
-        fi
-    else
-        read -p "$(echo -e ${WHITE}$prompt: ${NC})" input
-        while [ -z "$input" ]; do
-            print_warning "This field is required!"
-            read -p "$(echo -e ${WHITE}$prompt: ${NC})" input
-        done
-    fi
-    
-    eval "$var_name='$input'"
-}
-
-# Function to check if AWS CLI is configured
-check_aws_cli() {
-    print_info "Checking AWS CLI configuration..."
-    
-    if ! command -v aws &> /dev/null; then
-        print_error "AWS CLI not found. Please install AWS CLI first."
-        exit 1
-    fi
-    
-    print_success "AWS CLI is available"
-}
-
-# Function to get AWS account ID
-get_aws_account_id() {
-    print_info "Getting AWS Account ID using profile: $AWS_PROFILE..."
-    
-    AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text 2>/dev/null)
-    if [ -z "$AWS_ACCOUNT_ID" ]; then
-        print_error "Failed to get AWS Account ID using profile '$AWS_PROFILE'"
-        print_info "Please ensure:"
-        print_info "1. Profile '$AWS_PROFILE' exists in your AWS config"
-        print_info "2. You have run 'aws sso login --profile $AWS_PROFILE'"
-        print_info "3. Your SSO session is still valid"
-        exit 1
-    fi
-    print_success "AWS Account ID: $AWS_ACCOUNT_ID"
-}
+print_header "🗑️  Terraform Pipeline Cleanup Script"
 
 # Function to get user input
 get_user_input() {
@@ -97,15 +23,7 @@ get_user_input() {
     
     # Get AWS profile name
     prompt_user "Enter your AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
-    
-    # Get GitHub organization/username
-    prompt_user "Enter your GitHub username/organization" "GITHUB_ORG"
-    
-    # Get repository name
-    prompt_user "Enter your repository name" "GITHUB_REPO"
-    
-    # Construct full repo name
-    GITHUB_REPO_FULL="${GITHUB_ORG}/${GITHUB_REPO}"
+
     
     echo
     print_info "Configuration Summary:"
@@ -117,19 +35,17 @@ get_user_input() {
     echo "  • IAM Role: github-actions-terraform"
     echo "  • IAM Policy: terraform-github-actions-oidc-policy"
     echo "  • OIDC Provider: token.actions.githubusercontent.com"
-    echo "  • S3 Bucket: Terraform state backend (manual deletion required)"
+    echo
+    print_warning "S3 Bucket: Terraform state backend (manual deletion required)"
+    print_warning "Github Secrets, Variables and Environments: (manual deletion required)"
     echo
     
-    read -p "$(echo -e ${RED}Are you sure you want to delete these resources? ${NC}[y/N]: )" confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    if ! prompt_confirmation "Are you sure you want to delete these resources?" "y/N"; then
         print_info "Cleanup cancelled."
         exit 0
     fi
     
-    echo
-    read -p "$(echo -e ${RED}Type 'DELETE' to confirm: ${NC})" confirm_delete
-    if [[ "$confirm_delete" != "DELETE" ]]; then
-        print_info "Cleanup cancelled. You must type 'DELETE' to confirm."
+    if ! prompt_required_confirmation "Type 'DELETE' to confirm" "DELETE" "This action cannot be undone. Please type 'DELETE' to confirm the deletion of all pipeline resources."; then
         exit 0
     fi
 }
@@ -140,6 +56,7 @@ detach_policy_from_role() {
     
     ROLE_NAME="github-actions-terraform"
     POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/terraform-github-actions-oidc-policy"
+    echo
     
     # Check if role exists and has policy attached
     if aws iam get-role --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" &> /dev/null; then
@@ -229,7 +146,7 @@ delete_oidc_provider() {
     fi
 }
 
-# Function to provide instructions for S3o bucket cleanup
+# Function to provide instructions for S3 bucket cleanup
 display_state_bucket_cleanup_instructions() {
     
     # Recalculate the bucket name using the same logic as setup script
@@ -270,7 +187,17 @@ display_final_summary() {
     echo "2. Remove the TF_STATE_BUCKET secret from your GitHub repository:"
     echo "   Settings → Secrets and variables → Actions → Delete 'TF_STATE_BUCKET'"
     echo
-    echo "3. Your GitHub Actions workflow will no longer work until you:"
+    echo "3. Remove the TF_APP_NAME secret from your GitHub repository:"
+    echo "   Settings → Secrets and variables → Actions → Delete 'TF_APP_NAME'"
+    echo
+    echo "4. Remove the AWS_DEFAULT_REGION variable from your GitHub repository:"
+    echo "   Settings → Secrets and variables → Actions → Variables → Delete 'AWS_DEFAULT_REGION'"
+    echo
+    echo "5. Remove the Staging and Production environments from your GitHub repository:"
+    echo "   Settings → Environments → Staging → Delete"
+    echo "   Settings → Environments → Production → Delete"
+    echo
+    echo "6. Your GitHub Actions workflow will no longer work until you:"
     echo "   • Run setup-github-actions-oidc.sh again, OR"
     echo "   • Set up AWS permissions in AWS Dashboard"
     echo
@@ -281,11 +208,28 @@ display_final_summary() {
 
 # Main execution
 main() {
-    print_header
-    
     check_aws_cli
+    check_github_cli
+
+    GITHUB_REPO_FULL=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+    validate_repo "$GITHUB_REPO_FULL"
+
     get_user_input
-    get_aws_account_id
+
+    # Check AWS profile and authentication
+    if ! check_aws_profile "$AWS_PROFILE"; then
+        exit 1
+    fi
+    
+    if ! check_aws_authentication "$AWS_PROFILE"; then
+        exit 1
+    fi
+    
+    # Get AWS account ID
+    AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
     
     echo
     print_info "Starting pipeline cleanup..."
