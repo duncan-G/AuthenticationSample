@@ -12,14 +12,22 @@
       "Resource": "*"
     },
     {
-      "Sid": "EC2Provisioning",
+      "Sid": "EC2ReadOperations",
       "Effect": "Allow",
       "Action": [
-        "ec2:Describe*",
+        "ec2:Describe*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EC2WriteOperations",
+      "Effect": "Allow",
+      "Action": [
         "ec2:Create*",
         "ec2:Delete*",
         "ec2:AttachInternetGateway",
         "ec2:DetachInternetGateway",
+        "ec2:ModifySubnetAttribute",
         "ec2:AssociateRouteTable",
         "ec2:DisassociateRouteTable",
         "ec2:RunInstances",
@@ -34,18 +42,22 @@
         "ec2:CreateTags",
         "ec2:DeleteTags"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringLike": {
-          "aws:RequestTag/Name": "${APP_NAME}-*"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "VPCManagement",
       "Effect": "Allow",
       "Action": [
         "ec2:DescribeVpcs",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeNatGateways",
+        "ec2:DescribeAddresses",
+        "ec2:DescribeVpcAttribute",
+        "ec2:ModifyVpcAttribute",
+        "ec2:DescribeVpcEndpoints",
+        "ec2:DescribeVpcPeeringConnections",
         "ec2:CreateVpc",
         "ec2:DeleteVpc",
         "ec2:CreateSubnet",
@@ -69,12 +81,7 @@
         "ec2:AcceptVpcPeeringConnection",
         "ec2:RejectVpcPeeringConnection"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringLike": {
-          "aws:RequestTag/Name": "${APP_NAME}-*"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "SSMParameterManagement",
@@ -100,6 +107,9 @@
         "iam:DeleteRole",
         "iam:TagRole",
         "iam:UntagRole",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions",
         "iam:PutRolePolicy",
         "iam:DeleteRolePolicy",
         "iam:AttachRolePolicy",
@@ -111,6 +121,7 @@
         "iam:CreateInstanceProfile",
         "iam:DeleteInstanceProfile",
         "iam:AddRoleToInstanceProfile",
+        "iam:ListInstanceProfilesForRole",
         "iam:RemoveRoleFromInstanceProfile",
         "iam:TagInstanceProfile",
         "iam:UntagInstanceProfile",
