@@ -105,7 +105,7 @@ jobs:
           exit 1
         fi
 
-        TF_WORKSPACE_PREFIX="${{ secrets.TF_APP_NAME }}/${{ github.event.inputs.environment || 'terraform-staging' }}"
+        TF_WORKSPACE_PREFIX="${{ secrets.TF_APP_NAME }}"
         
         # Initialize with partial backend configuration
         terraform init \
