@@ -15,10 +15,8 @@ terraform {
     }
   }
   backend "s3" {
-    # Partial configuration - bucket will be provided via environment variable
-    # or command line during terraform init
-    key     = "${var.app_name}/terraform.tfstate"
-    region  = var.region
+    # Partial configuration - bucket and keywill be provided via environment variable
+    # or command line during terraform init. See .github/workflows/infrastructure-release.yml for more details.
     encrypt = true
   }
 }
