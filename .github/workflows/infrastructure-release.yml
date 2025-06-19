@@ -106,6 +106,7 @@ jobs:
         fi
 
         TF_STATE_KEY="${{ secrets.TF_APP_NAME }}/${{ github.event.inputs.environment || 'terraform-staging' }}/terraform.tfstate"
+        echo "TF_STATE_KEY: $TF_STATE_KEY"
         
         # Initialize with partial backend configuration
         terraform init \
