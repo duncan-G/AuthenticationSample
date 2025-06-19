@@ -107,6 +107,7 @@ jobs:
         # Initialize with partial backend configuration
         terraform init \
           -backend-config="bucket=$TF_STATE_BUCKET" \
+          -backend-config="region=${{ env.AWS_DEFAULT_REGION }}" \
           -backend-config="key=${{ secrets.TF_APP_NAME }}/${{ github.event.inputs.environment || 'terraform-staging' }}/terraform.tfstate" \
           -no-color
         
@@ -300,6 +301,7 @@ jobs:
         # Use app name first, then environment for better organization
         terraform init \
           -backend-config="bucket=$TF_STATE_BUCKET" \
+          -backend-config="region=${{ env.AWS_DEFAULT_REGION }}" \
           -backend-config="key=${{ secrets.TF_APP_NAME }}/${{ github.event.inputs.environment }}/terraform.tfstate" \
           -no-color
 
