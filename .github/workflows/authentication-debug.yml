@@ -7,7 +7,7 @@ on:
       - reopened
       - edited
     branches:
-      - 'main
+      - 'main'
       - 'integration/*'
     paths:
       - 'Microservices/Authentication/**'
