@@ -53,6 +53,24 @@ variable "app_name" {
   type        = string
 }
 
+variable "environment" {
+  description = "Environment name (e.g., staging, production)."
+  type        = string
+  default     = "staging"
+}
+
+variable "deployment_bucket" {
+  description = "S3 bucket name for deployment artifacts."
+  type        = string
+  default     = ""
+}
+
+variable "github_repository" {
+  description = "GitHub repository in format 'owner/repo' for OIDC trust policy."
+  type        = string
+  default     = ""
+}
+
 ########################
 # Data sources
 # aws_availability_zones: Fetches the list of Availability Zones (AZs) in the current region

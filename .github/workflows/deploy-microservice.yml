@@ -1,0 +1,263 @@
+name: 'Deploy Microservice'
+
+# This is a reusable workflow that can be called by other workflows
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        description: 'Name of the microservice to deploy'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment (service-staging/service-production)'
+        required: true
+        type: string
+        default: 'service-staging'
+    secrets:
+      AWS_ACCOUNT_ID:
+        required: true
+      ECR_REPOSITORY_PREFIX:
+        required: true
+      DEPLOYMENT_BUCKET:
+        required: true
+
+env:
+  AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION || 'us-west-1' }}
+  
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-push:
+    name: 'Build and Push to ECR'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    outputs:
+      image-uri: ${{ steps.push.outputs.image_uri }}
+      image-tag: ${{ steps.push.outputs.image_tag }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-codedeploy
+        role-session-name: GitHubActions-CodeDeploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Generate Image Tag
+      id: image-tag
+      run: |
+        SERVICE_NAME="${{ inputs.service_name }}"
+        ENVIRONMENT="${{ inputs.environment }}"
+        COMMIT_SHA="${{ github.sha }}"
+        
+        # Generate build tag for tracking
+        SHORT_SHA=$(echo "$COMMIT_SHA" | cut -c1-8)
+        BUILD_TAG="${SERVICE_NAME}-${ENVIRONMENT}-${SHORT_SHA}"
+        
+        echo "build_tag=$BUILD_TAG" >> $GITHUB_OUTPUT
+        echo "Generated build tag: $BUILD_TAG"
+
+    - name: Build and Push Container
+      id: push
+      run: |
+        SERVICE_NAME="${{ inputs.service_name }}"
+        IMAGE_TAG="${{ steps.image-tag.outputs.image_tag }}"
+        ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY_PREFIX }}/${SERVICE_NAME}"
+        
+        echo "Building and pushing $SERVICE_NAME to ECR..."
+        echo "Repository: $ECR_REPOSITORY"
+        echo "Tag: $IMAGE_TAG"
+        
+        # Navigate to service directory
+        cd "Microservices/$SERVICE_NAME"
+        
+        # Build and publish container
+        env ContainerRepository=$ECR_REPOSITORY \
+          dotnet publish --os linux --arch arm64 /t:PublishContainer
+        
+        # Get the full image URI
+        IMAGE_URI="${ECR_REPOSITORY}:${{ steps.image-tag.outputs.build_tag }}"
+        echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+        
+        # Tag with latest
+        docker tag "$IMAGE_URI" "${ECR_REPOSITORY}:latest"
+        
+        # Tag with build tag for tracking
+        docker tag "$IMAGE_URI" "${ECR_REPOSITORY}:${{ steps.image-tag.outputs.build_tag }}"
+        
+        # Push all tags
+        docker push "$IMAGE_URI"
+        docker push "${ECR_REPOSITORY}:latest"
+        docker push "${ECR_REPOSITORY}:${{ steps.image-tag.outputs.build_tag }}"
+        
+        echo "Successfully pushed build tag: ${{ steps.image-tag.outputs.build_tag }}"
+        echo "Successfully pushed latest tag: latest"
+
+  deploy:
+    name: 'Deploy to Swarm Cluster'
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-codedeploy
+        role-session-name: GitHubActions-CodeDeploy-${{ github.run_id }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+    - name: Create Deployment Package
+      run: |
+        SERVICE_NAME="${{ inputs.service_name }}"
+        ENVIRONMENT="${{ inputs.environment }}"
+        IMAGE_URI="${{ needs.build-and-push.outputs.image-uri }}"
+        
+        # Create deployment package with AppSpec and scripts
+        mkdir -p deployment-package
+        
+        # Copy and customize the AppSpec file
+        cp Infrastructure/codedeploy/appspec.yml deployment-package/
+        
+        # Replace placeholders with actual values
+        sed -i "s/{{ ENVIRONMENT }}/$ENVIRONMENT/g" deployment-package/appspec.yml
+        sed -i "s/{{ SERVICE_NAME }}/$SERVICE_NAME/g" deployment-package/appspec.yml
+        
+        echo "Using AppSpec file with service-specific parameters"
+        
+        # Add deployment scripts if they exist
+        if [ -d "Infrastructure/codedeploy/scripts" ]; then
+          cp -r Infrastructure/codedeploy/scripts deployment-package/
+          
+          # Create a deployment-specific environment file
+          cat > deployment-package/scripts/deployment.env << EOF
+          # Deployment-specific environment variables
+          SERVICE_NAME=$SERVICE_NAME
+          ENVIRONMENT=$ENVIRONMENT
+          IMAGE_URI=$IMAGE_URI
+          STACK_NAME=$SERVICE_NAME
+          EOF
+          
+          echo "Created deployment-specific environment file"
+        fi
+        
+        # Create deployment package
+        tar -czf deployment-package.tar.gz -C deployment-package .
+        
+        echo "Deployment package created with AppSpec and scripts"
+        echo "Service: $SERVICE_NAME"
+        echo "Environment: $ENVIRONMENT"
+        echo "Image: $IMAGE_URI"
+
+    - name: Upload to S3
+      run: |
+        SERVICE_NAME="${{ inputs.service_name }}"
+        ENVIRONMENT="${{ inputs.environment }}"
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        
+        # Upload deployment package to S3
+        aws s3 cp deployment-package.tar.gz \
+          s3://${{ secrets.DEPLOYMENT_BUCKET }}/deployments/${SERVICE_NAME}/${ENVIRONMENT}/deployment-${TIMESTAMP}.tar.gz
+        
+        echo "Deployment package uploaded to S3"
+
+    - name: Create CodeDeploy Deployment
+      id: codedeploy
+      run: |
+        SERVICE_NAME="${{ inputs.service_name }}"
+        ENVIRONMENT="${{ inputs.environment }}"
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        IMAGE_URI="${{ needs.build-and-push.outputs.image-uri }}"
+        
+        # Create CodeDeploy deployment
+        DEPLOYMENT_ID=$(aws deploy create-deployment \
+          --application-name "${SERVICE_NAME}-${ENVIRONMENT}" \
+          --deployment-group-name "${SERVICE_NAME}-${ENVIRONMENT}-deployment-group" \
+          --s3-location bucket=${{ secrets.DEPLOYMENT_BUCKET }},key=deployments/${SERVICE_NAME}/${ENVIRONMENT}/deployment-${TIMESTAMP}.tar.gz,bundleType=tgz \
+          --description "Deployment of ${SERVICE_NAME} ${IMAGE_URI} to ${ENVIRONMENT}" \
+          --query 'deploymentId' \
+          --output text)
+        
+        echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+        echo "Created CodeDeploy deployment: $DEPLOYMENT_ID"
+
+    - name: Wait for Deployment
+      run: |
+        DEPLOYMENT_ID="${{ steps.codedeploy.outputs.deployment_id }}"
+        SERVICE_NAME="${{ inputs.service_name }}"
+        ENVIRONMENT="${{ inputs.environment }}"
+        
+        echo "Waiting for deployment $DEPLOYMENT_ID to complete..."
+        
+        # Wait for deployment to complete (timeout after 15 minutes)
+        for i in {1..90}; do
+          STATUS=$(aws deploy get-deployment \
+            --deployment-id "$DEPLOYMENT_ID" \
+            --query 'deploymentInfo.status' \
+            --output text)
+          
+          echo "Deployment status: $STATUS"
+          
+          case $STATUS in
+            "Succeeded")
+              echo "✅ Deployment completed successfully!"
+              exit 0
+              ;;
+            "Failed"|"Stopped")
+              echo "❌ Deployment failed with status: $STATUS"
+              exit 1
+              ;;
+            "InProgress"|"Created"|"Queued"|"Ready")
+              echo "⏳ Deployment in progress... (attempt $i/90)"
+              sleep 10
+              ;;
+            *)
+              echo "❓ Unknown deployment status: $STATUS"
+              exit 1
+              ;;
+          esac
+        done
+        
+        echo "⏰ Deployment timed out after 15 minutes"
+        exit 1
+
+  deployment-summary:
+    name: 'Deployment Summary'
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy]
+    if: always()
+    
+    steps:
+    - name: Generate Summary
+      run: |
+        echo "## Microservice Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: ${{ inputs.service_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: ${{ needs.build-and-push.outputs.image-uri }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployment ID**: ${{ needs.deploy.outputs.deployment_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.deploy.result }}" == "success" ]; then
+          echo "- **Status**: ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Status**: ❌ Deployment failed" >> $GITHUB_STEP_SUMMARY 

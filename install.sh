@@ -1,15 +1,17 @@
 #!/bin/bash
 
-echo "Installing brew"
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# ------------------------------------------------------------------------------
+# Root Convenience Script: install.sh
+# ------------------------------------------------------------------------------
+# Purpose:
+#   This script is a simple entry point for installing dependencies for the
+#   development environment. It delegates execution to the main script located at:
+#     Scripts/development/install.sh
+#
+# Usage:
+#   ./install.sh [options]
+#   (All arguments are passed through to the underlying script.)
+# ------------------------------------------------------------------------------
 
-echo "Installing dotnet"
-brew install dotnet
-
-echo "Installing trusted certificates"
-brew install mkcert
-brew install nss # Installs cert for firefox
-mkcert -install
-
-echo "Installing AWS CLI"
-brew install awscli
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/Scripts/development/install.sh" "$@"

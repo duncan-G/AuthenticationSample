@@ -93,4 +93,4 @@ prompt_selection() {
 }
 
 # Export functions so they can be used by other scripts
-export -f prompt_user prompt_confirmation prompt_required_confirmation 
+export -f prompt_user prompt_confirmation prompt_required_confirmation prompt_selection 

@@ -1,174 +1,139 @@
 # Production Infrastructure
 
-### Table of Contents
-- [Terraform CI/CD pipeline](#terraform-cicd-pipeline)
+## Overview
+
+This directory contains the Terraform code and supporting documentation for provisioning and managing production infrastructure, including CI/CD integration with GitHub Actions and AWS.
+
+---
+
+## Table of Contents
+
+- [Where are the Terraform-related scripts?](#where-are-the-terraform-related-scripts)
+- [Terraform CI/CD Pipeline](#terraform-cicd-pipeline)
   - [Prerequisites](#prerequisites)
-  - [Setup scripts](#setup-scripts)
-  - [Github repo setup](#github-repo-setup)
-  - [Github actions usage](#github-actions-usage)
-- [Infrastructure](#infrastructure)
-   - [Docker Swarm Setup Scripts](#usage)
+  - [Setup Scripts](#setup-scripts)
+  - [GitHub Repository Setup](#github-repository-setup)
+  - [GitHub Actions Usage](#github-actions-usage)
+- [Infrastructure Details](#infrastructure-details)
+  - [Docker Swarm Setup Scripts](#docker-swarm-setup-scripts)
 
+---
 
-## Terraform CI/CD pipeline
+## Where are the Terraform-related scripts?
 
-Terraform running on Github Actions requires permissions to manipulate AWS resources. The following covers how to set that up.
+| Purpose                        | New Location                                         |
+|--------------------------------|------------------------------------------------------|
+| Setup GitHub Actions OIDC      | `Scripts/deployment/terraform/setup-github-actions-oidc.sh` |
+| Remove OIDC resources          | `Scripts/deployment/terraform/remove-github-actions-oidc.sh` |
+| AWS utility functions          | `Scripts/utils/aws-utils.sh`           |
+| GitHub utility functions       | `Scripts/utils/github-utils.sh`        |
+| User prompt/print utilities    | `Scripts/utils/print-utils.sh`, `Scripts/utils/prompt.sh` |
 
+---
 
-### 🔐 Prerequisites
+## Terraform CI/CD Pipeline
+
+Terraform is integrated with GitHub Actions for CI/CD. The setup scripts automate the creation of AWS resources and permissions required for secure deployments.
+
+### Prerequisites
 
 - AWS CLI
-- Github CLI
+- GitHub CLI
+- AWS IAM Identity Center (SSO) configured with a user and the policy in `setup-github-actions-oidc-policy.json`
+  - Enable IAM Identity Center - [AWS Documentation](https://docs.aws.amazon.com/singlesignon/latest/userguide/getting-started-enable-identity-center.html)
+  - Create a Permission Set with the policy from `setup-github-actions-oidc-policy.json`
+  - Create or assign a user to your AWS account with the permission set
+  - Configure AWS CLI with SSO:
+    ```bash
+    aws configure sso --profile terraform-setup
+    # Follow the prompts to configure your SSO profile.
+    # Note: You can call your profile whatever you want
 
-#### AWS IAM Identity Center Setup
+    aws sso login --profile terraform-setup
+    ```
 
-Before running this setup, you need to configure IAM Identity Center with a user with permissions defined in `setup-github-actions-oidc-policy.json`.
+---
 
-##### Required Setup Steps
+## Setup Scripts
 
-1. **Enable IAM Identity Center** - [AWS Documentation](https://docs.aws.amazon.com/singlesignon/latest/userguide/getting-started-enable-identity-center.html)
+### 🚀 OIDC Setup
 
-2. **Create a Permission Set** with the following policy:
-   - `setup-github-actions-oidc-policy.json`
-3. **Create or assign a user** to your AWS account with the permission set
+**Location:** `Scripts/deployment/terraform/setup-github-actions-oidc.sh`
 
-4. **Configure AWS CLI with SSO**
-##### Quick AWS CLI Setup
-
-After completing the IAM Identity Center setup:
-
-```bash
-aws configure sso --profile terraform-setup
-# Follow the prompts to configure your SSO profile.
-# Note: You can call your profile whatever you want
-
-aws sso login --profile terraform-setup
-```
-
-### 🛠️ Setup Scripts
-
-
-#### 🚀 `setup-github-actions-oidc.sh` - Github Action Permission Setup Script
-
-Interactive script that automatically creates all required AWS resources for GitHub Actions OIDC authentication.
-
-**What it creates:**
+This interactive script creates all AWS resources needed for GitHub Actions OIDC authentication, including:
 - GitHub OIDC Identity Provider
-- S3 bucket to store terraform state
-- IAM Policy with permissions Terraform needs (See `terraform-policy.json`)
-- Trust policy allowing AWS to trust Github actions (See `github-trust-policy.json`)
-- IAM Role with afformentioned policies that GitHub Actions will use when making requests to AWS
-- Add secrets, variables and environemnts to github repository
-
-> **NOTE:** The name of the S3 Bucket created is `terraform-state-<md5_hash[8]>`, where `md5_hash[8]` is the first 8 characters of an MD5 hash calucated based on AWS AccountId and repository name. The script will print out this name.
-You will need it later if you choose not to let the script add variables to your github repository.
+- S3 bucket for Terraform state
+- IAM Policy and Role for GitHub Actions
+- GitHub repository secrets, variables, and environments
 
 **Usage:**
 ```bash
-# Run interactively (script will prompt for )
-./setup-github-actions-oidc.sh
+./Scripts/deployment/terraform/setup-github-actions-oidc.sh
 ```
 
-**Interactive prompts:**
-- AWS SSO profile name (default: `terraform-setup`)
-- App name (used to tag all AWS resource terraform creates)
-- AWS region (default: `us-west-1`)
-- Github staging environment name
-- Github production environment name
+### 🗑️ OIDC Cleanup
 
-#### 🗑️ `remove-github-actions-oidc.sh` - Pipeline Cleanup Script
+**Location:** `Scripts/deployment/terraform/remove-github-actions-oidc.sh`
 
-Safely removes most AWS resources created by the setup script.
-
-**What it deletes:**
-- IAM Role: `github-actions-terraform`
-- IAM Policy: `terraform-github-actions-oidc-policy`
-- OIDC Provider: `token.actions.githubusercontent.com`
-
-*Does not remove S3 bucket used to store terraform state. You will need to do that manually.*
+Removes most AWS resources created by the setup script (except the S3 bucket).
 
 **Usage:**
 ```bash
-# Run interactively
-./remove-github-actions-oidc.sh
+./Scripts/deployment/terraform/remove-github-actions-oidc.sh
 ```
 
+---
 
-**Interactive prompts:**
-- AWS SSO profile name (default: `terraform-setup`)
+## GitHub Repository Setup
 
-**💡 Pro Tips:**
-- All operations are idempotent (safe to run multiple times)
-- Scripts validate AWS CLI access before proceeding
+The setup script (`setup-github-actions-oidc.sh`) automatically configures your GitHub repository with the required secrets, variables, and environments:
 
+The script adds:
+- **Secrets** (encrypted):
+  - `AWS_ACCOUNT_ID` - Your AWS account identifier
+  - `TF_STATE_BUCKET` - S3 bucket name for Terraform state (auto-generated)
+  - `TF_APP_NAME` - Application name for Terraform resource naming
+- **Variables** (visible):
+  - `AWS_DEFAULT_REGION` - AWS region for deployments (defaults to `us-west-1`)
+- **Environments**: 
+  - `terraform-staging` (default name, configurable)
+  - `terraform-production` (default name, configurable)
 
-### GitHub Repository Setup
+---
 
-If you chose not to add secrets, variables and environments using `setup-github-actions-oidc.sh`:
+## GitHub Actions Usage
 
-Add staging and production environments to repository. (Settings → Environments → New environment)
-Shoule have the same names as the arguments used when you ran  `setup-github-actions-oidc.sh`.
+See `.github/workflows/infrastructure-release.yml` for the main workflow.
 
-Add the following secrets to repository (Settings → Secrets → Actions):
+- **Automatic:** PRs to `main` trigger a Terraform plan (no auto-deploy)
+- **Manual:**  
+  1. Go to **Actions** → **Infrastructure Release**
+  2. Choose: `plan`, `deploy`, or `destroy`
+  3. Select environment: `terraform-staging` or `terraform-production`
+  4. Click **Run workflow**
 
-| Secret | Value |
-|--------|-------|
-| `AWS_ACCOUNT_ID` | Your AWS Account ID |
-| `TF_APP_NAME` | Your chosen app name (kebab case preferred) |
-| `TF_STATE_BUCKET` | Bucket name that was created when  `setup-github-actions-oidc.sh` was executed. |
+> **Note:** AWS will only trust workflows from the environments you defined (see `github-trust-policy.json`).
 
-**Optional Environment Variables:**
-- `AWS_DEFAULT_REGION` - AWS region for infrastructure deployment (defaults to `us-west-1`)
+---
 
-### 🚀 GitHub Actions Usage
-(See `<APP_ROOT>/.github/workflows/infrastrucutre-release.yml`)
-The github action will always plan automatically, but deployment or destruction of the infrastructure must be triggered manually.
- 
-#### Automatic Planning
+## Infrastructure Details
 
-- Pull requests to `main` branch automatically trigger a Terraform plan
-- The plan results are posted as a comment on the PR
-- No automatic deployment occurs - manual approval is required
-
-
-#### Manual Workflows:
-
-1. Go to **Actions** → **Infrastructure Release**
-2. Choose your action:
-   - `plan`: Generate a plan without applying
-   - `deploy`: Apply infrastructure changes
-   - `destroy`: Destroy infrastructure (use with caution)
-3. Select the target environment: `terraform-staging` or `terraform-production`
-4. Click **Run workflow**
-
-> NOTE: Github will send a cliam that includes the environment.
-AWS will only trust a workflow from the environment that you defined.
-(see `github-trust-policy.json`)
-
-## 🏗️ Infrastructure
-
-The Terraform configuration creates:
-- **VPC** with public and private subnets and internet
-- **EC2 instances**
-   - 1 public instnace
-   - 1 private instance
-   - 1 internet gateway
-- **Security groups** for Docker Swarm communication  
-- **IAM roles** for EC2 instances to access AWS resources
+The Terraform configuration provisions:
+- **VPC** with public/private subnets and internet gateway
+- **EC2 instances** (public and private)
+- **Security groups** for Docker Swarm
+- **IAM roles** for EC2
 - **Docker Swarm** cluster with automated setup
 
+---
 
-### 🐳 Docker Swarm Setup Scripts
+## Docker Swarm Setup Scripts
 
-Scripts for setting up Docker Swarm cluster on EC2 instances:
+- `install-docker-manager.sh`: Installs Docker, initializes Swarm, creates overlay network, stores tokens in SSM
+- `install-docker-worker.sh`: Installs Docker, retrieves join token, joins Swarm
 
-#### `install-docker-manager.sh`
-- Installs Docker on EC2 instance
-- Initializes Docker Swarm as manager node
-- Creates overlay network for applications
-- Stores swarm tokens in AWS SSM for worker nodes
+---
 
-#### `install-docker-worker.sh`
-- Installs Docker on EC2 instance  
-- Retrieves swarm join token from SSM
-- Joins the Docker Swarm as worker node
+**For all shared utility scripts, see the `Scripts/` directory at the project root.**
+
+If you need further help, see the top-level `Scripts/README.md` for more on script usage and organization.

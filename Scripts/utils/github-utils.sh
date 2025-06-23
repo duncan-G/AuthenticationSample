@@ -8,12 +8,13 @@
 # Source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/print-utils.sh"
+source "$SCRIPT_DIR/common.sh"
 
 # Function to check if GitHub CLI is configured
 check_github_cli() {
     print_info "Checking GitHub CLI configuration..."
     
-    if ! command -v gh &> /dev/null; then
+    if ! command_exists gh; then
         print_error "GitHub CLI not found. Please install GitHub CLI first."
         print_info "To install GitHub CLI: https://cli.github.com/"
         exit 1
@@ -46,6 +47,25 @@ validate_repo() {
     
     print_success "Repository access confirmed: $repo"
     return 0
+}
+
+# Function to check if GitHub repository secrets exist
+# Usage: check_github_secret_exists "owner/repo" "SECRET_NAME"
+check_github_secret_exists() {
+    local repo="$1"
+    local secret_name="$2"
+    
+    if [ -z "$repo" ] || [ -z "$secret_name" ]; then
+        print_error "Repository and secret name are required"
+        return 1
+    fi
+    
+    # Check if secret exists (this will return 0 if exists, 1 if not)
+    if gh secret list --repo "$repo" | grep -q "^${secret_name}$"; then
+        return 0  # Secret exists
+    else
+        return 1  # Secret does not exist
+    fi
 }
 
 # Function to add GitHub repository secrets
@@ -164,4 +184,4 @@ create_github_environments() {
 }
 
 # Export functions so they can be used by other scripts
-export -f check_github_cli validate_repo add_github_secrets add_github_variables create_github_environments 
+export -f check_github_cli validate_repo check_github_secret_exists add_github_secrets add_github_variables create_github_environments 

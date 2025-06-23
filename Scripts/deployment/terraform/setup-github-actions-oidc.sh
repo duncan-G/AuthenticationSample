@@ -9,10 +9,11 @@ set -e
 
 # Source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/print-utils.sh"
-source "$SCRIPT_DIR/prompt-utils.sh"
-source "$SCRIPT_DIR/aws-utils.sh"
-source "$SCRIPT_DIR/github-utils.sh"
+UTILS_DIR="$(cd "$SCRIPT_DIR/../../utils" && pwd)"
+source "$UTILS_DIR/print-utils.sh"
+source "$UTILS_DIR/prompt.sh"
+source "$UTILS_DIR/aws-utils.sh"
+source "$UTILS_DIR/github-utils.sh"
 
 print_header "🚀 Terraform Pipeline Setup Script"
 
@@ -192,7 +193,9 @@ main() {
     check_github_cli
 
     GITHUB_REPO_FULL=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-    validate_repo "$GITHUB_REPO_FULL"
+    if ! validate_repo "$GITHUB_REPO_FULL"; then
+        exit 1
+    fi
 
     get_user_input
 

@@ -1,0 +1,45 @@
+name: '{{ PASCALCASE_SERVICE_NAME }} Service Deployment'
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment'
+        required: true
+        type: choice
+        options:
+          - service-staging
+          - service-production
+        default: 'service-staging'
+
+  # Automatic trigger on service changes
+  push:
+    branches: [ main ]
+    paths:
+      - 'Microservices/{{ PASCALCASE_SERVICE_NAME }}/**'
+      - '.github/workflows/{{ SERVICE_NAME }}-service.yml'
+
+env:
+  SERVICE_NAME: '{{ SERVICE_NAME }}'
+  
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: 'Deploy {{ PASCALCASE_SERVICE_NAME }} Service'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'service-staging' }}
+    
+    steps:
+    - name: Deploy Service
+      uses: ./.github/workflows/deploy-microservice.yml
+      with:
+        service_name: ${{ env.SERVICE_NAME }}
+        environment: ${{ github.event.inputs.environment || 'service-staging' }}
+      secrets:
+        AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        ECR_REPOSITORY_PREFIX: ${{ secrets.ECR_REPOSITORY_PREFIX }}
+        DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }} 
