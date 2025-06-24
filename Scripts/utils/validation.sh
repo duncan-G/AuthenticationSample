@@ -5,9 +5,9 @@
 # Shared validation functions for scripts
 #########################################
 
-# Source shared print utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/print-utils.sh"
+# Source shared utilities
+UTILS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$UTILS_SCRIPT_DIR/print-utils.sh"
 
 # Validate service name
 validate_service_name() {

@@ -6,9 +6,9 @@
 #########################################
 
 # Source shared utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/print-utils.sh"
-source "$SCRIPT_DIR/common.sh"
+UTILS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$UTILS_SCRIPT_DIR/print-utils.sh"
+source "$UTILS_SCRIPT_DIR/common.sh"
 
 # Function to check if AWS CLI is configured
 check_aws_cli() {

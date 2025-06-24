@@ -9,9 +9,9 @@ on:
         required: true
         type: choice
         options:
-          - service-staging
-          - service-production
-        default: 'service-staging'
+          - codedeploy-staging
+          - codedeploy-production
+        default: 'codedeploy-staging'
 
   # Automatic trigger on service changes
   push:
@@ -31,14 +31,14 @@ jobs:
   deploy:
     name: 'Deploy {{ PASCALCASE_SERVICE_NAME }} Service'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'service-staging' }}
+    environment: ${{ github.event.inputs.environment || 'codedeploy-staging' }}
     
     steps:
     - name: Deploy Service
       uses: ./.github/workflows/deploy-microservice.yml
       with:
         service_name: ${{ env.SERVICE_NAME }}
-        environment: ${{ github.event.inputs.environment || 'service-staging' }}
+        environment: ${{ github.event.inputs.environment || 'codedeploy-staging' }}
       secrets:
         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         ECR_REPOSITORY_PREFIX: ${{ secrets.ECR_REPOSITORY_PREFIX }}

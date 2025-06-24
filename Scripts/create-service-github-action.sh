@@ -23,8 +23,8 @@ set -e
 # Function to create GitHub environments for the service
 create_service_github_environments() {
     local service_name="$1"
-    local staging_env="service-staging"
-    local production_env="service-production"
+    local staging_env="codedeploy-staging"
+    local production_env="codedeploy-production"
     
     print_info "Creating GitHub environments for service: $service_name"
     

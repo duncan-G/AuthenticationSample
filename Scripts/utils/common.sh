@@ -5,8 +5,8 @@
 #########################################
 
 # Source shared print utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/print-utils.sh"
+UTILS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$UTILS_SCRIPT_DIR/print-utils.sh"
 
 # Get script directory
 get_script_dir() {

@@ -21,7 +21,7 @@ resource "aws_iam_openid_connect_provider" "github_actions_codedeploy" {
 # IAM Policy for GitHub Actions CodeDeploy deployments
 resource "aws_iam_policy" "github_actions_codedeploy_policy" {
   name        = "${var.app_name}-github-actions-codedeploy-policy"
-  description = "Policy for GitHub Actions to deploy via CodeDeploy"
+  description = "Policy for GitHub Actions to deploy via AWS CodeDeploy"
   
   policy = jsonencode({
     Version = "2012-10-17"
