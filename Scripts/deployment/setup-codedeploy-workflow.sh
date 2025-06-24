@@ -25,7 +25,7 @@ get_user_input() {
     prompt_user "Enter AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
     
     # Get app name for resource naming
-    prompt_user "Enter application name (used for resource naming)" "APP_NAME" "authentication-sample"
+    prompt_user "Enter application name (used for image repository and resource naming)" "APP_NAME"
     
     # Get environment names
     prompt_user "Enter staging environment name" "STAGING_ENVIRONMENT" "codedeploy-staging"
@@ -51,8 +51,8 @@ setup_oidc_infrastructure() {
     print_info "Setting up OIDC infrastructure..."
     
     # Get the paths to the original policy files
-    ORIGINAL_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../../Infrastructure/terraform" && pwd)/codedeploy-policy.json"
-    ORIGINAL_TRUST_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../../Infrastructure/terraform" && pwd)/github-trust-policy.json"
+    ORIGINAL_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../Infrastructure/terraform" && pwd)/codedeploy-policy.json"
+    ORIGINAL_TRUST_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../Infrastructure/terraform" && pwd)/github-trust-policy.json"
     
     # Create processed policy files with variables substituted
     PROCESSED_POLICY_FILE_PATH="$(pwd)/codedeploy-policy-processed.json"
