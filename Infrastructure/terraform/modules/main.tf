@@ -32,7 +32,7 @@ provider "aws" {
 ########################
 
 variable "region" {
-  description = "AWS region for all resources (Set ia TF_VAR_region environment variable)"
+  description = "AWS region for all resources (Set via TF_VAR_region environment variable)"
   type        = string
 }
 
@@ -391,6 +391,53 @@ resource "aws_iam_instance_profile" "private_instance_profile" {
 }
 
 ########################
+# CloudWatch Log Groups for Docker Setup Scripts
+########################
+
+# CloudWatch Log Groups for Docker setup scripts (consolidated)
+resource "aws_cloudwatch_log_group" "docker_manager" {
+  name              = "/aws/ec2/${var.app_name}-docker-manager"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.app_name}-docker-manager-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "docker_worker" {
+  name              = "/aws/ec2/${var.app_name}-docker-worker"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.app_name}-docker-worker-logs"
+    Environment = var.environment
+  }
+}
+
+########################
+# CloudWatch Agent Configuration
+########################
+
+# CloudWatch agent configuration for manager node
+data "template_file" "cloudwatch_agent_config_manager" {
+  template = file("${path.module}/cloudwatch-agent-config.json")
+  vars = {
+    app_name = var.app_name
+    instance_type = "manager"
+  }
+}
+
+# CloudWatch agent configuration for worker node
+data "template_file" "cloudwatch_agent_config_worker" {
+  template = file("${path.module}/cloudwatch-agent-config.json")
+  vars = {
+    app_name = var.app_name
+    instance_type = "worker"
+  }
+}
+
+########################
 # EC2 instances
 ########################
 
@@ -402,7 +449,14 @@ resource "aws_instance" "public" {
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
 
-  user_data = file("${path.module}/../install-docker-worker.sh")
+  # Simple user data to ensure SSM agent is running
+  user_data = base64encode(<<-EOF
+              #!/bin/bash
+              # Ensure SSM agent is running for script execution
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+              EOF
+  )
 
   tags = {
     Name        = "${var.app_name}-public-instance-worker"
@@ -418,7 +472,14 @@ resource "aws_instance" "private" {
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
 
-  user_data = file("${path.module}/../install-docker-manager.sh")
+  # Simple user data to ensure SSM agent is running
+  user_data = base64encode(<<-EOF
+              #!/bin/bash
+              # Ensure SSM agent is running for script execution
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+              EOF
+  )
 
   tags = {
     Name        = "${var.app_name}-private-instance-manager"

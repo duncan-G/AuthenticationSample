@@ -1,124 +1,155 @@
-#!/bin/bash
-set -eux
+#!/usr/bin/env bash
+#
+# docker-manager-setup.sh — Idempotent bootstrap script for promoting an
+# Amazon Linux/EC2 instance to a Docker Swarm manager.
+#
+# Usage
+#   sudo ./docker-manager-setup.sh            # run/continue setup
+#   ./docker-manager-setup.sh --check-status  # query last‑run status programmatically
+#
+# Exit codes
+#   0  success
+#   1  unrecoverable failure (see log)
+#   2  unknown / not started
+#
 
-# Function to log messages with timestamps
-log_message() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a /var/log/docker-manager-setup.log
+set -Eeuo pipefail
+shopt -s inherit_errexit   # Propagate ERR traps into subshells
+
+############################################
+# Globals
+############################################
+readonly LOG_FILE="/var/log/docker-manager-setup.log"
+readonly STATUS_FILE="/tmp/docker-manager-setup.status"
+
+readonly NETWORK_NAME="app-network"
+readonly NETWORK_SUBNET="10.20.0.0/16"
+readonly SSM_PREFIX="/docker/swarm"
+readonly AWS_REGION="${AWS_REGION:-$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)}"
+
+############################################
+# Helper utilities
+############################################
+
+timestamp() { date "+%Y-%m-%d %H:%M:%S"; }
+
+log() {
+  echo "[ $(timestamp) ] $*" | tee -a "$LOG_FILE"
 }
 
-# Function to handle errors
-handle_error() {
-    local exit_code=$?
-    local line_number=$1
-    log_message "ERROR: Script failed at line $line_number with exit code $exit_code"
-    
-    # Create a failure indicator file that can be checked by external monitoring
-    echo "FAILED: Line $line_number, Exit code $exit_code" > /tmp/docker-manager-setup.status
-    exit $exit_code
+status() {
+  local state="$1" msg="$2"
+  echo "$state: $msg at $(timestamp)" >"$STATUS_FILE"
+  log "STATUS ➜ $state – $msg"
 }
 
-# Set up error handling
-trap 'handle_error $LINENO' ERR
+check_status() {
+  [[ -f "$STATUS_FILE" ]] || { echo "NOT_STARTED"; exit 3; }
 
-log_message "Starting Docker Manager setup..."
+  case $(cut -d':' -f1 <"$STATUS_FILE") in
+    SUCCESS) echo "SUCCESS" ;;
+    FAILED)  echo "FAILED"  ;;
+    *)       echo "UNKNOWN" ;;
+  esac
+}
 
-# Install Docker
-log_message "Installing Docker..."
+on_error() {
+  local ec=$? line=$1
+  status "FAILED" "line $line exited with code $ec"
+  exit "$ec"
+}
+trap 'on_error $LINENO' ERR
 
-sudo yum update -y
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to update packages"
-    echo "FAILED: Package update failed" > /tmp/docker-manager-setup.status
-    exit 1
+############################################
+# Early‑exit for status check
+############################################
+
+if [[ ${1:-} == "--check-status" ]]; then
+  check_status
+  exit $?
 fi
 
-sudo yum install -y docker
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to install Docker"
-    echo "FAILED: Docker installation failed" > /tmp/docker-manager-setup.status
-    exit 1
+############################################
+# Ensure root privileges
+############################################
+
+if (( EUID != 0 )); then
+  exec sudo -E "$0" "$@"
 fi
 
-sudo service docker start
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to start Docker service"
-    echo "FAILED: Docker service start failed" > /tmp/docker-manager-setup.status
-    exit 1
-fi
+############################################
+# Main logic
+############################################
 
-sudo usermod -a -G docker ec2-user
-log_message "Docker installation completed successfully"
+log "Bootstrap initiated"
+status "IN_PROGRESS" "Docker Swarm manager setup started"
 
-# Initialize swarm as manager
-log_message "Initializing Docker Swarm..."
+install_docker() {
+  if command -v docker &>/dev/null; then
+    log "Docker already present – skipping installation"
+    return
+  fi
 
-PRIVATE_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4)
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to get private IP from metadata service"
-    echo "FAILED: Failed to get instance metadata" > /tmp/docker-manager-setup.status
-    exit 1
-fi
+  log "Installing Docker engine…"
+  yum -y -q update
+  yum -y -q install docker
+  systemctl enable --now docker
+  usermod -aG docker ec2-user || true  # don’t fail if user absent
+  log "Docker installed and running ✅"
+}
 
-docker swarm init --advertise-addr $PRIVATE_IP
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to initialize Docker Swarm"
-    echo "FAILED: Docker Swarm initialization failed" > /tmp/docker-manager-setup.status
-    exit 1
-fi
+init_swarm() {
+  if docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -qE 'active|pending'; then
+    log "Swarm already initialised – skipping"
+    return
+  fi
 
-log_message "Docker Swarm initialized successfully"
+  local ip
+  ip=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+  docker swarm init --advertise-addr "$ip"
+  log "Swarm initialised with advertise‑addr $ip"
+  echo "$ip"
+}
 
-# Get join token and save it
-log_message "Generating worker join token..."
-WORKER_TOKEN=$(docker swarm join-token worker -q)
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to generate worker join token"
-    echo "FAILED: Worker token generation failed" > /tmp/docker-manager-setup.status
-    exit 1
-fi
+store_ssm() {
+  local name="$1" value="$2"
+  aws --region "$AWS_REGION" ssm put-parameter \
+     --name "$SSM_PREFIX/$name" \
+     --value "$value" \
+     --type String \
+     --overwrite >/dev/null
+}
 
-echo "Worker join command:"
-echo "docker swarm join --token $WORKER_TOKEN $PRIVATE_IP:2377"
+create_overlay_network() {
+  if docker network inspect "$NETWORK_NAME" &>/dev/null; then
+    log "Overlay network '$NETWORK_NAME' already exists – skipping"
+    return
+  fi
+  docker network create --driver overlay --attachable \
+                        --subnet "$NETWORK_SUBNET" \
+                        "$NETWORK_NAME"
+  log "Overlay network '$NETWORK_NAME' created"
+}
 
-# Save token to SSM Parameter for other instance to retrieve
-log_message "Storing configuration in SSM Parameter Store..."
+main() {
+  install_docker
+  local manager_ip
+  manager_ip=$(init_swarm)
 
-aws ssm put-parameter --name "/docker/swarm/worker-token" --value "$WORKER_TOKEN" --type "String" --overwrite
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to store worker token in SSM"
-    echo "FAILED: SSM parameter storage failed" > /tmp/docker-manager-setup.status
-    exit 1
-fi
+  local worker_token
+  worker_token=$(docker swarm join-token -q worker)
 
-aws ssm put-parameter --name "/docker/swarm/manager-ip" --value "$PRIVATE_IP" --type "String" --overwrite
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to store manager IP in SSM"
-    echo "FAILED: SSM parameter storage failed" > /tmp/docker-manager-setup.status
-    exit 1
-fi
+  log "Worker join command: docker swarm join --token $worker_token $manager_ip:2377"
 
-# Create overlay network
-log_message "Creating Docker overlay network..."
+  log "Persisting configuration to SSM Parameter Store (prefix: $SSM_PREFIX)"
+  store_ssm "worker-token" "$worker_token"
+  store_ssm "manager-ip"   "$manager_ip"
+  store_ssm "network-name" "$NETWORK_NAME"
 
-docker network create \
-  --driver overlay \
-  --attachable \
-  --subnet 10.20.0.0/16 \
-  app-network
+  create_overlay_network
 
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to create overlay network"
-    echo "FAILED: Overlay network creation failed" > /tmp/docker-manager-setup.status
-    exit 1
-fi
+  log "Setup completed 🎉"
+  status "SUCCESS" "Docker Swarm manager ready"
+}
 
-# Save network name for worker to reference
-aws ssm put-parameter --name "/docker/swarm/network-name" --value "app-network" --type "String" --overwrite
-if [ $? -ne 0 ]; then
-    log_message "ERROR: Failed to store network name in SSM"
-    echo "FAILED: SSM parameter storage failed" > /tmp/docker-manager-setup.status
-    exit 1
-fi
-
-log_message "Docker Manager setup completed successfully!"
-echo "SUCCESS: Setup completed successfully" > /tmp/docker-manager-setup.status 
+main "$@"
