@@ -99,12 +99,31 @@
         "ssm:DeleteDocument",
         "ssm:DescribeDocument",
         "ssm:ListDocuments",
-        "ssm:GetDocument"
+        "ssm:GetDocument",
+        "ssm:AddTagsToResource",
+        "ssm:DescribeDocumentPermission"
       ],
       "Resource": [
         "arn:aws:ssm:*:*:parameter/docker/swarm/*",
         "arn:aws:ssm:*:*:document/${APP_NAME}-*"
       ]
+    },
+    {
+      "Sid": "SSMAssociationManagement",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:CreateAssociation",
+        "ssm:UpdateAssociation",
+        "ssm:DeleteAssociation",
+        "ssm:DescribeAssociation",
+        "ssm:ListAssociations",
+        "ssm:ListTagsForResource",
+        "ssm:GetAutomationExecution",
+        "ssm:StartAutomationExecution",
+        "ssm:StopAutomationExecution",
+        "ssm:ListAutomationExecutions"
+      ],
+      "Resource": "*"
     },
     {
       "Sid": "IAMForInstanceRoles",
@@ -155,10 +174,15 @@
       "Sid": "PassRoleConstraint",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${APP_NAME}-*",
+      "Resource": [
+        "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${APP_NAME}-*"
+      ],
       "Condition": {
         "StringEquals": {
-          "iam:PassedToService": "ec2.amazonaws.com"
+          "iam:PassedToService": [
+            "ec2.amazonaws.com",
+            "codedeploy.amazonaws.com"
+          ]
         }
       }
     },
@@ -206,7 +230,9 @@
         "logs:PutRetentionPolicy",
         "logs:DeleteRetentionPolicy",
         "logs:GetLogEvents",
-        "logs:FilterLogEvents"
+        "logs:FilterLogEvents",
+        "logs:TagResource",
+        "logs:ListTagsForResource"
       ],
       "Resource": "*"
     }
