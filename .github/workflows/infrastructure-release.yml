@@ -154,6 +154,15 @@ jobs:
         # Terraform returns exit code 2 for successful plans with changes (not an error!)
         set +e
         
+        # Extract environment from input, defaulting to 'staging' if not set
+        ENVIRONMENT="${{ github.event.inputs.environment }}"
+        if [ -n "$ENVIRONMENT" ]; then
+          # Split by '-' and take the last part
+          ENVIRONMENT=$(echo "$ENVIRONMENT" | rev | cut -d'-' -f1 | rev)
+        else
+          ENVIRONMENT="staging"
+        fi
+
         # Determine plan type
         case "${{ github.event.inputs.action }}" in
           "destroy")
@@ -162,7 +171,9 @@ jobs:
               -var="github_repository=${{ secrets.GITHUB_REPOSITORY }}" \
               -var="deployment_bucket=${{ secrets.DEPLOYMENT_BUCKET }}" \
               -var="staging_environment=${{ vars.STAGING_ENVIRONMENT || 'codedeploy-staging' }}" \
-              -var="production_environment=${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}"
+              -var="production_environment=${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}" \
+              -var="environment=$ENVIRONMENT"
+
             PLAN_EXIT_CODE=$?
             ;;
           *)
@@ -171,7 +182,8 @@ jobs:
               -var="github_repository=${{ secrets.GITHUB_REPOSITORY }}" \
               -var="deployment_bucket=${{ secrets.DEPLOYMENT_BUCKET }}" \
               -var="staging_environment=${{ vars.STAGING_ENVIRONMENT || 'codedeploy-staging' }}" \
-              -var="production_environment=${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}"
+              -var="production_environment=${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}" \
+              -var="environment=$ENVIRONMENT"
             PLAN_EXIT_CODE=$?
             ;;
         esac
