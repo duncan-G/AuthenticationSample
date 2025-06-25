@@ -208,10 +208,7 @@
         "logs:GetLogEvents",
         "logs:FilterLogEvents"
       ],
-      "Resource": [
-        "arn:aws:logs:*:*:log-group:/aws/ec2/${APP_NAME}-*",
-        "arn:aws:logs:*:*:log-group:/aws/ec2/${APP_NAME}-*:log-stream:*"
-      ]
+      "Resource": "*"
     }
   ]
 }
