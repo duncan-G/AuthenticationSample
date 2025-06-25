@@ -37,6 +37,10 @@ env:
   TERRAFORM_VERSION: "1.12.2"
   TF_VAR_app_name: ${{ secrets.TF_APP_NAME }}
   TF_VAR_region: ${{ vars.AWS_DEFAULT_REGION || 'us-west-1' }}
+  TF_VAR_github_repository: ${{ secrets.GITHUB_REPOSITORY }}
+  TF_VAR_deployment_bucket: ${{ secrets.DEPLOYMENT_BUCKET }}
+  TF_VAR_staging_environment: ${{ vars.STAGING_ENVIRONMENT || 'codedeploy-staging' }}
+  TF_VAR_production_environment: ${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}
   
 permissions:
   contents: read
@@ -154,12 +158,20 @@ jobs:
         case "${{ github.event.inputs.action }}" in
           "destroy")
             echo "🔥 Planning infrastructure destruction..."
-            terraform plan -destroy -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode
+            terraform plan -destroy -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode \
+              -var="github_repository=${{ secrets.GITHUB_REPOSITORY }}" \
+              -var="deployment_bucket=${{ secrets.DEPLOYMENT_BUCKET }}" \
+              -var="staging_environment=${{ vars.STAGING_ENVIRONMENT || 'codedeploy-staging' }}" \
+              -var="production_environment=${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}"
             PLAN_EXIT_CODE=$?
             ;;
           *)
             echo "🚀 Planning infrastructure deployment..."
-            terraform plan -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode
+            terraform plan -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode \
+              -var="github_repository=${{ secrets.GITHUB_REPOSITORY }}" \
+              -var="deployment_bucket=${{ secrets.DEPLOYMENT_BUCKET }}" \
+              -var="staging_environment=${{ vars.STAGING_ENVIRONMENT || 'codedeploy-staging' }}" \
+              -var="production_environment=${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}"
             PLAN_EXIT_CODE=$?
             ;;
         esac

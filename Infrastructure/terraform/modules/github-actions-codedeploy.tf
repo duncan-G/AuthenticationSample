@@ -12,7 +12,7 @@ resource "aws_iam_openid_connect_provider" "github_actions_codedeploy" {
   ]
   
   tags = {
-    Name        = "${var.app_name}-github-actions-codedeploy-oidc"
+    Name        = "${var.app_name}-github-actions-oidc-codedeploy"
     Environment = var.environment
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
@@ -20,7 +20,7 @@ resource "aws_iam_openid_connect_provider" "github_actions_codedeploy" {
 
 # IAM Policy for GitHub Actions CodeDeploy deployments
 resource "aws_iam_policy" "github_actions_codedeploy_policy" {
-  name        = "${var.app_name}-github-actions-codedeploy-policy"
+  name        = "${var.app_name}-github-actions-policy-codedeploy"
   description = "Policy for GitHub Actions to deploy via AWS CodeDeploy"
   
   policy = jsonencode({
@@ -39,14 +39,18 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
           "ecr:CompleteLayerUpload",
           "ecr:PutImage"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:ecr:*:*:repository/${var.app_name}*"
+        ]
       },
       {
         Sid    = "S3DeploymentBucketAccess"
         Effect = "Allow"
         Action = [
-          "s3:PutObject",
           "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject",
+          "s3:DeleteObject",
           "s3:ListBucket"
         ]
         Resource = [
@@ -58,15 +62,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
         Sid    = "CodeDeployAccess"
         Effect = "Allow"
         Action = [
-          "codedeploy:CreateDeployment",
-          "codedeploy:GetDeployment",
-          "codedeploy:GetDeploymentConfig",
-          "codedeploy:GetApplication",
-          "codedeploy:GetApplicationRevision",
-          "codedeploy:RegisterApplicationRevision",
-          "codedeploy:ListApplications",
-          "codedeploy:ListDeployments",
-          "codedeploy:ListDeploymentGroups"
+          "codedeploy:*"
         ]
         Resource = "*"
       },
@@ -94,7 +90,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
   })
   
   tags = {
-    Name        = "${var.app_name}-github-actions-codedeploy-policy"
+    Name        = "${var.app_name}-github-actions-policy-codedeploy"
     Environment = var.environment
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
@@ -102,7 +98,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
 
 # IAM Role for GitHub Actions CodeDeploy deployments
 resource "aws_iam_role" "github_actions_codedeploy" {
-  name = "${var.app_name}-github-actions-codedeploy"
+  name = "${var.app_name}-github-actions-role-codedeploy"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -117,8 +113,11 @@ resource "aws_iam_role" "github_actions_codedeploy" {
           StringEquals = {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
-          StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*"
+          StringEquals = {
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:${var.github_repository}:environment:${var.staging_environment}",
+              "repo:${var.github_repository}:environment:${var.production_environment}"
+            ]
           }
         }
       }
@@ -126,7 +125,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
   })
   
   tags = {
-    Name        = "${var.app_name}-github-actions-codedeploy"
+    Name        = "${var.app_name}-github-actions-role-codedeploy"
     Environment = var.environment
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
