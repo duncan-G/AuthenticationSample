@@ -26,7 +26,6 @@ resource "aws_codedeploy_deployment_group" "microservices" {
   # Deployment configuration
   deployment_config_name = "CodeDeployDefault.OneAtATime"
 
-
   # EC2 instances (using tags to identify instances)
   ec2_tag_set {
     ec2_tag_filter {
@@ -40,12 +39,6 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       type  = "KEY_AND_VALUE"
       value = each.key
     }
-  }
-
-  # Alarm configuration
-  alarm_configuration {
-    enabled = true
-    alarms  = ["${var.app_name}-${each.key}-deployment-alarm"]
   }
 
   tags = {
@@ -171,32 +164,6 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
 
   tags = {
     Name        = "${var.app_name}-${each.key}-codedeploy-logs"
-    Environment = var.environment
-    Service     = each.key
-  }
-}
-
-# CloudWatch Alarm for deployment failures
-resource "aws_cloudwatch_metric_alarm" "deployment_failure" {
-  for_each = toset(["authentication"]) # Add more services as needed
-
-  alarm_name          = "${var.app_name}-${each.key}-deployment-alarm"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
-  metric_name         = "FailedDeployments"
-  namespace           = "AWS/CodeDeploy"
-  period              = "300"
-  statistic           = "Sum"
-  threshold           = "0"
-  alarm_description   = "This metric monitors deployment failures for ${each.key}"
-
-  dimensions = {
-    ApplicationName     = aws_codedeploy_app.microservices[each.key].name
-    DeploymentGroupName = aws_codedeploy_deployment_group.microservices[each.key].deployment_group_name
-  }
-
-  tags = {
-    Name        = "${var.app_name}-${each.key}-deployment-alarm"
     Environment = var.environment
     Service     = each.key
   }
