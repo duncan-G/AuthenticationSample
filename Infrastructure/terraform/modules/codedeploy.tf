@@ -200,6 +200,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "deployment_bucket_lifecycle" {
     id     = "cleanup_old_deployments"
     status = "Enabled"
 
+    filter {} # Applies to all objects
+
     expiration {
       days = 30
     }

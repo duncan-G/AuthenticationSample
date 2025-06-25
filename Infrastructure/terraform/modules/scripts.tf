@@ -66,15 +66,15 @@ resource "aws_ssm_document" "docker_worker_setup" {
   }
 }
 
-# CloudWatch Agent Setup SSM Document
-resource "aws_ssm_document" "cloudwatch_agent_setup" {
-  name            = "${var.app_name}-cloudwatch-agent-setup"
+# CloudWatch Agent Setup SSM Document for Manager
+resource "aws_ssm_document" "cloudwatch_agent_setup_manager" {
+  name            = "${var.app_name}-cloudwatch-agent-setup-manager"
   document_type   = "Command"
   document_format = "JSON"
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Install and configure CloudWatch agent"
+    description   = "Install and configure CloudWatch agent for manager"
     mainSteps = [{
       name   = "InstallCloudWatchAgent"
       action = "aws:runShellScript"
@@ -84,7 +84,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup" {
           "yum install -y amazon-cloudwatch-agent",
           # Write the CloudWatch agent configuration
           "cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json",
-          "${indent(2, data.template_file.cloudwatch_agent_config_manager.rendered)}",
+          "${indent(2, local.cloudwatch_agent_config_manager)}",
           "EOF",
           # Start and enable the agent
           "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json",
@@ -96,7 +96,42 @@ resource "aws_ssm_document" "cloudwatch_agent_setup" {
   })
 
   tags = {
-    Name        = "${var.app_name}-cloudwatch-agent-setup"
+    Name        = "${var.app_name}-cloudwatch-agent-setup-manager"
+    Environment = var.environment
+  }
+}
+
+# CloudWatch Agent Setup SSM Document for Worker
+resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
+  name            = "${var.app_name}-cloudwatch-agent-setup-worker"
+  document_type   = "Command"
+  document_format = "JSON"
+
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Install and configure CloudWatch agent for worker"
+    mainSteps = [{
+      name   = "InstallCloudWatchAgent"
+      action = "aws:runShellScript"
+      inputs = {
+        runCommand = [
+          # Install CloudWatch agent using yum
+          "yum install -y amazon-cloudwatch-agent",
+          # Write the CloudWatch agent configuration
+          "cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json",
+          "${indent(2, local.cloudwatch_agent_config_worker)}",
+          "EOF",
+          # Start and enable the agent
+          "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json",
+          "systemctl enable amazon-cloudwatch-agent"
+        ]
+        timeoutSeconds = "600" # 10 minutes timeout
+      }
+    }]
+  })
+
+  tags = {
+    Name        = "${var.app_name}-cloudwatch-agent-setup-worker"
     Environment = var.environment
   }
 }
@@ -104,7 +139,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup" {
 # SSM Associations for Manager Instance
 # First: Install CloudWatch agent
 resource "aws_ssm_association" "cloudwatch_agent_manager" {
-  name = aws_ssm_document.cloudwatch_agent_setup.name
+  name = aws_ssm_document.cloudwatch_agent_setup_manager.name
 
   targets {
     key    = "InstanceIds"
@@ -129,7 +164,7 @@ resource "aws_ssm_association" "docker_manager_setup" {
 # SSM Associations for Worker Instance
 # First: Install CloudWatch agent
 resource "aws_ssm_association" "cloudwatch_agent_worker" {
-  name = aws_ssm_document.cloudwatch_agent_setup.name
+  name = aws_ssm_document.cloudwatch_agent_setup_worker.name
 
   targets {
     key    = "InstanceIds"

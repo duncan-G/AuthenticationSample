@@ -13,10 +13,6 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.9"
     }
-    template = {
-      source  = "hashicorp/template"
-      version = "~> 2.2"
-    }
   }
   backend "s3" {
     # Partial configuration (because variables are not allowed in backend config) -
@@ -89,6 +85,8 @@ variable "production_environment" {
 
 ########################
 # Data sources
+########################
+
 # aws_availability_zones: Fetches the list of Availability Zones (AZs) in the current region
 # This allows us to reference AZs dynamically rather than hardcoding them
 # Used when creating subnets to ensure they are placed in valid AZs
@@ -423,22 +421,17 @@ resource "aws_cloudwatch_log_group" "docker_worker" {
 # CloudWatch Agent Configuration
 ########################
 
-# CloudWatch agent configuration for manager node
-data "template_file" "cloudwatch_agent_config_manager" {
-  template = file("${path.module}/cloudwatch-agent-config.json")
-  vars = {
+# CloudWatch agent configuration using templatefile() function
+locals {
+  cloudwatch_agent_config_manager = templatefile("${path.module}/cloudwatch-agent-config.json", {
     app_name      = var.app_name
     instance_type = "manager"
-  }
-}
-
-# CloudWatch agent configuration for worker node
-data "template_file" "cloudwatch_agent_config_worker" {
-  template = file("${path.module}/cloudwatch-agent-config.json")
-  vars = {
+  })
+  
+  cloudwatch_agent_config_worker = templatefile("${path.module}/cloudwatch-agent-config.json", {
     app_name      = var.app_name
     instance_type = "worker"
-  }
+  })
 }
 
 ########################
