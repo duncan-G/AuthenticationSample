@@ -423,7 +423,7 @@ resource "aws_cloudwatch_log_group" "docker_worker" {
 data "template_file" "cloudwatch_agent_config_manager" {
   template = file("${path.module}/cloudwatch-agent-config.json")
   vars = {
-    app_name = var.app_name
+    app_name      = var.app_name
     instance_type = "manager"
   }
 }
@@ -432,7 +432,7 @@ data "template_file" "cloudwatch_agent_config_manager" {
 data "template_file" "cloudwatch_agent_config_worker" {
   template = file("${path.module}/cloudwatch-agent-config.json")
   vars = {
-    app_name = var.app_name
+    app_name      = var.app_name
     instance_type = "worker"
   }
 }

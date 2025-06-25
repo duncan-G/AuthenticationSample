@@ -2,12 +2,12 @@
 
 # CodeDeploy Application
 resource "aws_codedeploy_app" "microservices" {
-  for_each = toset(["authentication"])  # Add more services as needed
-  
+  for_each = toset(["authentication"]) # Add more services as needed
+
   name = "${each.key}-${var.environment}"
-  
+
   compute_platform = "Server"
-  
+
   tags = {
     Name        = "${var.app_name}-${each.key}-${var.environment}"
     Environment = var.environment
@@ -17,16 +17,16 @@ resource "aws_codedeploy_app" "microservices" {
 
 # CodeDeploy Deployment Group
 resource "aws_codedeploy_deployment_group" "microservices" {
-  for_each = toset(["authentication"])  # Add more services as needed
-  
-  app_name               = aws_codedeploy_app.microservices[each.key].name
-  deployment_group_name  = "${each.key}-${var.environment}-deployment-group"
-  service_role_arn       = aws_iam_role.codedeploy_service_role.arn
-  
+  for_each = toset(["authentication"]) # Add more services as needed
+
+  app_name              = aws_codedeploy_app.microservices[each.key].name
+  deployment_group_name = "${each.key}-${var.environment}-deployment-group"
+  service_role_arn      = aws_iam_role.codedeploy_service_role.arn
+
   # Deployment configuration
   deployment_config_name = "CodeDeployDefault.OneAtATime"
 
-  
+
   # EC2 instances (using tags to identify instances)
   ec2_tag_set {
     ec2_tag_filter {
@@ -34,20 +34,20 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       type  = "KEY_AND_VALUE"
       value = var.environment
     }
-    
+
     ec2_tag_filter {
       key   = "Service"
       type  = "KEY_AND_VALUE"
       value = each.key
     }
   }
-  
+
   # Alarm configuration
   alarm_configuration {
     enabled = true
     alarms  = ["${var.app_name}-${each.key}-deployment-alarm"]
   }
-  
+
   tags = {
     Name        = "${var.app_name}-${each.key}-${var.environment}-deployment-group"
     Environment = var.environment
@@ -58,7 +58,7 @@ resource "aws_codedeploy_deployment_group" "microservices" {
 # IAM Role for CodeDeploy Service
 resource "aws_iam_role" "codedeploy_service_role" {
   name = "${var.app_name}-codedeploy-service-role"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -71,7 +71,7 @@ resource "aws_iam_role" "codedeploy_service_role" {
       }
     ]
   })
-  
+
   tags = {
     Name        = "${var.app_name}-codedeploy-service-role"
     Environment = var.environment
@@ -87,7 +87,7 @@ resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
 # IAM Role for EC2 instances to work with CodeDeploy
 resource "aws_iam_role" "ec2_codedeploy_role" {
   name = "${var.app_name}-ec2-codedeploy-role"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -100,7 +100,7 @@ resource "aws_iam_role" "ec2_codedeploy_role" {
       }
     ]
   })
-  
+
   tags = {
     Name        = "${var.app_name}-ec2-codedeploy-role"
     Environment = var.environment
@@ -111,7 +111,7 @@ resource "aws_iam_role" "ec2_codedeploy_role" {
 resource "aws_iam_policy" "ec2_codedeploy_policy" {
   name        = "${var.app_name}-ec2-codedeploy-policy"
   description = "Policy for EC2 instances to work with CodeDeploy"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -165,7 +165,7 @@ resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
 # S3 Bucket for deployment artifacts
 resource "aws_s3_bucket" "deployment_bucket" {
   bucket = var.deployment_bucket
-  
+
   tags = {
     Name        = "${var.app_name}-deployment-bucket"
     Environment = var.environment
@@ -175,7 +175,7 @@ resource "aws_s3_bucket" "deployment_bucket" {
 # S3 Bucket versioning
 resource "aws_s3_bucket_versioning" "deployment_bucket_versioning" {
   bucket = aws_s3_bucket.deployment_bucket.id
-  
+
   versioning_configuration {
     status = "Enabled"
   }
@@ -184,7 +184,7 @@ resource "aws_s3_bucket_versioning" "deployment_bucket_versioning" {
 # S3 Bucket server-side encryption
 resource "aws_s3_bucket_server_side_encryption_configuration" "deployment_bucket_encryption" {
   bucket = aws_s3_bucket.deployment_bucket.id
-  
+
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
@@ -195,15 +195,15 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "deployment_bucket
 # S3 Bucket lifecycle policy
 resource "aws_s3_bucket_lifecycle_configuration" "deployment_bucket_lifecycle" {
   bucket = aws_s3_bucket.deployment_bucket.id
-  
+
   rule {
     id     = "cleanup_old_deployments"
     status = "Enabled"
-    
+
     expiration {
       days = 30
     }
-    
+
     noncurrent_version_expiration {
       noncurrent_days = 7
     }
@@ -212,11 +212,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "deployment_bucket_lifecycle" {
 
 # CloudWatch Log Group for CodeDeploy
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
-  for_each = toset(["authentication"])  # Add more services as needed
-  
+  for_each = toset(["authentication"]) # Add more services as needed
+
   name              = "/aws/codedeploy/${each.key}-${var.environment}"
   retention_in_days = 14
-  
+
   tags = {
     Name        = "${var.app_name}-${each.key}-codedeploy-logs"
     Environment = var.environment
@@ -226,8 +226,8 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
 
 # CloudWatch Alarm for deployment failures
 resource "aws_cloudwatch_metric_alarm" "deployment_failure" {
-  for_each = toset(["authentication"])  # Add more services as needed
-  
+  for_each = toset(["authentication"]) # Add more services as needed
+
   alarm_name          = "${var.app_name}-${each.key}-deployment-alarm"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
@@ -237,12 +237,12 @@ resource "aws_cloudwatch_metric_alarm" "deployment_failure" {
   statistic           = "Sum"
   threshold           = "0"
   alarm_description   = "This metric monitors deployment failures for ${each.key}"
-  
+
   dimensions = {
-    ApplicationName = aws_codedeploy_app.microservices[each.key].name
+    ApplicationName     = aws_codedeploy_app.microservices[each.key].name
     DeploymentGroupName = aws_codedeploy_deployment_group.microservices[each.key].deployment_group_name
   }
-  
+
   tags = {
     Name        = "${var.app_name}-${each.key}-deployment-alarm"
     Environment = var.environment

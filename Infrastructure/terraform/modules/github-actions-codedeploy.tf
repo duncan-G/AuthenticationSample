@@ -1,16 +1,16 @@
 # GitHub Actions OIDC Provider for CodeDeploy deployments
 resource "aws_iam_openid_connect_provider" "github_actions_codedeploy" {
   url = "https://token.actions.githubusercontent.com"
-  
+
   client_id_list = [
     "sts.amazonaws.com"
   ]
-  
+
   thumbprint_list = [
     "6938fd4d98bab03faadb97b34396831e3780aea1",
     "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
   ]
-  
+
   tags = {
     Name        = "${var.app_name}-github-actions-oidc-codedeploy"
     Environment = var.environment
@@ -22,7 +22,7 @@ resource "aws_iam_openid_connect_provider" "github_actions_codedeploy" {
 resource "aws_iam_policy" "github_actions_codedeploy_policy" {
   name        = "${var.app_name}-github-actions-policy-codedeploy"
   description = "Policy for GitHub Actions to deploy via AWS CodeDeploy"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -88,7 +88,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
       }
     ]
   })
-  
+
   tags = {
     Name        = "${var.app_name}-github-actions-policy-codedeploy"
     Environment = var.environment
@@ -99,7 +99,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
 # IAM Role for GitHub Actions CodeDeploy deployments
 resource "aws_iam_role" "github_actions_codedeploy" {
   name = "${var.app_name}-github-actions-role-codedeploy"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -123,7 +123,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
       }
     ]
   })
-  
+
   tags = {
     Name        = "${var.app_name}-github-actions-role-codedeploy"
     Environment = var.environment

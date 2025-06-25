@@ -2,8 +2,8 @@
 
 # Docker Manager Setup SSM Document
 resource "aws_ssm_document" "docker_manager_setup" {
-  name          = "${var.app_name}-docker-manager-setup"
-  document_type = "Command"
+  name            = "${var.app_name}-docker-manager-setup"
+  document_type   = "Command"
   document_format = "JSON"
 
   content = jsonencode({
@@ -22,7 +22,7 @@ resource "aws_ssm_document" "docker_manager_setup" {
           # Execute it
           "/tmp/install-docker-manager.sh"
         ]
-        timeoutSeconds = "1800"  # 30 minutes timeout
+        timeoutSeconds = "1800" # 30 minutes timeout
       }
     }]
   })
@@ -35,8 +35,8 @@ resource "aws_ssm_document" "docker_manager_setup" {
 
 # Docker Worker Setup SSM Document
 resource "aws_ssm_document" "docker_worker_setup" {
-  name          = "${var.app_name}-docker-worker-setup"
-  document_type = "Command"
+  name            = "${var.app_name}-docker-worker-setup"
+  document_type   = "Command"
   document_format = "JSON"
 
   content = jsonencode({
@@ -55,7 +55,7 @@ resource "aws_ssm_document" "docker_worker_setup" {
           # Execute it
           "/tmp/install-docker-worker.sh"
         ]
-        timeoutSeconds = "1800"  # 30 minutes timeout
+        timeoutSeconds = "1800" # 30 minutes timeout
       }
     }]
   })
@@ -68,8 +68,8 @@ resource "aws_ssm_document" "docker_worker_setup" {
 
 # CloudWatch Agent Setup SSM Document
 resource "aws_ssm_document" "cloudwatch_agent_setup" {
-  name          = "${var.app_name}-cloudwatch-agent-setup"
-  document_type = "Command"
+  name            = "${var.app_name}-cloudwatch-agent-setup"
+  document_type   = "Command"
   document_format = "JSON"
 
   content = jsonencode({
@@ -90,7 +90,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup" {
           "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json",
           "systemctl enable amazon-cloudwatch-agent"
         ]
-        timeoutSeconds = "600"  # 10 minutes timeout
+        timeoutSeconds = "600" # 10 minutes timeout
       }
     }]
   })
@@ -105,7 +105,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup" {
 # First: Install CloudWatch agent
 resource "aws_ssm_association" "cloudwatch_agent_manager" {
   name = aws_ssm_document.cloudwatch_agent_setup.name
-  
+
   targets {
     key    = "InstanceIds"
     values = [aws_instance.private.id]
@@ -117,7 +117,7 @@ resource "aws_ssm_association" "cloudwatch_agent_manager" {
 # Then: Run Docker manager setup (depends on CloudWatch agent)
 resource "aws_ssm_association" "docker_manager_setup" {
   name = aws_ssm_document.docker_manager_setup.name
-  
+
   targets {
     key    = "InstanceIds"
     values = [aws_instance.private.id]
@@ -130,7 +130,7 @@ resource "aws_ssm_association" "docker_manager_setup" {
 # First: Install CloudWatch agent
 resource "aws_ssm_association" "cloudwatch_agent_worker" {
   name = aws_ssm_document.cloudwatch_agent_setup.name
-  
+
   targets {
     key    = "InstanceIds"
     values = [aws_instance.public.id]
@@ -142,7 +142,7 @@ resource "aws_ssm_association" "cloudwatch_agent_worker" {
 # Then: Run Docker worker setup (depends on CloudWatch agent)
 resource "aws_ssm_association" "docker_worker_setup" {
   name = aws_ssm_document.docker_worker_setup.name
-  
+
   targets {
     key    = "InstanceIds"
     values = [aws_instance.public.id]
