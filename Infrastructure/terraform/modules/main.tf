@@ -56,7 +56,6 @@ variable "app_name" {
 variable "environment" {
   description = "Environment name (e.g., staging, production)."
   type        = string
-  default     = ""
 }
 
 variable "deployment_bucket" {
