@@ -54,8 +54,8 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          aws_s3_bucket.deployment_bucket.arn,
-          "${aws_s3_bucket.deployment_bucket.arn}/*"
+          "arn:aws:s3:::${var.deployment_bucket}",
+          "arn:aws:s3:::${var.deployment_bucket}/*"
         ]
       },
       {
