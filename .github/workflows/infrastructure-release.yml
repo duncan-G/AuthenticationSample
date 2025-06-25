@@ -344,7 +344,7 @@ jobs:
       id: apply
       run: |
         echo "🚀 Applying Terraform changes..."
-        terraform apply -no-color "${{ steps.plan.outputs.plan-file }}"
+        terraform apply -no-color -input=false -auto-approve "${{ steps.plan.outputs.plan-file }}"
         
         if [ $? -eq 0 ]; then
           echo "✅ Terraform apply completed successfully"
