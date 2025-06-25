@@ -328,6 +328,7 @@ jobs:
         echo "Current workspace: $(terraform workspace show)"
 
     - name: Download Plan File
+      if: github.event.inputs.action == 'deploy'
       uses: actions/download-artifact@v4
       with:
         name: terraform-plan-${{ github.event.inputs.environment }}-${{ github.run_id }}
@@ -337,13 +338,21 @@ jobs:
       id: apply
       run: |
         echo "🚀 Applying Terraform changes..."
-        terraform apply -no-color -input=false -auto-approve "${{ steps.plan.outputs.plan-file }}"
+        
+        # Determine if this is a destroy operation
+        if [ "${{ github.event.inputs.action }}" = "destroy" ]; then
+          echo "🔥 Running Terraform destroy..."
+          terraform destroy -no-color -input=false -auto-approve
+        else
+          echo "🚀 Running Terraform apply..."
+          terraform apply -no-color -input=false -auto-approve "${{ steps.plan.outputs.plan-file }}"
+        fi
         
         if [ $? -eq 0 ]; then
-          echo "✅ Terraform apply completed successfully"
+          echo "✅ Terraform operation completed successfully"
           echo "success=true" >> $GITHUB_OUTPUT
         else
-          echo "❌ Terraform apply failed"
+          echo "❌ Terraform operation failed"
           echo "success=false" >> $GITHUB_OUTPUT
           exit 1
         fi
@@ -359,7 +368,7 @@ jobs:
     - name: Apply Summary
       if: always()
       run: |
-        echo "## Terraform Apply Results" >> $GITHUB_STEP_SUMMARY
+        echo "## Terraform Apply/Destroy Results" >> $GITHUB_STEP_SUMMARY
         echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
         
