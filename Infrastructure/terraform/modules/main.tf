@@ -488,44 +488,6 @@ resource "aws_instance" "private" {
 }
 
 ########################
-# CloudWatch Monitoring for User Data Scripts
-########################
-
-# CloudWatch Log Group for user data scripts
-resource "aws_cloudwatch_log_group" "user_data_logs" {
-  name              = "/aws/ec2/${var.app_name}-user-data"
-  retention_in_days = 7
-
-  tags = {
-    Name        = "${var.app_name}-user-data-logs"
-    Environment = var.environment
-  }
-}
-
-# CloudWatch Alarm for user data script failures
-resource "aws_cloudwatch_metric_alarm" "user_data_failure" {
-  alarm_name          = "${var.app_name}-user-data-failure"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
-  metric_name         = "StatusCheckFailed_System"
-  namespace           = "AWS/EC2"
-  period              = "60"
-  statistic           = "Average"
-  threshold           = "0"
-  alarm_description   = "This metric monitors EC2 system status check failures which may indicate user data script issues"
-  alarm_actions       = [] # Add SNS topic ARN here if you want notifications
-
-  dimensions = {
-    InstanceId = aws_instance.private.id
-  }
-
-  tags = {
-    Name        = "${var.app_name}-user-data-failure-alarm"
-    Environment = var.environment
-  }
-}
-
-########################
 # Outputs
 ########################
 
