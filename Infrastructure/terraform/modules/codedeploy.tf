@@ -25,9 +25,7 @@ resource "aws_codedeploy_deployment_group" "microservices" {
   
   # Deployment configuration
   deployment_config_name = "CodeDeployDefault.OneAtATime"
-  
-  # Auto Scaling groups (if using ASG)
-  # autoscaling_groups = [aws_autoscaling_group.microservice.name]
+
   
   # EC2 instances (using tags to identify instances)
   ec2_tag_set {
@@ -42,35 +40,6 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       type  = "KEY_AND_VALUE"
       value = each.key
     }
-  }
-  
-  # Load balancer configuration (if using ALB)
-  # load_balancer_info {
-  #   target_group_info {
-  #     name = aws_lb_target_group.microservice.name
-  #   }
-  # }
-  
-  # Blue/Green deployment configuration
-  blue_green_deployment_config {
-    deployment_ready_option {
-      action_on_timeout = "CONTINUE_DEPLOYMENT"
-    }
-    
-    green_fleet_provisioning_option {
-      action = "COPY_AUTO_SCALING_GROUP"
-    }
-    
-    terminate_blue_instances_on_deployment_success {
-      action = "TERMINATE"
-      termination_wait_time_in_minutes = 5
-    }
-  }
-  
-  # Auto rollback configuration
-  auto_rollback_configuration {
-    enabled = true
-    events  = ["DEPLOYMENT_FAILURE"]
   }
   
   # Alarm configuration
@@ -195,19 +164,12 @@ resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
 
 # S3 Bucket for deployment artifacts
 resource "aws_s3_bucket" "deployment_bucket" {
-  bucket = "${var.app_name}-deployment-${var.environment}-${random_string.bucket_suffix.result}"
+  bucket = var.deployment_bucket
   
   tags = {
     Name        = "${var.app_name}-deployment-bucket"
     Environment = var.environment
   }
-}
-
-# Random string for bucket name uniqueness
-resource "random_string" "bucket_suffix" {
-  length  = 8
-  special = false
-  upper   = false
 }
 
 # S3 Bucket versioning

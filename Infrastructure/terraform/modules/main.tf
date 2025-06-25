@@ -464,29 +464,6 @@ resource "aws_cloudwatch_metric_alarm" "user_data_failure" {
   }
 }
 
-# CloudWatch Alarm for worker instance user data failures
-resource "aws_cloudwatch_metric_alarm" "worker_user_data_failure" {
-  alarm_name          = "${var.app_name}-worker-user-data-failure"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
-  metric_name         = "StatusCheckFailed_System"
-  namespace           = "AWS/EC2"
-  period              = "60"
-  statistic           = "Average"
-  threshold           = "0"
-  alarm_description   = "This metric monitors EC2 system status check failures which may indicate user data script issues"
-  alarm_actions       = [] # Add SNS topic ARN here if you want notifications
-
-  dimensions = {
-    InstanceId = aws_instance.public.id
-  }
-
-  tags = {
-    Name        = "${var.app_name}-worker-user-data-failure-alarm"
-    Environment = var.environment
-  }
-}
-
 ########################
 # Outputs
 ########################

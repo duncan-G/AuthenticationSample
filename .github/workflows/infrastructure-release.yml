@@ -343,29 +343,16 @@ jobs:
     - name: Terraform Apply
       id: apply
       run: |
-        PLAN_FILE="tfplan-${{ github.event.inputs.action }}"
+        echo "🚀 Applying Terraform changes..."
+        terraform apply -no-color "${{ steps.plan.outputs.plan-file }}"
         
-        if [[ "${{ github.event.inputs.action }}" == "destroy" ]]; then
-          echo "🔥 DESTROYING INFRASTRUCTURE..."
-          echo "⚠️  This will permanently delete resources in ${{ github.event.inputs.environment }}!"
-          echo "Sleeping for 10 seconds to allow cancellation..."
-          sleep 10
-        else
-          echo "🚀 Applying infrastructure changes..."
-        fi
-        
-        terraform apply -auto-approve -input=false "$PLAN_FILE"
-        APPLY_EXIT_CODE=$?
-        
-        # Save exit code for other steps
-        echo "exitcode=$APPLY_EXIT_CODE" >> $GITHUB_OUTPUT
-        
-        # Handle apply exit codes
-        if [ $APPLY_EXIT_CODE -eq 0 ]; then
+        if [ $? -eq 0 ]; then
           echo "✅ Terraform apply completed successfully"
+          echo "success=true" >> $GITHUB_OUTPUT
         else
-          echo "❌ Terraform apply failed with exit code: $APPLY_EXIT_CODE"
-          exit $APPLY_EXIT_CODE
+          echo "❌ Terraform apply failed"
+          echo "success=false" >> $GITHUB_OUTPUT
+          exit 1
         fi
 
     - name: Terraform Output
@@ -388,4 +375,171 @@ jobs:
           *) echo "- **Status**: ❌ Failed" >> $GITHUB_STEP_SUMMARY ;;
         esac
         
-        echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY 
+        echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  verify-docker-setup:
+    name: 'Verify Docker Manager Setup'
+    runs-on: ubuntu-latest
+    if: |
+      github.event.inputs.action == 'deploy' &&
+      github.event_name == 'workflow_dispatch' &&
+      needs.terraform-apply.outputs.success == 'true'
+    needs: terraform-apply
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
+        role-session-name: GitHubActions-VerifySetup-${{ github.run_id }}
+        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+    - name: Get Instance ID
+      id: get-instance
+      run: |
+        # Get the private instance ID from Terraform output
+        cd Infrastructure/terraform/modules
+        
+        # Initialize Terraform to get outputs
+        terraform init \
+          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+          -backend-config="region=${{ env.AWS_DEFAULT_REGION }}" \
+          -backend-config="workspace_key_prefix=${{ secrets.TF_APP_NAME }}" \
+          -no-color
+        
+        terraform workspace select "${{ github.event.inputs.environment }}"
+        
+        # Get instance ID from Terraform output
+        INSTANCE_ID=$(terraform output -raw private_instance_ip 2>/dev/null || echo "")
+        if [ -z "$INSTANCE_ID" ]; then
+          echo "❌ Could not get instance ID from Terraform output"
+          exit 1
+        fi
+        
+        echo "instance-id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+        echo "🔍 Checking Docker manager setup on instance: $INSTANCE_ID"
+
+    - name: Check Docker Manager Setup Status
+      run: |
+        INSTANCE_ID="${{ steps.get-instance.outputs.instance-id }}"
+        
+        echo "⏳ Waiting for Docker manager setup to complete..."
+        
+        # Wait up to 10 minutes for setup to complete
+        for i in {1..60}; do
+          echo "Attempt $i/60: Checking setup status..."
+          
+          # Check if status file exists and read its content
+          STATUS=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["cat /tmp/docker-manager-setup.status 2>/dev/null || echo \"NOT_FOUND\""]' \
+            --query 'Command.CommandId' \
+            --output text 2>/dev/null || echo "")
+          
+          if [ -n "$STATUS" ]; then
+            # Wait a moment for command to complete
+            sleep 10
+            
+            # Get command output
+            RESULT=$(aws ssm get-command-invocation \
+              --command-id "$STATUS" \
+              --instance-id "$INSTANCE_ID" \
+              --query 'StandardOutputContent' \
+              --output text 2>/dev/null || echo "")
+            
+            if [[ "$RESULT" == *"SUCCESS"* ]]; then
+              echo "✅ Docker manager setup completed successfully!"
+              echo "Setup Status: $RESULT"
+              break
+            elif [[ "$RESULT" == *"FAILED"* ]]; then
+              echo "❌ Docker manager setup failed!"
+              echo "Failure Details: $RESULT"
+              
+              # Get the setup log for more details
+              echo "📋 Retrieving setup logs..."
+              aws ssm send-command \
+                --instance-ids "$INSTANCE_ID" \
+                --document-name "AWS-RunShellScript" \
+                --parameters 'commands=["tail -50 /var/log/docker-manager-setup.log 2>/dev/null || echo \"No log file found\""]' \
+                --query 'Command.CommandId' \
+                --output text > /dev/null
+              
+              exit 1
+            fi
+          fi
+          
+          echo "Setup not complete yet, waiting 10 seconds..."
+          sleep 10
+        done
+        
+        if [ $i -eq 60 ]; then
+          echo "⏰ Timeout: Docker manager setup did not complete within 10 minutes"
+          echo "📋 Retrieving current status and logs..."
+          
+          # Get current status
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["cat /tmp/docker-manager-setup.status 2>/dev/null || echo \"Status file not found\"; echo \"---\"; tail -20 /var/log/docker-manager-setup.log 2>/dev/null || echo \"Log file not found\""]' \
+            --query 'Command.CommandId' \
+            --output text > /dev/null
+          
+          exit 1
+        fi
+
+    - name: Verify Docker Swarm Status
+      run: |
+        INSTANCE_ID="${{ steps.get-instance.outputs.instance-id }}"
+        
+        echo "🔍 Verifying Docker Swarm status..."
+        
+        # Check if Docker Swarm is active
+        SWARM_STATUS=$(aws ssm send-command \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["docker info --format \"{{.Swarm.LocalNodeState}}\" 2>/dev/null || echo \"Docker not available\""]' \
+          --query 'Command.CommandId' \
+          --output text)
+        
+        sleep 5
+        
+        RESULT=$(aws ssm get-command-invocation \
+          --command-id "$SWARM_STATUS" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'StandardOutputContent' \
+          --output text)
+        
+        if [[ "$RESULT" == "active" ]]; then
+          echo "✅ Docker Swarm is active and running"
+        else
+          echo "❌ Docker Swarm is not active. Status: $RESULT"
+          exit 1
+        fi
+        
+        # Check if overlay network exists
+        NETWORK_STATUS=$(aws ssm send-command \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --parameters 'commands=["docker network ls --filter name=app-network --format \"{{.Name}}\" 2>/dev/null || echo \"Network not found\""]' \
+          --query 'Command.CommandId' \
+          --output text)
+        
+        sleep 5
+        
+        NETWORK_RESULT=$(aws ssm get-command-invocation \
+          --command-id "$NETWORK_STATUS" \
+          --instance-id "$INSTANCE_ID" \
+          --query 'StandardOutputContent' \
+          --output text)
+        
+        if [[ "$NETWORK_RESULT" == "app-network" ]]; then
+          echo "✅ Overlay network 'app-network' exists"
+        else
+          echo "❌ Overlay network 'app-network' not found. Available networks: $NETWORK_RESULT"
+          exit 1
+        fi 
