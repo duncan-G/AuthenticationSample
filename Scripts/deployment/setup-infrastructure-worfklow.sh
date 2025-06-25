@@ -62,6 +62,22 @@ create_terraform_state_backend() {
     aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
 }
 
+create_codedeploy_bucket() {
+    BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
+    BUCKET_NAME="codedeploy-${BUCKET_HASH}"
+    
+    print_info "Creating S3 bucket for CodeDeploy deployment: $BUCKET_NAME"
+
+    if ! aws s3api head-bucket --bucket "$BUCKET_NAME" --profile "$AWS_PROFILE" 2>/dev/null; then
+        aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
+        print_success "S3 bucket $BUCKET_NAME created."
+    else
+        print_warning "S3 bucket $BUCKET_NAME already exists."
+    fi
+
+    aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
+}
+
 # Function to create OIDC provider
 create_oidc_provider() {
     print_info "Creating OIDC provider..."
@@ -140,7 +156,8 @@ setup_oidc_infrastructure() {
     sed \
         -e "s|\${APP_NAME}|$TF_APP_NAME|g" \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
-        -e "s|\${BUCKET_NAME}|$BUCKET_NAME|g" \
+        -e "s|\${TF_STATE_BUCKET}|$BUCKET_NAME|g" \
+        -e "s|\${DEPLOYMENT_BUCKET}|$CODEDEPLOY_BUCKET_NAME|g" \
         "$ORIGINAL_POLICY_FILE_PATH" > "$PROCESSED_POLICY_FILE_PATH"
     
     sed \
@@ -259,6 +276,7 @@ main() {
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
     create_terraform_state_backend
+    create_codedeploy_bucket
     setup_oidc_infrastructure
     setup_github_workflow
     
