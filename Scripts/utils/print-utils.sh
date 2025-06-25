@@ -5,10 +5,14 @@
 # Shared color variables and print functions
 #########################################
 
+UTILS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
@@ -30,6 +34,10 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
+print_breaking() {
+    echo -e "${PURPLE}🚨 $1${NC}"
+}
+
 print_header() {
     local title="$1"
     echo -e "${WHITE}"
@@ -40,5 +48,5 @@ print_header() {
 }
 
 # Export functions and variables so they can be used by other scripts
-export RED GREEN YELLOW CYAN WHITE NC
-export -f print_info print_success print_warning print_error print_header 
+export RED GREEN YELLOW BLUE PURPLE CYAN WHITE NC
+export -f print_info print_success print_warning print_error print_breaking print_header 

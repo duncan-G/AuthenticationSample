@@ -6,14 +6,15 @@
 #########################################
 
 # Source shared utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/print-utils.sh"
+UTILS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$UTILS_SCRIPT_DIR/print-utils.sh"
+source "$UTILS_SCRIPT_DIR/common.sh"
 
 # Function to check if AWS CLI is configured
 check_aws_cli() {
     print_info "Checking AWS CLI configuration..."
     
-    if ! command -v aws &> /dev/null; then
+    if ! command_exists aws; then
         print_error "AWS CLI not found. Please install AWS CLI first."
         exit 1
     fi
@@ -166,7 +167,7 @@ validate_aws_region() {
 
 # Function to check if jq is available (for JSON parsing)
 check_jq() {
-    if ! command -v jq &> /dev/null; then
+    if ! command_exists jq; then
         print_warning "jq not found. Some features may not work optimally."
         print_info "To install jq: sudo apt-get install jq (Ubuntu/Debian) or brew install jq (macOS)"
         return 1

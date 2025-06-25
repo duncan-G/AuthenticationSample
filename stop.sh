@@ -1,13 +1,17 @@
 #!/bin/bash
 
-working_dir=$(pwd)
+# ------------------------------------------------------------------------------
+# Root Convenience Script: stop.sh
+# ------------------------------------------------------------------------------
+# Purpose:
+#   This script is a simple entry point for stopping the development environment.
+#   It delegates execution to the main script located at:
+#     Scripts/development/stop.sh
+#
+# Usage:
+#   ./stop.sh [options]
+#   (All arguments are passed through to the underlying script.)
+# ------------------------------------------------------------------------------
 
-if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" == "active" ]; then
-    # This will remove all running or dangling containers,
-    # networks, configs and secrets in the swarm.
-    docker swarm leave --force
-fi
-
-docker volume prune -f
-
-bash "$working_dir/scripts/stop_client.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/Scripts/development/stop.sh" "$@"

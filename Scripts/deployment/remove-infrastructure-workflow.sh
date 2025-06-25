@@ -1,44 +1,38 @@
 #!/bin/bash
 
 #########################################
-# Cleanup Terraform Pipeline Resources
-# Deletes all AWS resources created by setup-pipeline.sh
+# Terraform and CodeDeploy Workflow Cleanup Script
+# Provides a user-friendly interface for cleaning up Terraform and CodeDeploy workflow resources
 #########################################
 
 set -e
 
 # Source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/print-utils.sh"
-source "$SCRIPT_DIR/prompt-utils.sh"
-source "$SCRIPT_DIR/aws-utils.sh"
-source "$SCRIPT_DIR/github-utils.sh"
+UTILS_DIR="$(cd "$SCRIPT_DIR/../utils" && pwd)"
+source "$UTILS_DIR/print-utils.sh"
+source "$UTILS_DIR/prompt.sh"
+source "$UTILS_DIR/aws-utils.sh"
+source "$UTILS_DIR/github-utils.sh"
 
-print_header "🗑️  Terraform Pipeline Cleanup Script"
+print_header "🗑️  Terraform and CodeDeploy Github Actions Workflow Cleanup Script"
 
 # Function to get user input
 get_user_input() {
     print_info "Please provide the following information:"
-    echo
     
-    # Get AWS profile name
     prompt_user "Enter your AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
 
-    
-    echo
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"
     echo "  GitHub Repository: $GITHUB_REPO_FULL"
-    echo
     
     print_warning "This will DELETE the following resources:"
     echo "  • IAM Role: github-actions-terraform"
     echo "  • IAM Policy: terraform-github-actions-oidc-policy"
     echo "  • OIDC Provider: token.actions.githubusercontent.com"
-    echo
     print_warning "S3 Bucket: Terraform state backend (manual deletion required)"
     print_warning "Github Secrets, Variables and Environments: (manual deletion required)"
-    echo
     
     if ! prompt_confirmation "Are you sure you want to delete these resources?" "y/N"; then
         print_info "Cleanup cancelled."
@@ -52,15 +46,16 @@ get_user_input() {
 
 # Function to detach policy from role
 detach_policy_from_role() {
-    print_info "Detaching policy from IAM role..."
+    local role_name_suffix="$1"
     
-    ROLE_NAME="github-actions-terraform"
-    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/terraform-github-actions-oidc-policy"
-    echo
+    print_info "Detaching policy from IAM role for $role_name_suffix..."
     
-    # Check if role exists and has policy attached
+    ROLE_NAME="github-actions-${role_name_suffix}"
+    POLICY_NAME="github-actions-oidc-policy-${role_name_suffix}"
+    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${POLICY_NAME}"
+    
     if aws iam get-role --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" &> /dev/null; then
-        if aws iam list-attached-role-policies --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" | grep -q "terraform-github-actions-oidc-policy"; then
+        if aws iam list-attached-role-policies --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" | grep -q "$POLICY_NAME"; then
             aws iam detach-role-policy \
                 --profile "$AWS_PROFILE" \
                 --role-name "$ROLE_NAME" \
@@ -76,9 +71,11 @@ detach_policy_from_role() {
 
 # Function to delete IAM role
 delete_iam_role() {
-    print_info "Deleting IAM role..."
+    local role_name_suffix="$1"
     
-    ROLE_NAME="github-actions-terraform"
+    print_info "Deleting IAM role for $role_name_suffix..."
+    
+    ROLE_NAME="github-actions-${role_name_suffix}"
     
     if aws iam get-role --profile "$AWS_PROFILE" --role-name "$ROLE_NAME" &> /dev/null; then
         aws iam delete-role \
@@ -92,12 +89,13 @@ delete_iam_role() {
 
 # Function to delete IAM policy
 delete_iam_policy() {
-    print_info "Deleting IAM policy..."
+    local role_name_suffix="$1"
     
-    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/terraform-github-actions-oidc-policy"
+    print_info "Deleting IAM policy for $role_name_suffix..."
+    
+    POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/github-actions-oidc-policy-${role_name_suffix}"
     
     if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "$POLICY_ARN" &> /dev/null; then
-        # Get all policy versions
         print_info "Checking for policy versions..."
         POLICY_VERSIONS=$(aws iam list-policy-versions \
             --profile "$AWS_PROFILE" \
@@ -105,7 +103,6 @@ delete_iam_policy() {
             --query 'Versions[?IsDefaultVersion==`false`].VersionId' \
             --output text 2>/dev/null)
         
-        # Delete non-default versions
         if [ -n "$POLICY_VERSIONS" ]; then
             print_info "Found non-default policy versions. Deleting them..."
             for version in $POLICY_VERSIONS; do
@@ -120,7 +117,6 @@ delete_iam_policy() {
             print_info "No non-default policy versions found"
         fi
         
-        # Now delete the policy
         aws iam delete-policy \
             --profile "$AWS_PROFILE" \
             --policy-arn "$POLICY_ARN"
@@ -146,69 +142,79 @@ delete_oidc_provider() {
     fi
 }
 
+# Function to cleanup OIDC infrastructure
+cleanup_oidc_infrastructure() {
+    print_info "Cleaning up OIDC infrastructure..."
+    
+    detach_policy_from_role "terraform"
+    delete_iam_role "terraform"
+    delete_iam_policy "terraform"
+    
+    delete_oidc_provider
+}
+
 # Function to provide instructions for S3 bucket cleanup
 display_state_bucket_cleanup_instructions() {
-    
-    # Recalculate the bucket name using the same logic as setup script
     BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
-    BUCKET_NAME="terraform-state-${BUCKET_HASH}"
+    TERRAFORM_BUCKET_NAME="terraform-state-${BUCKET_HASH}"
 
-    echo
     print_warning "S3 bucket cleanup is not automated for safety reasons."
-    echo
-    print_info "To manually delete the S3 bucket, run these commands:"
-    echo
-    echo -e "${YELLOW}# Delete all objects in the bucket:${NC}"
-    echo -e "${GREEN}aws s3 rm s3://$BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
-    echo
-    echo -e "${YELLOW}# Delete the bucket:${NC}"
-    echo -e "${GREEN}aws s3api delete-bucket --bucket $BUCKET_NAME --profile $AWS_PROFILE${NC}"
-    echo
+    
+    print_info "To manually delete the Terraform state S3 bucket, run these commands:"
+    
+    echo -e "${YELLOW}# Delete Terraform state bucket:${NC}"
+    echo -e "${GREEN}aws s3 rm s3://$TERRAFORM_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws s3api delete-bucket --bucket $TERRAFORM_BUCKET_NAME --profile $AWS_PROFILE${NC}"
+    
     print_warning "⚠️  WARNING: This will permanently delete your Terraform state!"
     print_info "Make sure you have backed up your state or are certain you want to delete it."
-    echo
 }
 
 # Function to display final summary
 display_final_summary() {
-    echo
     print_success "🎉 Pipeline cleanup completed successfully!"
-    echo
+    
     print_info "Resources that were processed:"
     echo "  ✅ IAM Role: github-actions-terraform"
-    echo "  ✅ IAM Policy: terraform-github-actions-oidc-policy"
+    echo "  ✅ IAM Policy: terraform-github-actions-oidc-policy" 
     echo "  ✅ OIDC Provider: token.actions.githubusercontent.com"
-    echo "  ℹ️  S3 Bucket: Manual deletion required (see instructions above)"
-    echo
+    echo "  ℹ️  S3 Buckets: Manual deletion required (see instructions above)"
+    
     print_info "Additional cleanup steps:"
-    echo "1. Remove the AWS_ACCOUNT_ID secret from your GitHub repository:"
-    echo "   Settings → Secrets and variables → Actions → Delete 'AWS_ACCOUNT_ID'"
-    echo
-    echo "2. Remove the TF_STATE_BUCKET secret from your GitHub repository:"
-    echo "   Settings → Secrets and variables → Actions → Delete 'TF_STATE_BUCKET'"
-    echo
-    echo "3. Remove the TF_APP_NAME secret from your GitHub repository:"
-    echo "   Settings → Secrets and variables → Actions → Delete 'TF_APP_NAME'"
-    echo
-    echo "4. Remove the AWS_DEFAULT_REGION variable from your GitHub repository:"
-    echo "   Settings → Secrets and variables → Actions → Variables → Delete 'AWS_DEFAULT_REGION'"
-    echo
-    echo "5. Remove the Staging and Production environments from your GitHub repository:"
-    echo "   Settings → Environments → Staging → Delete"
-    echo "   Settings → Environments → Production → Delete"
-    echo
-    echo "6. Your GitHub Actions workflow will no longer work until you:"
-    echo "   • Run setup-github-actions-oidc.sh again, OR"
-    echo "   • Set up AWS permissions in AWS Dashboard"
-    echo
+    echo "1. Remove GitHub repository secrets:"
+    echo "   AWS_ACCOUNT_ID, TF_STATE_BUCKET, TF_APP_NAME, GITHUB_REPOSITORY,"
+    echo "   ECR_REPOSITORY_PREFIX, DEPLOYMENT_BUCKET"
+    echo "2. Remove GitHub repository variables:"
+    echo "   AWS_DEFAULT_REGION"
+    echo "3. Remove GitHub environments:"
+    echo "   terraform-staging, terraform-production,"
+    echo "   codedeploy-staging, codedeploy-production"
+    
     print_warning "Note: This cleanup does NOT delete your terraform infrastructure."
     print_info "To delete infrastructure, run: terraform destroy"
+}
+
+# Function to show usage
+show_usage() {
+    echo "Usage: $0"
     echo
+    echo "This script cleans up the complete Terraform and CodeDeploy workflow infrastructure including:"
+    echo "  - OIDC provider and IAM roles/policies for Terraform and CodeDeploy"
+    echo "  - S3 bucket cleanup instructions for Terraform state and CodeDeploy artifacts"
+    echo "  - GitHub repository cleanup instructions for secrets, variables, and environments"
+    echo
+    echo "Prerequisites:"
+    echo "  - AWS CLI configured with appropriate profile"
+    echo "  - GitHub CLI authenticated"
+    exit 1
 }
 
 # Main execution
 main() {
-    check_aws_cli
+    if [ $# -ne 0 ]; then
+        show_usage
+    fi
+    
     check_github_cli
 
     GITHUB_REPO_FULL=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
@@ -216,7 +222,8 @@ main() {
 
     get_user_input
 
-    # Check AWS profile and authentication
+    check_aws_cli
+    
     if ! check_aws_profile "$AWS_PROFILE"; then
         exit 1
     fi
@@ -225,19 +232,14 @@ main() {
         exit 1
     fi
     
-    # Get AWS account ID
     AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
     if [ $? -ne 0 ]; then
         exit 1
     fi
     
-    echo
     print_info "Starting pipeline cleanup..."
     
-    detach_policy_from_role
-    delete_iam_role
-    delete_iam_policy
-    delete_oidc_provider
+    cleanup_oidc_infrastructure
     
     display_final_summary
     display_state_bucket_cleanup_instructions

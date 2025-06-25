@@ -5,9 +5,9 @@
 # Shared functions for user interaction and input handling
 #########################################
 
-# Source shared print utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/print-utils.sh"
+# Source shared utilities
+UTILS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$UTILS_SCRIPT_DIR/print-utils.sh"
 
 # Function to prompt user for input
 prompt_user() {
@@ -93,4 +93,4 @@ prompt_selection() {
 }
 
 # Export functions so they can be used by other scripts
-export -f prompt_user prompt_confirmation prompt_required_confirmation 
+export -f prompt_user prompt_confirmation prompt_required_confirmation prompt_selection 

@@ -1,0 +1,19 @@
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::CodeDeploy::EC2
+      Properties:
+        InstanceTagSet:
+          - Key: "Environment"
+            Value: "{{ ENVIRONMENT }}"
+          - Key: "Service"
+            Value: "{{ SERVICE_NAME }}"
+
+# Hooks for deployment lifecycle
+Hooks:
+  - BeforeInstall: "scripts/before-install.sh"
+  - AfterInstall: "scripts/after-install.sh"
+  - ApplicationStart: "scripts/application-start.sh"
+  - ValidateService: "scripts/validate-service.sh"
+  - BeforeAllowTraffic: "scripts/before-allow-traffic.sh"
+  - AfterAllowTraffic: "scripts/after-allow-traffic.sh"

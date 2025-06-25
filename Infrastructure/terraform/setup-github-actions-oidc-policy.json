@@ -30,7 +30,10 @@
         "iam:DeletePolicy",
         "iam:DeletePolicyVersion"
       ],
-      "Resource": "arn:aws:iam::*:policy/terraform-github-actions-oidc-policy"
+      "Resource": [
+        "arn:aws:iam::*:policy/github-actions-oidc-policy-terraform",
+        "arn:aws:iam::*:policy/github-actions-oidc-policy-codedeploy"
+      ]
     },
     {
       "Sid": "IAMRolePermissions",
@@ -44,7 +47,10 @@
         "iam:DetachRolePolicy",
         "iam:DeleteRole"
       ],
-      "Resource": "arn:aws:iam::*:role/github-actions-terraform"
+      "Resource": [
+        "arn:aws:iam::*:role/github-actions-terraform",
+        "arn:aws:iam::*:role/github-actions-codedeploy"
+      ]
     },
     {
       "Sid": "TerraformStateS3Permissions",
