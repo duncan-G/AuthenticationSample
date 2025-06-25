@@ -162,56 +162,6 @@ resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
   role = aws_iam_role.ec2_codedeploy_role.name
 }
 
-# S3 Bucket for deployment artifacts
-resource "aws_s3_bucket" "deployment_bucket" {
-  bucket = var.deployment_bucket
-
-  tags = {
-    Name        = "${var.app_name}-deployment-bucket"
-    Environment = var.environment
-  }
-}
-
-# S3 Bucket versioning
-resource "aws_s3_bucket_versioning" "deployment_bucket_versioning" {
-  bucket = aws_s3_bucket.deployment_bucket.id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-# S3 Bucket server-side encryption
-resource "aws_s3_bucket_server_side_encryption_configuration" "deployment_bucket_encryption" {
-  bucket = aws_s3_bucket.deployment_bucket.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-# S3 Bucket lifecycle policy
-resource "aws_s3_bucket_lifecycle_configuration" "deployment_bucket_lifecycle" {
-  bucket = aws_s3_bucket.deployment_bucket.id
-
-  rule {
-    id     = "cleanup_old_deployments"
-    status = "Enabled"
-
-    filter {} # Applies to all objects
-
-    expiration {
-      days = 30
-    }
-
-    noncurrent_version_expiration {
-      noncurrent_days = 7
-    }
-  }
-}
-
 # CloudWatch Log Group for CodeDeploy
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
   for_each = toset(["authentication"]) # Add more services as needed
