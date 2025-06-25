@@ -427,7 +427,7 @@ locals {
     app_name      = var.app_name
     instance_type = "manager"
   })
-  
+
   cloudwatch_agent_config_worker = templatefile("${path.module}/cloudwatch-agent-config.json", {
     app_name      = var.app_name
     instance_type = "worker"
