@@ -64,18 +64,18 @@ create_terraform_state_backend() {
 
 create_codedeploy_bucket() {
     BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
-    BUCKET_NAME="codedeploy-${BUCKET_HASH}"
+    CODEDEPLOY_BUCKET_NAME="codedeploy-${BUCKET_HASH}"
     
-    print_info "Creating S3 bucket for CodeDeploy deployment: $BUCKET_NAME"
+    print_info "Creating S3 bucket for CodeDeploy deployment: $CODEDEPLOY_BUCKET_NAME"
 
-    if ! aws s3api head-bucket --bucket "$BUCKET_NAME" --profile "$AWS_PROFILE" 2>/dev/null; then
-        aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
-        print_success "S3 bucket $BUCKET_NAME created."
+    if ! aws s3api head-bucket --bucket "$CODEDEPLOY_BUCKET_NAME" --profile "$AWS_PROFILE" 2>/dev/null; then
+        aws s3api create-bucket --bucket "$CODEDEPLOY_BUCKET_NAME" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
+        print_success "S3 bucket $CODEDEPLOY_BUCKET_NAME created."
     else
-        print_warning "S3 bucket $BUCKET_NAME already exists."
+        print_warning "S3 bucket $CODEDEPLOY_BUCKET_NAME already exists."
     fi
 
-    aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
+    aws s3api put-bucket-versioning --bucket "$CODEDEPLOY_BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
 }
 
 # Function to create OIDC provider
