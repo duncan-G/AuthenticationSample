@@ -13,6 +13,10 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.9"
     }
+    template = {
+      source  = "hashicorp/template"
+      version = "~> 2.2"
+    }
   }
   backend "s3" {
     # Partial configuration (because variables are not allowed in backend config) -
