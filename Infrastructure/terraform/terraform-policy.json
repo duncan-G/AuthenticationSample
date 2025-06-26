@@ -105,8 +105,20 @@
       ],
       "Resource": [
         "arn:aws:ssm:*:*:parameter/docker/swarm/*",
+        "arn:aws:ssm:*:*:parameter/ssh/*",
         "arn:aws:ssm:*:*:document/${APP_NAME}-*"
       ]
+    },
+    {
+      "Sid": "EC2KeyPairManagement",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:ImportKeyPair",
+        "ec2:DeleteKeyPair",
+        "ec2:DescribeKeyPairs",
+        "ec2:CreateKeyPair"
+      ],
+      "Resource": "*"
     },
     {
       "Sid": "SSMAssociationManagement",

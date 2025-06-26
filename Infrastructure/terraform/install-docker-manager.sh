@@ -98,8 +98,14 @@ install_docker() {
   log "Docker installed and running ✅"
 }
 
+already_in_swarm() {
+  local state
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "none")
+  [[ "$state" == "active" || "$state" == "pending" ]]
+}
+
 init_swarm() {
-  if docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -qE 'active|pending'; then
+  if already_in_swarm; then
     log "Swarm already initialised – skipping"
     return
   fi
