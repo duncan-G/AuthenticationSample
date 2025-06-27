@@ -200,7 +200,7 @@ resource "aws_route_table_association" "private" {
 
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat" {
-  vpc = true
+  vpc        = true
   depends_on = [aws_internet_gateway.igw]
   tags = {
     Name = "${var.app_name}-nat-eip"
