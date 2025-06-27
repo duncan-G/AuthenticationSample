@@ -42,7 +42,6 @@ env:
   TF_VAR_staging_environment: ${{ vars.STAGING_ENVIRONMENT || 'codedeploy-staging' }}
   TF_VAR_production_environment: ${{ vars.PRODUCTION_ENVIRONMENT || 'codedeploy-production' }}
   TF_VAR_environment: ${{ github.event.inputs.environment == 'terraform-production' && 'production' || 'staging' }}
-  TF_VAR_ssh_key_name: ${{ secrets.TF_APP_NAME }}-ssh-key
   
 permissions:
   contents: read
@@ -296,59 +295,6 @@ jobs:
         role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
         role-session-name: GitHubActions-Terraform-Apply-${{ github.run_id }}
         aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-    - name: Generate and Store SSH Key
-      if: github.event.inputs.action == 'deploy'
-      run: |
-        echo "🔑 Checking for existing SSH key pair..."
-        
-        KEY_NAME="${{ secrets.TF_APP_NAME }}-ssh-key"
-        PARAMETER_NAME="/ssh/private-key"
-        
-        # Check if EC2 key pair already exists
-        if aws ec2 describe-key-pairs --key-names "$KEY_NAME" --region "${{ env.AWS_DEFAULT_REGION }}" >/dev/null 2>&1; then
-          echo "✅ EC2 key pair '$KEY_NAME' already exists"
-          
-          # Check if private key exists in Parameter Store
-          if aws ssm get-parameter --name "$PARAMETER_NAME" --region "${{ env.AWS_DEFAULT_REGION }}" >/dev/null 2>&1; then
-            echo "✅ Private key already exists in Parameter Store"
-            echo "🔄 Reusing existing SSH key pair"
-          else
-            echo "⚠️  EC2 key pair exists but private key not found in Parameter Store"
-            echo "❌ This is a security issue - private key is missing"
-            echo "🔧 You may need to manually delete the EC2 key pair and redeploy"
-            exit 1
-          fi
-        else
-          echo "🔑 Generating new SSH key pair..."
-          
-          # Generate SSH key pair
-          ssh-keygen -t rsa -b 4096 -f /tmp/ssh-key -N "" -C "terraform-generated"
-          
-          # Store private key in Parameter Store
-          echo "📦 Storing private key in Parameter Store..."
-          aws ssm put-parameter \
-            --name "$PARAMETER_NAME" \
-            --value "$(cat /tmp/ssh-key)" \
-            --type "SecureString" \
-            --description "SSH private key for accessing private instances" \
-            --overwrite
-          
-          # Create key pair in AWS EC2
-          echo "🔐 Creating EC2 key pair..."
-          aws ec2 import-key-pair \
-            --key-name "$KEY_NAME" \
-            --public-key-material "$(base64 -w 0 /tmp/ssh-key.pub)" \
-            --region "${{ env.AWS_DEFAULT_REGION }}"
-          
-          # Clean up local key files
-          rm -f /tmp/ssh-key /tmp/ssh-key.pub
-          
-          echo "✅ New SSH key generated and stored successfully"
-        fi
-        
-        echo "Key pair name: $KEY_NAME"
-        echo "Private key stored in Parameter Store: $PARAMETER_NAME"
 
     - name: Terraform Init
       run: |
