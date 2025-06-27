@@ -138,14 +138,13 @@ init_swarm() {
   local token ip
   # Get IMDSv2 token first
   token=$(curl -X PUT -s --connect-timeout 5 --max-time 10 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
-  if [[ -n "$token" ]]; then
-    ip=$(curl -H "X-aws-ec2-metadata-token: $token" -s --connect-timeout 5 --max-time 10 "http://169.254.169.254/latest/meta-data/local-ipv4" || true)
-    log "DEBUG: Retrieved local IP: $ip"
-  else
+  if [[ -z "$token" ]]; then
     log "ERROR: Could not obtain IMDSv2 token for metadata access"
     return 1
   fi
   
+  ip=$(curl -H "X-aws-ec2-metadata-token: $token" -s --connect-timeout 5 --max-time 10 "http://169.254.169.254/latest/meta-data/local-ipv4" || true)
+  log "DEBUG: Retrieved local IP: $ip"
   if [[ -z "$ip" ]]; then
     log "ERROR: Could not retrieve local IP address from metadata"
     return 1
