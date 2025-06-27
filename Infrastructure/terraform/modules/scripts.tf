@@ -195,7 +195,6 @@ resource "aws_ssm_parameter" "docker_swarm_worker_token" {
   description = "Docker Swarm worker join token"
   type        = "String"
   value       = "placeholder" # Will be updated by the script
-  overwrite   = true
 
   tags = {
     Name        = "${var.app_name}-docker-swarm-worker-token"
@@ -204,6 +203,10 @@ resource "aws_ssm_parameter" "docker_swarm_worker_token" {
 
   # This parameter depends on the Docker manager setup being run
   depends_on = [aws_ssm_association.docker_manager_setup]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
@@ -211,7 +214,6 @@ resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
   description = "Docker Swarm manager IP address"
   type        = "String"
   value       = "placeholder" # Will be updated by the script
-  overwrite   = true
 
   tags = {
     Name        = "${var.app_name}-docker-swarm-manager-ip"
@@ -220,6 +222,10 @@ resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
 
   # This parameter depends on the Docker manager setup being run
   depends_on = [aws_ssm_association.docker_manager_setup]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "aws_ssm_parameter" "docker_swarm_network_name" {
@@ -227,7 +233,6 @@ resource "aws_ssm_parameter" "docker_swarm_network_name" {
   description = "Docker Swarm overlay network name"
   type        = "String"
   value       = "placeholder" # Will be updated by the script
-  overwrite   = true
 
   tags = {
     Name        = "${var.app_name}-docker-swarm-network-name"
@@ -236,4 +241,8 @@ resource "aws_ssm_parameter" "docker_swarm_network_name" {
 
   # This parameter depends on the Docker manager setup being run
   depends_on = [aws_ssm_association.docker_manager_setup]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 } 
