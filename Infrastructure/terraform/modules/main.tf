@@ -82,6 +82,12 @@ variable "production_environment" {
   default     = "codedeploy-production"
 }
 
+variable "ssh_key_name" {
+  description = "Name of the SSH key pair to use for EC2 instances."
+  type        = string
+  default     = ""
+}
+
 ########################
 # Data sources
 ########################
@@ -187,7 +193,7 @@ resource "aws_route_table_association" "public" {
 
 resource "aws_security_group" "instance" {
   name_prefix = "${var.app_name}-instance-sg-"
-  description = "Allow HTTP, HTTPS, and Docker Swarm communication"
+  description = "Allow HTTP, HTTPS, SSH, and Docker Swarm communication"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -204,6 +210,15 @@ resource "aws_security_group" "instance" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # SSH access from public instance to private instance
+  ingress {
+    description = "SSH from public instance"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [aws_subnet.public.cidr_block] # Public subnet CIDR
   }
 
   # Docker Swarm communication within VPC
@@ -313,7 +328,6 @@ resource "aws_iam_role_policy_attachment" "public_cloudwatch_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-
 # Custom policy for public instance to read Docker swarm SSM parameters
 resource "aws_iam_policy" "public_ssm_docker_access" {
   name        = "${var.app_name}-public-instance-docker-ssm-access"
@@ -336,9 +350,36 @@ resource "aws_iam_policy" "public_ssm_docker_access" {
   })
 }
 
+# Custom policy for public instance to read SSH keys from Parameter Store
+resource "aws_iam_policy" "public_ssh_key_access" {
+  name        = "${var.app_name}-public-instance-ssh-key-access"
+  description = "Allow read access to SSH keys from Parameter Store"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/ssh/*"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "public_ssm_docker_access" {
   role       = aws_iam_role.public_instance_role.name
   policy_arn = aws_iam_policy.public_ssm_docker_access.arn
+}
+
+resource "aws_iam_role_policy_attachment" "public_ssh_key_access" {
+  role       = aws_iam_role.public_instance_role.name
+  policy_arn = aws_iam_policy.public_ssh_key_access.arn
 }
 
 # Policy Attachments for Private Instance
@@ -444,15 +485,13 @@ resource "aws_instance" "public" {
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
+  key_name                    = var.ssh_key_name
 
-  # Simple user data to ensure SSM agent is running
-  user_data = base64encode(<<-EOF
-              #!/bin/bash
-              # Ensure SSM agent is running for script execution
-              systemctl enable amazon-ssm-agent
-              systemctl start amazon-ssm-agent
-              EOF
-  )
+  # User data to setup SSM agent and SSH helper script (script is base64-encoded for robustness)
+  user_data = base64encode(templatefile("${path.module}/ssh-user-data.tpl", {
+    ssh_helper_script   = base64encode(file("${path.module}/../ssh-to-private.sh"))
+    private_instance_id = aws_instance.private.id
+  }))
 
   tags = {
     Name        = "${var.app_name}-public-instance-worker"
@@ -467,6 +506,7 @@ resource "aws_instance" "private" {
   associate_public_ip_address = false
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
+  key_name                    = var.ssh_key_name
 
   # Simple user data to ensure SSM agent is running
   user_data = base64encode(<<-EOF

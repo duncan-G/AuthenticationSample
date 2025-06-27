@@ -93,7 +93,13 @@ install_docker() {
 }
 
 already_in_swarm() {
-  docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -qE 'active|pending'
+  local state
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "none")
+  if [[ "$state" == "active" || "$state" == "pending" ]]; then
+    return 0
+  else
+    return 1
+  fi
 }
 
 get_ssm_param() {
