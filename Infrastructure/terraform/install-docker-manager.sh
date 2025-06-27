@@ -81,7 +81,7 @@ fi
 ############################################
 
 log "Bootstrap initiated"
-status "IN_PROGRESS" "Docker Swarm manager setup started"
+status "IN_PROGRESS" "Docker Swarm manager setup started"
 
 get_aws_region() {
   local token region
@@ -111,7 +111,7 @@ install_docker() {
     return
   fi
 
-  log "Installing Docker engine…"
+  log "Installing Docker engine…"
   yum -y -q update
   yum -y -q install docker
   systemctl enable --now docker
@@ -135,11 +135,24 @@ init_swarm() {
     return
   fi
 
-  local ip
-  ip=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+  local token ip
+  # Get IMDSv2 token first
+  token=$(curl -X PUT -s --connect-timeout 5 --max-time 10 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
+  if [[ -z "$token" ]]; then
+    log "ERROR: Could not obtain IMDSv2 token for metadata access"
+    return 1
+  fi
+  
+  ip=$(curl -H "X-aws-ec2-metadata-token: $token" -s --connect-timeout 5 --max-time 10 "http://169.254.169.254/latest/meta-data/local-ipv4" || true)
+  log "DEBUG: Retrieved local IP: $ip"
+  if [[ -z "$ip" ]]; then
+    log "ERROR: Could not retrieve local IP address from metadata"
+    return 1
+  fi
+  
   docker swarm init --advertise-addr "$ip"
   log "Swarm initialised with advertise‑addr $ip"
-  echo "$ip"
+  echo "$ip:2377"
 }
 
 store_ssm() {
@@ -170,7 +183,7 @@ main() {
   local worker_token
   worker_token=$(docker swarm join-token -q worker)
 
-  log "Worker join command: docker swarm join --token $worker_token $manager_ip:2377"
+  log "Worker join command: docker swarm join --token $worker_token $manager_ip"
 
   log "Persisting configuration to SSM Parameter Store (prefix: $SSM_PREFIX)"
   store_ssm "worker-token" "$worker_token"

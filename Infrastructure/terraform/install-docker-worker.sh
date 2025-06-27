@@ -114,8 +114,9 @@ wait_for_manager() {
     token=$(get_ssm_param worker-token)
     ip=$(get_ssm_param manager-ip)
     if [[ -n $token && -n $ip ]]; then
+      log "DEBUG: Found both parameters - token: ${token:0:10}... ip: $ip"
       echo "$token $ip"
-      return
+      return 0
     fi
     log "Attempt $attempt/${MAX_ATTEMPTS} ➜ not ready yet; sleeping 10 s…"
     sleep 10
@@ -136,7 +137,7 @@ join_swarm() {
   [[ -n $token && -n $ip ]] || { log "Missing token or IP"; return 1; }
 
   log "Joining Swarm ($ip)…"
-  docker swarm join --token "$token" "$ip:2377"
+  docker swarm join --token "$token" "$ip"
   log "Swarm join complete 🎉"
 }
 
