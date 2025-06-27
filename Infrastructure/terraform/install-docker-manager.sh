@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
 #
 # docker-manager-setup.sh — Idempotent bootstrap script for promoting an
-# Amazon Linux/EC2 instance to a Docker Swarm manager.
+# Amazon Linux/EC2 instance to a Docker Swarm **manager**.
 #
 # Usage
 #   sudo ./docker-manager-setup.sh            # run/continue setup
-#   ./docker-manager-setup.sh --check-status  # query last‑run status programmatically
+#   ./docker-manager-setup.sh --check-status  # query last-run status programmatically
 #
-# Exit codes
-#   0  success
-#   1  unrecoverable failure (see log)
-#   2  unknown / not started
+# Exit codes (for --check-status)
+#   0  SUCCESS
+#   1  FAILED
+#   2  UNKNOWN
+#   3  NOT_STARTED
 #
+# Any other invocation returns standard shell exit codes (0 = ok, 1 = error).
 
 set -Eeuo pipefail
-shopt -s inherit_errexit   # Propagate ERR traps into subshells
+shopt -s inherit_errexit   # Bash ≥4.4 required; propagates ERR traps into subshells
 
 ############################################
 # Globals
@@ -33,12 +35,13 @@ readonly SSM_PREFIX="/docker/swarm"
 timestamp() { date "+%Y-%m-%d %H:%M:%S"; }
 
 log() {
-  echo "[ $(timestamp) ] $*" | tee -a "$LOG_FILE"
+  # Write to both logfile and console (console on stderr so $(..) captures stay clean)
+  printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2
 }
 
 status() {
   local state="$1" msg="$2"
-  echo "$state: $msg at $(timestamp)" >"$STATUS_FILE"
+  printf '%s: %s at %s\n' "$state" "$msg" "$(timestamp)" >"$STATUS_FILE"
   log "STATUS ➜ $state – $msg"
 }
 
@@ -46,9 +49,10 @@ check_status() {
   [[ -f "$STATUS_FILE" ]] || { echo "NOT_STARTED"; exit 3; }
 
   case $(cut -d':' -f1 <"$STATUS_FILE") in
-    SUCCESS) echo "SUCCESS" ;;
-    FAILED)  echo "FAILED"  ;;
-    *)       echo "UNKNOWN" ;;
+    SUCCESS) echo SUCCESS;  exit 0 ;;
+    FAILED)  echo FAILED;   exit 1 ;;
+    UNKNOWN) echo UNKNOWN;  exit 2 ;;
+    *)       echo UNKNOWN;  exit 2 ;;
   esac
 }
 
@@ -60,12 +64,11 @@ on_error() {
 trap 'on_error $LINENO' ERR
 
 ############################################
-# Early‑exit for status check
+# Early-exit for status check
 ############################################
 
 if [[ ${1:-} == "--check-status" ]]; then
-  check_status
-  exit $?
+  check_status  # exits internally with correct code
 fi
 
 ############################################
@@ -77,33 +80,9 @@ if (( EUID != 0 )); then
 fi
 
 ############################################
-# Main logic
+# Dependency checks / installation (jq, awscli, docker)
 ############################################
 
-log "Bootstrap initiated"
-status "IN_PROGRESS" "Docker Swarm manager setup started"
-
-get_aws_region() {
-  local token region
-  # Only IMDSv2
-  token=$(curl -X PUT -s --connect-timeout 1 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
-  if [[ -n "$token" ]]; then
-    region=$(curl -H "X-aws-ec2-metadata-token: $token" -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
-    echo "$region"
-  else
-    log "ERROR: Could not obtain IMDSv2 token. Ensure the instance metadata service is enabled and IMDSv2 is supported."
-    status "FAILED" "IMDSv2 token not available"
-    exit 1
-  fi
-}
-
-readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
-
-if [[ -z "$AWS_REGION" ]]; then
-  log "ERROR: AWS_REGION is not set and could not be determined from instance metadata."
-  status "FAILED" "AWS_REGION not set"
-  exit 1
-fi
 
 install_docker() {
   if command -v docker &>/dev/null; then
@@ -111,7 +90,7 @@ install_docker() {
     return
   fi
 
-  log "Installing Docker engine…"
+  log "Installing Docker engine …"
   yum -y -q update
   yum -y -q install docker
   systemctl enable --now docker
@@ -119,49 +98,72 @@ install_docker() {
   log "Docker installed and running ✅"
 }
 
-already_in_swarm() {
-  local state
-  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "none")
-  if [[ "$state" == "active" || "$state" == "pending" ]]; then
-    return 0
+############################################
+# AWS helpers
+############################################
+
+get_aws_region() {
+  local token region
+  # IMDSv2
+  token=$(curl -X PUT -s --connect-timeout 2 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
+  if [[ -n "$token" ]]; then
+    region=$(curl -H "X-aws-ec2-metadata-token: $token" -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+    echo "$region"
   else
-    return 1
+    log "ERROR: Could not obtain IMDSv2 token. Ensure Instance Metadata Service v2 is enabled."
+    status "FAILED" "IMDSv2 token not available"
+    exit 1
   fi
 }
 
+############################################
+# Swarm helpers
+############################################
+
+already_in_swarm() {
+  local state
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "inactive")
+  [[ "$state" == "active" || "$state" == "pending" ]]
+}
+
 init_swarm() {
+  # Returns manager listen addr (ip:2377) via stdout
+
   if already_in_swarm; then
-    log "Swarm already initialised – skipping"
-    return
+    local addr
+    addr=$(docker info --format '{{.Swarm.NodeAddr}}:2377' 2>/dev/null || true)
+    log "Swarm already initialised – manager at $addr"
+    [[ -n "$addr" ]] && printf '%s\n' "$addr"
+    return 0
   fi
 
+  # Discover this instance's primary IP via IMDSv2
   local token ip
-  # Get IMDSv2 token first
   token=$(curl -X PUT -s --connect-timeout 5 --max-time 10 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
   if [[ -z "$token" ]]; then
     log "ERROR: Could not obtain IMDSv2 token for metadata access"
     return 1
   fi
-  
   ip=$(curl -H "X-aws-ec2-metadata-token: $token" -s --connect-timeout 5 --max-time 10 "http://169.254.169.254/latest/meta-data/local-ipv4" || true)
+  [[ -n "$ip" ]] || { log "ERROR: Could not retrieve local IP address"; return 1; }
   log "DEBUG: Retrieved local IP: $ip"
-  if [[ -z "$ip" ]]; then
-    log "ERROR: Could not retrieve local IP address from metadata"
+
+  if docker swarm init --advertise-addr "$ip"; then
+    log "Swarm initialised with advertise-addr $ip"
+    printf '%s\n' "$ip:2377"
+  else
+    log "ERROR: docker swarm init failed"
     return 1
   fi
-  
-  docker swarm init --advertise-addr "$ip"
-  log "Swarm initialised with advertise‑addr $ip"
-  echo "$ip:2377"
 }
 
 store_ssm() {
   local name="$1" value="$2"
   aws --region "$AWS_REGION" ssm put-parameter \
-     --name "$SSM_PREFIX/$name" \
-     --value "$value" \
-     --type String \
-     --overwrite >/dev/null
+       --name "$SSM_PREFIX/$name" \
+       --value "$value" \
+       --type String \
+       --overwrite >/dev/null
 }
 
 create_overlay_network() {
@@ -175,16 +177,36 @@ create_overlay_network() {
   log "Overlay network '$NETWORK_NAME' created"
 }
 
-main() {
-  install_docker
-  local manager_ip
-  manager_ip=$(init_swarm)
+############################################
+# Main logic
+############################################
 
+main() {
+  log "Bootstrap initiated"
+  status "IN_PROGRESS" "Docker Swarm manager setup started"
+
+  install_docker
+
+  # Determine AWS region (env-override allowed)
+  readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
+  [[ -n "$AWS_REGION" ]] || { log "AWS region unknown"; status "FAILED" "No AWS region"; exit 1; }
+  log "Using AWS region: $AWS_REGION"
+
+  # Initialise or query Swarm
+  local manager_ip
+  if ! manager_ip=$(init_swarm); then
+    status "FAILED" "Swarm initialisation failed"
+    exit 1
+  fi
+  [[ -n "$manager_ip" ]] || { log "ERROR: Manager IP empty"; status "FAILED" "Manager IP empty"; exit 1; }
+
+  # Obtain worker join token
   local worker_token
   worker_token=$(docker swarm join-token -q worker)
 
   log "Worker join command: docker swarm join --token $worker_token $manager_ip"
 
+  # Persist to SSM Parameter Store
   log "Persisting configuration to SSM Parameter Store (prefix: $SSM_PREFIX)"
   store_ssm "worker-token" "$worker_token"
   store_ssm "manager-ip"   "$manager_ip"
@@ -193,7 +215,7 @@ main() {
   create_overlay_network
 
   log "Setup completed 🎉"
-  status "SUCCESS" "Docker Swarm manager ready"
+  status "SUCCESS" "Docker Swarm manager ready"
 }
 
 main "$@"

@@ -33,7 +33,7 @@ readonly MAX_ATTEMPTS=30          # 30 × 10 s  ⇒  ~5 min
 ts() { date "+%Y-%m-%d %H:%M:%S"; }
 
 log() {
-  echo "[ $(ts) ] $*" | tee -a "$LOG_FILE"
+  printf '[ %s ] %s\n' "$(ts)" "$*" | tee -a "$LOG_FILE" >&2
 }
 
 status() {
@@ -108,37 +108,42 @@ get_ssm_param() {
 
 wait_for_manager() {
   log "Waiting for manager parameters in SSM… (max ${MAX_ATTEMPTS}×)"
-  local attempt=1
+  local attempt=1 token ip
+
   while (( attempt <= MAX_ATTEMPTS )); do
-    local token ip
     token=$(get_ssm_param worker-token)
     ip=$(get_ssm_param manager-ip)
+
     if [[ -n $token && -n $ip ]]; then
-      log "DEBUG: Found both parameters - token: ${token:0:10}... ip: $ip"
-      echo "$token $ip"
+      log "DEBUG: Found both parameters – token: ${token:0:10}… ip: $ip"
+      printf '%s %s\n' "$token" "$ip"   # <── ONLY stdout from the function
       return 0
     fi
-    log "Attempt $attempt/${MAX_ATTEMPTS} ➜ not ready yet; sleeping 10 s…"
+
+    log "Attempt $attempt/$MAX_ATTEMPTS ➜ not ready; sleeping 10 s…"
     sleep 10
     (( attempt++ ))
   done
+
   log "Manager parameters not found after $MAX_ATTEMPTS attempts"
   return 1
 }
 
 join_swarm() {
   if already_in_swarm; then
-    log "Node already part of a Swarm — skip join"
-    return
+    log "Node already part of a Swarm — skipping join"
+    return 0
   fi
 
   local token ip
-  read -r token ip <<<"$(wait_for_manager)"
-  [[ -n $token && -n $ip ]] || { log "Missing token or IP"; return 1; }
-
-  log "Joining Swarm ($ip)…"
-  docker swarm join --token "$token" "$ip"
-  log "Swarm join complete 🎉"
+  if read -r token ip < <(wait_for_manager); then   # process-substitution, not word-split
+    log "Joining Swarm ($ip)…"
+    docker swarm join --token "$token" "$ip"
+    log "Swarm join complete 🎉"
+  else
+    log "Missing token or IP; aborting join"
+    return 1
+  fi
 }
 
 get_aws_region() {

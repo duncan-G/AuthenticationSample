@@ -184,4 +184,65 @@ resource "aws_ssm_association" "docker_worker_setup" {
   }
 
   depends_on = [aws_ssm_association.cloudwatch_agent_worker]
+}
+
+# SSM Parameters for Docker Swarm Configuration
+# These parameters are created by the install-docker-manager.sh script
+# and need to be managed by Terraform to ensure cleanup on destroy
+
+resource "aws_ssm_parameter" "docker_swarm_worker_token" {
+  name        = "/docker/swarm/worker-token"
+  description = "Docker Swarm worker join token"
+  type        = "String"
+  value       = "placeholder" # Will be updated by the script
+
+  tags = {
+    Name        = "${var.app_name}-docker-swarm-worker-token"
+    Environment = var.environment
+  }
+
+  # This parameter depends on the Docker manager setup being run
+  depends_on = [aws_ssm_association.docker_manager_setup]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
+  name        = "/docker/swarm/manager-ip"
+  description = "Docker Swarm manager IP address"
+  type        = "String"
+  value       = "placeholder" # Will be updated by the script
+
+  tags = {
+    Name        = "${var.app_name}-docker-swarm-manager-ip"
+    Environment = var.environment
+  }
+
+  # This parameter depends on the Docker manager setup being run
+  depends_on = [aws_ssm_association.docker_manager_setup]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "docker_swarm_network_name" {
+  name        = "/docker/swarm/network-name"
+  description = "Docker Swarm overlay network name"
+  type        = "String"
+  value       = "placeholder" # Will be updated by the script
+
+  tags = {
+    Name        = "${var.app_name}-docker-swarm-network-name"
+    Environment = var.environment
+  }
+
+  # This parameter depends on the Docker manager setup being run
+  depends_on = [aws_ssm_association.docker_manager_setup]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 } 
