@@ -34,30 +34,37 @@ fi
 
 echo "🔑 Retrieving SSH key from Parameter Store..."
 
+# Create a unique temporary file for the private key in ~/.ssh
+tmp_key_file=$(mktemp "$HOME/.ssh/private-key-XXXXXX.pem")
+
 # Get SSH key from Parameter Store
 aws ssm get-parameter \
     --name "/ssh/private-key" \
     --with-decryption \
     --query 'Parameter.Value' \
-    --output text > /tmp/private-key.pem
+    --output text > "$tmp_key_file"
 
 if [ $? -ne 0 ]; then
     echo "❌ Error: Failed to retrieve SSH key from Parameter Store"
     echo "Make sure the key is stored at /ssh/private-key"
+    rm -f "$tmp_key_file"
     exit 1
 fi
 
 # Set proper permissions
-chmod 400 /tmp/private-key.pem
+chmod 400 "$tmp_key_file"
 
 echo "🔗 Connecting to private instance at $PRIVATE_IP..."
 echo "Instance ID: $PRIVATE_INSTANCE_ID"
 echo ""
-echo "To connect manually: ssh -i /tmp/private-key.pem ec2-user@$PRIVATE_IP"
+echo "To connect manually: ssh -i $tmp_key_file ec2-user@$PRIVATE_IP"
 echo ""
 
+# Fetch and add the host key to known_hosts
+ssh-keyscan -H "$PRIVATE_IP" >> ~/.ssh/known_hosts
+
 # Connect to private instance
-ssh -i /tmp/private-key.pem -o StrictHostKeyChecking=no ec2-user@"$PRIVATE_IP"
+ssh -i "$tmp_key_file" ec2-user@"$PRIVATE_IP"
 
 # Clean up key file
-rm -f /tmp/private-key.pem 
+rm -f "$tmp_key_file" 

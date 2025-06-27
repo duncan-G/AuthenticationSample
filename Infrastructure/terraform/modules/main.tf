@@ -218,7 +218,7 @@ resource "aws_security_group" "instance" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["10.0.1.0/24"]  # Public subnet CIDR
+    cidr_blocks = [aws_subnet.public.cidr_block] # Public subnet CIDR
   }
 
   # Docker Swarm communication within VPC
@@ -488,31 +488,10 @@ resource "aws_instance" "public" {
   key_name                    = var.ssh_key_name
 
   # User data to setup SSM agent and SSH helper script
-  user_data = base64encode(<<-EOF
-              #!/bin/bash
-              # Ensure SSM agent is running for script execution
-              systemctl enable amazon-ssm-agent
-              systemctl start amazon-ssm-agent
-              
-              # Copy SSH helper script to instance
-              cat > /usr/local/bin/ssh-to-private << 'SCRIPT_EOF'
-              ${file("${path.module}/../ssh-to-private.sh")}
-              SCRIPT_EOF
-              
-              # Make script executable
-              chmod +x /usr/local/bin/ssh-to-private
-              
-              # Set private instance ID as environment variable
-              echo "export PRIVATE_INSTANCE_ID=${aws_instance.private.id}" >> /home/ec2-user/.bashrc
-              
-              # Create a simple alias for convenience
-              echo 'alias ssh-private="ssh-to-private"' >> /home/ec2-user/.bashrc
-              
-              echo "✅ SSH helper script installed at /usr/local/bin/ssh-to-private"
-              echo "Usage: ssh-to-private [instance-id]"
-              echo "Or use alias: ssh-private"
-              EOF
-  )
+  user_data = base64encode(templatefile("${path.module}/ssh-user-data.tpl", {
+    ssh_helper_script   = file("${path.module}/../ssh-to-private.sh")
+    private_instance_id = aws_instance.private.id
+  }))
 
   tags = {
     Name        = "${var.app_name}-public-instance-worker"

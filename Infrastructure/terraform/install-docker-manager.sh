@@ -94,14 +94,18 @@ install_docker() {
   yum -y -q update
   yum -y -q install docker
   systemctl enable --now docker
-  usermod -aG docker ec2-user || true  # don’t fail if user absent
+  usermod -aG docker ec2-user || true  # don't fail if user absent
   log "Docker installed and running ✅"
 }
 
 already_in_swarm() {
   local state
   state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "none")
-  [[ "$state" == "active" || "$state" == "pending" ]]
+  if [[ "$state" == "active" || "$state" == "pending" ]]; then
+    return 0
+  else
+    return 1
+  fi
 }
 
 init_swarm() {

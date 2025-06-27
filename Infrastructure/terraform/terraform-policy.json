@@ -118,7 +118,7 @@
         "ec2:DescribeKeyPairs",
         "ec2:CreateKeyPair"
       ],
-      "Resource": "*"
+      "Resource": "arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:key-pair/${APP_NAME}-*"
     },
     {
       "Sid": "SSMAssociationManagement",
