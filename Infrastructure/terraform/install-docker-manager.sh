@@ -184,7 +184,7 @@ main() {
   local worker_token
   worker_token=$(docker swarm join-token -q worker)
 
-  log "Worker join command: docker swarm join --token $worker_token $manager_ip:2377"
+  log "Worker join command: docker swarm join --token $worker_token $manager_ip"
 
   log "Persisting configuration to SSM Parameter Store (prefix: $SSM_PREFIX)"
   store_ssm "worker-token" "$worker_token"
