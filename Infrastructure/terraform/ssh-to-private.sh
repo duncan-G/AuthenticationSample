@@ -60,8 +60,40 @@ echo ""
 echo "To connect manually: ssh -i $tmp_key_file ec2-user@$PRIVATE_IP"
 echo ""
 
-# Fetch and add the host key to known_hosts
-ssh-keyscan -H "$PRIVATE_IP" >> ~/.ssh/known_hosts
+# Fetch and verify the host key fingerprint before adding to known_hosts
+EXPECTED_FINGERPRINT=$(aws ssm get-parameter \
+    --name "/ssh/private-instance-fingerprint" \
+    --with-decryption \
+    --query 'Parameter.Value' \
+    --output text)
+
+if [ -z "$EXPECTED_FINGERPRINT" ]; then
+    echo "❌ Error: Could not retrieve expected host key fingerprint from SSM"
+    rm -f "$tmp_key_file"
+    exit 1
+fi
+
+# Get the actual host key from the instance
+HOST_KEY=$(ssh-keyscan -T 10 "$PRIVATE_IP" 2>/dev/null)
+if [ -z "$HOST_KEY" ]; then
+    echo "❌ Error: Could not retrieve host key from $PRIVATE_IP"
+    rm -f "$tmp_key_file"
+    exit 1
+fi
+
+# Compute the fingerprint of the retrieved host key
+ACTUAL_FINGERPRINT=$(echo "$HOST_KEY" | ssh-keygen -lf - | awk '{print $2}')
+
+if [ "$EXPECTED_FINGERPRINT" != "$ACTUAL_FINGERPRINT" ]; then
+    echo "❌ Error: Host key fingerprint mismatch!"
+    echo "Expected: $EXPECTED_FINGERPRINT"
+    echo "Actual:   $ACTUAL_FINGERPRINT"
+    rm -f "$tmp_key_file"
+    exit 1
+fi
+
+# Add the host key to known_hosts
+echo "$HOST_KEY" >> ~/.ssh/known_hosts
 
 # Connect to private instance
 ssh -i "$tmp_key_file" ec2-user@"$PRIVATE_IP"

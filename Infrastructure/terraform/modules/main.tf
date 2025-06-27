@@ -487,9 +487,9 @@ resource "aws_instance" "public" {
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
   key_name                    = var.ssh_key_name
 
-  # User data to setup SSM agent and SSH helper script
+  # User data to setup SSM agent and SSH helper script (script is base64-encoded for robustness)
   user_data = base64encode(templatefile("${path.module}/ssh-user-data.tpl", {
-    ssh_helper_script   = file("${path.module}/../ssh-to-private.sh")
+    ssh_helper_script   = base64encode(file("${path.module}/../ssh-to-private.sh"))
     private_instance_id = aws_instance.private.id
   }))
 

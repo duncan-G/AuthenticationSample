@@ -3,12 +3,10 @@
 systemctl enable amazon-ssm-agent
 systemctl start amazon-ssm-agent
 
-# Copy SSH helper script to instance
-cat > /usr/local/bin/ssh-to-private << 'SCRIPT_EOF'
-${ssh_helper_script}
-SCRIPT_EOF
+# Decode and install SSH helper script
+# The script is passed as a base64-encoded string for robustness
 
-# Make script executable
+echo "${ssh_helper_script}" | base64 -d > /usr/local/bin/ssh-to-private
 chmod +x /usr/local/bin/ssh-to-private
 
 # Set private instance ID as environment variable
