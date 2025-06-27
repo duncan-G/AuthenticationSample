@@ -338,7 +338,7 @@ jobs:
           echo "🔐 Creating EC2 key pair..."
           aws ec2 import-key-pair \
             --key-name "$KEY_NAME" \
-            --public-key-material "file:///tmp/ssh-key.pub" \
+            --public-key-material "$(base64 -w 0 /tmp/ssh-key.pub)" \
             --region "${{ env.AWS_DEFAULT_REGION }}"
           
           # Clean up local key files
