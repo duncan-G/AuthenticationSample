@@ -25,7 +25,6 @@ readonly STATUS_FILE="/tmp/docker-manager-setup.status"
 readonly NETWORK_NAME="app-network"
 readonly NETWORK_SUBNET="10.20.0.0/16"
 readonly SSM_PREFIX="/docker/swarm"
-readonly AWS_REGION="${AWS_REGION:-$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)}"
 
 ############################################
 # Helper utilities
@@ -83,6 +82,28 @@ fi
 
 log "Bootstrap initiated"
 status "IN_PROGRESS" "Docker Swarm manager setup started"
+
+get_aws_region() {
+  local token region
+  # Only IMDSv2
+  token=$(curl -X PUT -s --connect-timeout 1 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
+  if [[ -n "$token" ]]; then
+    region=$(curl -H "X-aws-ec2-metadata-token: $token" -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+    echo "$region"
+  else
+    log "ERROR: Could not obtain IMDSv2 token. Ensure the instance metadata service is enabled and IMDSv2 is supported."
+    status "FAILED" "IMDSv2 token not available"
+    exit 1
+  fi
+}
+
+readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
+
+if [[ -z "$AWS_REGION" ]]; then
+  log "ERROR: AWS_REGION is not set and could not be determined from instance metadata."
+  status "FAILED" "AWS_REGION not set"
+  exit 1
+fi
 
 install_docker() {
   if command -v docker &>/dev/null; then

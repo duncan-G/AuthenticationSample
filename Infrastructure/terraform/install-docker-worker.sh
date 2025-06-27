@@ -25,7 +25,6 @@ readonly STATUS_FILE="/tmp/docker-worker-setup.status"
 
 readonly SSM_PREFIX="/docker/swarm"
 readonly MAX_ATTEMPTS=30          # 30 × 10 s  ⇒  ~5 min
-readonly AWS_REGION="${AWS_REGION:-$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)}"
 
 ############################################
 # Helper utilities
@@ -140,6 +139,28 @@ join_swarm() {
   docker swarm join --token "$token" "$ip:2377"
   log "Swarm join complete 🎉"
 }
+
+get_aws_region() {
+  local token region
+  # Only IMDSv2
+  token=$(curl -X PUT -s --connect-timeout 1 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true)
+  if [[ -n "$token" ]]; then
+    region=$(curl -H "X-aws-ec2-metadata-token: $token" -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+    echo "$region"
+  else
+    log "ERROR: Could not obtain IMDSv2 token. Ensure the instance metadata service is enabled and IMDSv2 is supported."
+    status "FAILED" "IMDSv2 token not available"
+    exit 1
+  fi
+}
+
+readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
+
+if [[ -z "$AWS_REGION" ]]; then
+  log "ERROR: AWS_REGION is not set and could not be determined from instance metadata."
+  status "FAILED" "AWS_REGION not set"
+  exit 1
+fi
 
 ############################################
 # Main
