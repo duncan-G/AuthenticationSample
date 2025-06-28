@@ -92,8 +92,6 @@
         "ssm:GetParameters",
         "ssm:DeleteParameter",
         "ssm:DeleteParameters",
-        "ssm:DescribeParameters",
-        "ssm:GetParametersByPath",
         "ssm:CreateDocument",
         "ssm:UpdateDocument",
         "ssm:DeleteDocument",
@@ -108,6 +106,15 @@
         "arn:aws:ssm:*:*:parameter/ssh/*",
         "arn:aws:ssm:*:*:document/${APP_NAME}-*"
       ]
+    },
+    {
+      "Sid": "SSMParameterDiscovery",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:DescribeParameters",
+        "ssm:GetParametersByPath"
+      ],
+      "Resource": "*"
     },
     {
       "Sid": "EC2KeyPairManagement",
@@ -245,6 +252,28 @@
         "logs:FilterLogEvents",
         "logs:TagResource",
         "logs:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Route53Permissions",
+      "Effect": "Allow",
+      "Action": [
+        "route53:CreateHostedZone",
+        "route53:DeleteHostedZone",
+        "route53:GetHostedZone",
+        "route53:ListHostedZones",
+        "route53:ListHostedZonesByName",
+        "route53:CreateResourceRecordSet",
+        "route53:DeleteResourceRecordSet",
+        "route53:ChangeResourceRecordSets",
+        "route53:GetChange",
+        "route53:ListResourceRecordSets",
+        "route53:GetResourceRecordSet",
+        "route53:TagResource",
+        "route53:UntagResource",
+        "route53:ListTagsForResource",
+        "route53:ListTagsForResources"
       ],
       "Resource": "*"
     }

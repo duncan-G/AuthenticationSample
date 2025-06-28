@@ -17,6 +17,27 @@ source "$UTILS_DIR/github-utils.sh"
 
 print_header "🚀 Terraform Github Actions Workflow Setup Script"
 
+# Function to get Route53 hosted zone ID from domain
+get_route53_hosted_zone_id() {
+    local domain_name="$1"
+    
+    print_info "Looking up Route53 hosted zone for domain: $domain_name"
+    
+    # Find the hosted zone for the exact domain name
+    HOSTED_ZONE_ID=$(aws route53 list-hosted-zones --profile "$AWS_PROFILE" --query "HostedZones[?Name=='${domain_name}.'].Id" --output text 2>/dev/null)
+    
+    if [ -z "$HOSTED_ZONE_ID" ]; then
+        print_error "Could not find Route53 hosted zone for domain: $domain_name"
+        print_error "Please ensure the hosted zone exists in Route53 before running this script"
+        exit 1
+    else
+        # Remove the /hostedzone/ prefix if present
+        HOSTED_ZONE_ID=$(echo "$HOSTED_ZONE_ID" | sed 's|/hostedzone/||')
+        ROUTE53_HOSTED_ZONE_ID="$HOSTED_ZONE_ID"
+        print_success "Found Route53 hosted zone ID: $ROUTE53_HOSTED_ZONE_ID"
+    fi
+}
+
 # Function to get user input
 get_user_input() {
     print_info "Please provide the following information:"
@@ -29,6 +50,16 @@ get_user_input() {
     prompt_user "Enter CodeDeploy staging environment name" "CODEDEPLOY_STAGING_ENVIRONMENT" "codedeploy-staging"
     prompt_user "Enter CodeDeploy production environment name" "CODEDEPLOY_PRODUCTION_ENVIRONMENT" "codedeploy-production"
     
+    prompt_user "Enter domain name (e.g., example.com)" "DOMAIN_NAME"
+    prompt_user "Enter API subdomain (e.g., api)" "API_SUBDOMAIN" "api"
+    
+    # Get Route53 hosted zone ID automatically
+    get_route53_hosted_zone_id "$DOMAIN_NAME"
+    
+    # Calculate bucket suffix using the same logic as elsewhere
+    BUCKET_SUFFIX=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
+    print_info "Calculated bucket suffix: $BUCKET_SUFFIX"
+    
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"
     echo "  GitHub Repository: $GITHUB_REPO_FULL"
@@ -38,6 +69,9 @@ get_user_input() {
     echo "  Terraform Production Environment: $PRODUCTION_ENVIRONMENT"
     echo "  CodeDeploy Staging Environment: $CODEDEPLOY_STAGING_ENVIRONMENT"
     echo "  CodeDeploy Production Environment: $CODEDEPLOY_PRODUCTION_ENVIRONMENT"
+    echo "  Domain Name: $DOMAIN_NAME"
+    echo "  Route53 Hosted Zone ID: $ROUTE53_HOSTED_ZONE_ID"
+    echo "  API Subdomain: $API_SUBDOMAIN"
     
     if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
@@ -47,8 +81,7 @@ get_user_input() {
 
 # Function to create S3 bucket for Terraform state
 create_terraform_state_backend() {
-    BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
-    BUCKET_NAME="terraform-state-${BUCKET_HASH}"
+    BUCKET_NAME="terraform-state-${BUCKET_SUFFIX}"
     
     print_info "Creating S3 bucket for Terraform state backend: $BUCKET_NAME"
 
@@ -60,22 +93,6 @@ create_terraform_state_backend() {
     fi
 
     aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
-}
-
-create_codedeploy_bucket() {
-    BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
-    CODEDEPLOY_BUCKET_NAME="codedeploy-${BUCKET_HASH}"
-    
-    print_info "Creating S3 bucket for CodeDeploy deployment: $CODEDEPLOY_BUCKET_NAME"
-
-    if ! aws s3api head-bucket --bucket "$CODEDEPLOY_BUCKET_NAME" --profile "$AWS_PROFILE" 2>/dev/null; then
-        aws s3api create-bucket --bucket "$CODEDEPLOY_BUCKET_NAME" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
-        print_success "S3 bucket $CODEDEPLOY_BUCKET_NAME created."
-    else
-        print_warning "S3 bucket $CODEDEPLOY_BUCKET_NAME already exists."
-    fi
-
-    aws s3api put-bucket-versioning --bucket "$CODEDEPLOY_BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
 }
 
 # Function to create OIDC provider
@@ -157,7 +174,6 @@ setup_oidc_infrastructure() {
         -e "s|\${APP_NAME}|$TF_APP_NAME|g" \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${TF_STATE_BUCKET}|$BUCKET_NAME|g" \
-        -e "s|\${DEPLOYMENT_BUCKET}|$CODEDEPLOY_BUCKET_NAME|g" \
         "$ORIGINAL_POLICY_FILE_PATH" > "$PROCESSED_POLICY_FILE_PATH"
     
     sed \
@@ -179,19 +195,18 @@ setup_oidc_infrastructure() {
 setup_github_workflow() {
     print_info "Setting up GitHub secrets and environments..."
 
-    local hash
-    hash=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
-    CODEDEPLOY_BUCKET_NAME="codedeploy-${hash}"
-
     add_github_secrets "$GITHUB_REPO_FULL" \
         "AWS_ACCOUNT_ID:$AWS_ACCOUNT_ID" \
         "TF_STATE_BUCKET:$BUCKET_NAME" \
         "TF_APP_NAME:$TF_APP_NAME" \
         "ECR_REPOSITORY_PREFIX:$TF_APP_NAME" \
-        "DEPLOYMENT_BUCKET:$CODEDEPLOY_BUCKET_NAME"
+        "DOMAIN_NAME:$DOMAIN_NAME" \
+        "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
+        "BUCKET_SUFFIX:$BUCKET_SUFFIX"
     
     add_github_variables "$GITHUB_REPO_FULL" \
-        "AWS_DEFAULT_REGION:$AWS_REGION"
+        "AWS_DEFAULT_REGION:$AWS_REGION" \
+        "API_SUBDOMAIN:$API_SUBDOMAIN"
     
     create_github_environments "$GITHUB_REPO_FULL" \
         "$STAGING_ENVIRONMENT" \
@@ -210,10 +225,12 @@ display_final_instructions() {
     
     echo "Your Terraform State Bucket:"
     echo -e "${GREEN}   $BUCKET_NAME${NC}"
-    echo "Your CodeDeploy Deployment Bucket:"
-    echo -e "${GREEN}   $CODEDEPLOY_BUCKET_NAME${NC}"
     echo "Your Terraform IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
+    echo "Your Domain Configuration:"
+    echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
+    echo -e "${GREEN}   API Subdomain: $API_SUBDOMAIN${NC}"
+    echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
     
     print_info "You can now use the GitHub Actions workflows!"
     echo "   • Terraform: Actions → 'Infrastructure Release' → Run workflow"
@@ -276,7 +293,6 @@ main() {
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
     create_terraform_state_backend
-    create_codedeploy_bucket
     setup_oidc_infrastructure
     setup_github_workflow
     
