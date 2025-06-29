@@ -229,6 +229,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "codedeploy" {
     id     = "deployment_cleanup"
     status = "Enabled"
 
+    filter {
+      prefix = ""
+    }
+
     noncurrent_version_expiration {
       noncurrent_days = 30
     }

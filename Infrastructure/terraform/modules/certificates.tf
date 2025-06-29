@@ -2,6 +2,11 @@
 # SSL Certificates Management
 ########################
 
+# Data source for existing hosted zone (for certbot DNS challenges)
+data "aws_route53_zone" "existing" {
+  zone_id = var.route53_hosted_zone_id
+}
+
 ########################
 # SSL Certificate Store (S3)
 ########################
@@ -56,6 +61,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "ssl_certificates_bucket" {
   rule {
     id     = "ssl_certificate_cleanup"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
 
     noncurrent_version_expiration {
       noncurrent_days = 30
@@ -273,4 +282,26 @@ resource "aws_ecr_repository" "certbot" {
 output "certbot_ecr_repo_url" {
   value       = aws_ecr_repository.certbot.repository_url
   description = "ECR repository URL for certbot image"
+}
+
+# S3 bucket lifecycle policy for deployment artifacts cleanup
+resource "aws_s3_bucket_lifecycle_configuration" "certbot_artifacts" {
+  bucket = aws_s3_bucket.certbot_artifacts.id
+
+  rule {
+    id     = "certbot_artifacts_cleanup"
+    status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+
+    expiration {
+      days = 90
+    }
+  }
 } 

@@ -437,12 +437,6 @@ resource "aws_iam_role_policy_attachment" "private_ssm_docker_access" {
   policy_arn = aws_iam_policy.private_ssm_docker_access.arn
 }
 
-# Attach CodeDeploy policy to private instance role
-resource "aws_iam_role_policy_attachment" "private_instance_codedeploy" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.private_instance_codedeploy_policy.arn
-}
-
 # Policy for EC2 worker instances to pull images from ECR
 resource "aws_iam_policy" "worker_ecr_pull" {
   name        = "${var.app_name}-worker-ecr-pull"

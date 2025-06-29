@@ -2,12 +2,7 @@
 # Route53 DNS Configuration
 ########################
 
-# Data source for existing hosted zone
-data "aws_route53_zone" "existing" {
-  zone_id = var.route53_hosted_zone_id
-}
-
-# Local value to reference the hosted zone
+# Local value to reference the hosted zone (data source defined in certificates.tf)
 locals {
   hosted_zone_id   = data.aws_route53_zone.existing.zone_id
   hosted_zone_name = data.aws_route53_zone.existing.name

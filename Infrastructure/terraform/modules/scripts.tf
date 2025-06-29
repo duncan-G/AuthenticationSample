@@ -49,15 +49,15 @@ resource "aws_ssm_document" "certificate_manager_setup" {
         runCommand = [
           # Write the certificate manager daemon service file
           "cat <<'EOF' > /etc/systemd/system/certificate-secret-manager.service",
-          "${indent(2, file("${path.module}/../certbot/certificate-secret-manager.service"))}",
+          "${indent(2, file("${path.module}/../../certbot/certificate-manager.service"))}",
           "EOF",
           # Write the certificate manager daemon script
           "cat <<'EOF' > /home/ec2-user/certificate-manager-daemon.sh",
-          "${indent(2, file("${path.module}/../certbot/certificate-manager-daemon.sh"))}",
+          "${indent(2, file("${path.module}/../../certbot/certificate-manager.sh"))}",
           "EOF",
           # Write the main certificate manager script
           "cat <<'EOF' > /home/ec2-user/certificate-manager.sh",
-          "${indent(2, file("${path.module}/../certbot/certificate-manager.sh"))}",
+          "${indent(2, file("${path.module}/../../certbot/certificate-manager.sh"))}",
           "EOF",
           # Make the scripts executable
           "chmod +x /home/ec2-user/certificate-manager-daemon.sh",
