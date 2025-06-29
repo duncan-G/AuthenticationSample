@@ -3,6 +3,7 @@ name: Certbot Release
 on:
   workflow_dispatch:
   push:
+    branches: [ main ]
     paths:
       - 'Infrastructure/certbot/**'
       - '.github/workflows/certbot-release.yml'
