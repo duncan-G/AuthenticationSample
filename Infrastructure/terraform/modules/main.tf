@@ -9,10 +9,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    time = {
-      source  = "hashicorp/time"
-      version = "~> 0.9"
-    }
   }
   backend "s3" {
     # Partial configuration (because variables are not allowed in backend config) -
@@ -73,13 +69,44 @@ variable "github_repository" {
 variable "staging_environment" {
   description = "Staging environment name for GitHub Actions OIDC trust policy."
   type        = string
-  default     = "codedeploy-staging"
+  default     = "staging"
 }
 
 variable "production_environment" {
   description = "Production environment name for GitHub Actions OIDC trust policy."
   type        = string
-  default     = "codedeploy-production"
+  default     = "production"
+}
+
+variable "domain_name" {
+  description = "Domain name for the application (e.g., example.com)"
+  type        = string
+
+  validation {
+    condition     = length(var.domain_name) > 0
+    error_message = "Domain name must not be empty."
+  }
+}
+
+variable "api_subdomain" {
+  description = "API subdomain (e.g., api.yourdomain.com)"
+  type        = string
+  default     = "api"
+}
+
+variable "route53_hosted_zone_id" {
+  description = "Route53 hosted zone ID for DNS management"
+  type        = string
+
+  validation {
+    condition     = length(var.route53_hosted_zone_id) > 0
+    error_message = "Route53 hosted zone ID must not be empty."
+  }
+}
+
+variable "bucket_suffix" {
+  description = "Suffix to make S3 bucket names unique across environments"
+  type        = string
 }
 
 ########################
@@ -200,7 +227,7 @@ resource "aws_route_table_association" "private" {
 
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat" {
-  vpc        = true
+  domain     = "vpc"
   depends_on = [aws_internet_gateway.igw]
   tags = {
     Name = "${var.app_name}-nat-eip"
@@ -410,6 +437,65 @@ resource "aws_iam_role_policy_attachment" "private_ssm_docker_access" {
   policy_arn = aws_iam_policy.private_ssm_docker_access.arn
 }
 
+# Policy for EC2 worker instances to pull images from ECR
+resource "aws_iam_policy" "worker_ecr_pull" {
+  name        = "${var.app_name}-worker-ecr-pull"
+  description = "Allow EC2 worker instances to pull images from ECR"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = [
+          aws_ecr_repository.certbot.arn
+          # Add more ECR repositories here as needed
+        ]
+      }
+    ]
+  })
+}
+
+# Policy for EC2 manager instances to pull images from ECR
+# resource "aws_iam_policy" "manager_ecr_pull" {
+#   name        = "${var.app_name}-manager-ecr-pull"
+#   description = "Allow EC2 manager instances to pull images from ECR"
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "ecr:GetAuthorizationToken",
+#           "ecr:BatchCheckLayerAvailability",
+#           "ecr:GetDownloadUrlForLayer",
+#           "ecr:BatchGetImage"
+#         ]
+#         Resource = [
+#           # Add ECR repositories here when manager needs to pull images
+#         ]
+#       }
+#     ]
+#   })
+# }
+
+# Attach worker ECR pull policy to public instance role (worker)
+resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
+  role       = aws_iam_role.public_instance_role.name
+  policy_arn = aws_iam_policy.worker_ecr_pull.arn
+}
+
+# Attach manager ECR pull policy to private instance role (manager)
+# resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
+#   role       = aws_iam_role.private_instance_role.name
+#   policy_arn = aws_iam_policy.manager_ecr_pull.arn
+# }
+
 # Instance Profiles
 resource "aws_iam_instance_profile" "public_instance_profile" {
   name = "${var.app_name}-ec2-public-instance-profile"
@@ -442,6 +528,16 @@ resource "aws_cloudwatch_log_group" "docker_worker" {
 
   tags = {
     Name        = "${var.app_name}-docker-worker-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "certificate_secret_manager" {
+  name              = "/aws/ec2/${var.app_name}-certificate-secret-manager"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.app_name}-certificate-secret-manager-logs"
     Environment = var.environment
   }
 }

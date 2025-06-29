@@ -18,6 +18,13 @@
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
+            "file_path": "/var/log/certificate-secret-manager.log",
+            "log_group_name": "/aws/ec2/${app_name}-certificate-secret-manager",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
             "file_path": "/tmp/docker-manager-setup.status",
             "log_group_name": "/aws/ec2/${app_name}-docker-manager",
             "log_stream_name": "{instance_id}-status",

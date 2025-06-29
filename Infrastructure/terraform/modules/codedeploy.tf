@@ -4,7 +4,7 @@
 resource "aws_codedeploy_app" "microservices" {
   for_each = toset(["authentication"]) # Add more services as needed
 
-  name = "${each.key}-${var.environment}"
+  name = "${var.app_name}-${each.key}-${var.environment}"
 
   compute_platform = "Server"
 
@@ -20,7 +20,7 @@ resource "aws_codedeploy_deployment_group" "microservices" {
   for_each = toset(["authentication"]) # Add more services as needed
 
   app_name              = aws_codedeploy_app.microservices[each.key].name
-  deployment_group_name = "${each.key}-${var.environment}-deployment-group"
+  deployment_group_name = "${var.app_name}-${each.key}-${var.environment}-deployment-group"
   service_role_arn      = aws_iam_role.codedeploy_service_role.arn
 
   # Deployment configuration
@@ -116,8 +116,8 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          "arn:aws:s3:::${var.deployment_bucket}",
-          "arn:aws:s3:::${var.deployment_bucket}/*"
+          aws_s3_bucket.codedeploy.arn,
+          "${aws_s3_bucket.codedeploy.arn}/*"
         ]
       },
       {
@@ -141,6 +141,11 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
       }
     ]
   })
+
+  tags = {
+    Name        = "${var.app_name}-ec2-codedeploy-policy"
+    Environment = var.environment
+  }
 }
 
 # Attach policy to EC2 CodeDeploy role
@@ -159,7 +164,7 @@ resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
   for_each = toset(["authentication"]) # Add more services as needed
 
-  name              = "/aws/codedeploy/${each.key}-${var.environment}"
+  name              = "/aws/codedeploy/${var.app_name}-${each.key}-${var.environment}"
   retention_in_days = 14
 
   tags = {
@@ -167,4 +172,87 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
     Environment = var.environment
     Service     = each.key
   }
+}
+
+########################
+# CodeDeploy S3 Bucket
+########################
+
+# S3 bucket for CodeDeploy deployment artifacts
+resource "aws_s3_bucket" "codedeploy" {
+  bucket = "${var.app_name}-codedeploy-${var.bucket_suffix}"
+
+  tags = {
+    Name        = "${var.app_name}-codedeploy-bucket"
+    Environment = var.environment
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# S3 bucket versioning for deployment history
+resource "aws_s3_bucket_versioning" "codedeploy" {
+  bucket = aws_s3_bucket.codedeploy.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# S3 bucket encryption
+resource "aws_s3_bucket_server_side_encryption_configuration" "codedeploy" {
+  bucket = aws_s3_bucket.codedeploy.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# S3 bucket public access block
+resource "aws_s3_bucket_public_access_block" "codedeploy" {
+  bucket = aws_s3_bucket.codedeploy.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# S3 bucket lifecycle policy for deployment artifacts cleanup
+resource "aws_s3_bucket_lifecycle_configuration" "codedeploy" {
+  bucket = aws_s3_bucket.codedeploy.id
+
+  rule {
+    id     = "deployment_cleanup"
+    status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+
+    expiration {
+      days = 90
+    }
+  }
+}
+
+########################
+# Outputs
+########################
+
+output "codedeploy_bucket_name" {
+  value       = aws_s3_bucket.codedeploy.bucket
+  description = "Name of the S3 bucket for CodeDeploy deployment artifacts"
+}
+
+output "codedeploy_bucket_arn" {
+  value       = aws_s3_bucket.codedeploy.arn
+  description = "ARN of the S3 bucket for CodeDeploy deployment artifacts"
 } 

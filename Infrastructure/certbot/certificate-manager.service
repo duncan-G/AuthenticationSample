@@ -1,0 +1,33 @@
+[Unit]
+Description=Certificate Manager Daemon
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/home/ec2-user
+ExecStartPre=/usr/bin/flock -n /run/%N.lock -c true   # single-instance lock
+ExecStart=/home/ec2-user/certificate-manager.sh --daemon
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=certificate-manager
+
+# Single-instance guarantee
+LockPersonality=yes
+RuntimeDirectory=certificate-manager
+RuntimeDirectoryMode=0755
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/ec2-user/certificates /var/log /run/certificate-manager
+
+[Install]
+WantedBy=multi-user.target 

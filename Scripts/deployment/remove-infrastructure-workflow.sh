@@ -32,6 +32,8 @@ get_user_input() {
     echo "  • IAM Policy: terraform-github-actions-oidc-policy"
     echo "  • OIDC Provider: token.actions.githubusercontent.com"
     print_warning "S3 Bucket: Terraform state backend (manual deletion required)"
+    print_warning "S3 Bucket: CodeDeploy deployment bucket (manual deletion required)"
+    print_warning "S3 Bucket: Certificate store bucket (manual deletion required)"
     print_warning "Github Secrets, Variables and Environments: (manual deletion required)"
     
     if ! prompt_confirmation "Are you sure you want to delete these resources?" "y/N"; then
@@ -155,9 +157,10 @@ cleanup_oidc_infrastructure() {
 
 # Function to provide instructions for S3 bucket cleanup
 display_state_bucket_cleanup_instructions() {
-    BUCKET_HASH=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
-    TERRAFORM_BUCKET_NAME="terraform-state-${BUCKET_HASH}"
-    CODEDEPLOY_BUCKET_NAME="codedeploy-${BUCKET_HASH}"
+    BUCKET_SUFFIX=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
+    TERRAFORM_BUCKET_NAME="terraform-state-${BUCKET_SUFFIX}"  
+    CERTIFICATE_BUCKET_NAME="<app-name>-certificate-store-${BUCKET_SUFFIX}"
+    CODE_DEPLOY_BUCKET_NAME="codedeploy-${BUCKET_SUFFIX}"
 
     print_warning "S3 bucket cleanup is not automated for safety reasons."
     
@@ -167,12 +170,17 @@ display_state_bucket_cleanup_instructions() {
     echo -e "${GREEN}aws s3 rm s3://$TERRAFORM_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
     echo -e "${GREEN}aws s3api delete-bucket --bucket $TERRAFORM_BUCKET_NAME --profile $AWS_PROFILE${NC}"
     
-    echo -e "${YELLOW}# Delete CodeDeploy deployment bucket:${NC}"
-    echo -e "${GREEN}aws s3 rm s3://$CODEDEPLOY_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
-    echo -e "${GREEN}aws s3api delete-bucket --bucket $CODEDEPLOY_BUCKET_NAME --profile $AWS_PROFILE${NC}"
+    echo -e "${YELLOW}# Delete Certificate store bucket:${NC}"
+    echo -e "${GREEN}aws s3 rm s3://$CERTIFICATE_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws s3api delete-bucket --bucket $CERTIFICATE_BUCKET_NAME --profile $AWS_PROFILE${NC}"
     
-    print_warning "⚠️  WARNING: This will permanently delete your Terraform state and deployment artifacts!"
+    echo -e "${YELLOW}# Delete CodeDeploy bucket:${NC}"
+    echo -e "${GREEN}aws s3 rm s3://$CODE_DEPLOY_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws s3api delete-bucket --bucket $CODE_DEPLOY_BUCKET_NAME --profile $AWS_PROFILE${NC}"
+    
+    print_warning "⚠️  WARNING: This will permanently delete your Terraform state and certificates!"
     print_info "Make sure you have backed up your state or are certain you want to delete it."
+    print_info "Note: CodeDeploy bucket is managed by Terraform and will be cleaned up with terraform destroy."
 }
 
 # Function to display final summary
@@ -185,17 +193,18 @@ display_final_summary() {
     echo "  ✅ OIDC Provider: token.actions.githubusercontent.com"
     echo "  ℹ️  S3 Buckets: Manual deletion required (see instructions above)"
     echo "     - Terraform state bucket"
-    echo "     - CodeDeploy deployment bucket"
+    echo "     - Certificate store bucket"
+    echo "  ℹ️  CodeDeploy bucket: Managed by Terraform"
     
     print_info "Additional cleanup steps:"
     echo "1. Remove GitHub repository secrets:"
     echo "   AWS_ACCOUNT_ID, TF_STATE_BUCKET, TF_APP_NAME, GITHUB_REPOSITORY,"
-    echo "   ECR_REPOSITORY_PREFIX, DEPLOYMENT_BUCKET"
+    echo "   ECR_REPOSITORY_PREFIX"
     echo "2. Remove GitHub repository variables:"
     echo "   AWS_DEFAULT_REGION"
     echo "3. Remove GitHub environments:"
     echo "   terraform-staging, terraform-production,"
-    echo "   codedeploy-staging, codedeploy-production"
+    echo "   staging, production"
     
     print_warning "Note: This cleanup does NOT delete your terraform infrastructure."
     print_info "To delete infrastructure, run: terraform destroy"

@@ -1,0 +1,50 @@
+name: Certbot Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Infrastructure/certbot/**'
+      - '.github/workflows/certbot-release.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      APP_NAME: ${{ secrets.APP_NAME }}
+      ECR_REPO: ${{ secrets.APP_NAME }}/certbot
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-certbot
+          role-session-name: GitHubActions-Terraform-Apply-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPO:latest Infrastructure/certbot
+          docker tag $ECR_REPO:latest $ECR_REPO:${{ github.sha }}
+
+      - name: Tag Docker image
+        run: |
+          docker tag $ECR_REPO:latest ${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest
+          docker tag $ECR_REPO:${{ github.sha }} ${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:${{ github.sha }}
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest
+          docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:${{ github.sha }}

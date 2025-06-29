@@ -33,6 +33,52 @@ resource "aws_ssm_document" "docker_manager_setup" {
   }
 }
 
+# Certificate Manager Setup SSM Document
+resource "aws_ssm_document" "certificate_manager_setup" {
+  name            = "${var.app_name}-certificate-manager-setup"
+  document_type   = "Command"
+  document_format = "JSON"
+
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Install and configure certificate manager daemon service"
+    mainSteps = [{
+      name   = "InstallCertificateManager"
+      action = "aws:runShellScript"
+      inputs = {
+        runCommand = [
+          # Write the certificate manager daemon service file
+          "cat <<'EOF' > /etc/systemd/system/certificate-manager.service",
+          "${indent(2, file("${path.module}/../../certbot/certificate-manager.service"))}",
+          "EOF",
+          # Write the certificate manager script
+          "cat <<'EOF' > /home/ec2-user/certificate-manager.sh",
+          "${indent(2, file("${path.module}/../../certbot/certificate-manager.sh"))}",
+          "EOF",
+          # Make the script executable
+          "chmod +x /home/ec2-user/certificate-manager.sh",
+          # Create certificate directory
+          "mkdir -p /home/ec2-user/certificates",
+          "chown ec2-user:ec2-user /home/ec2-user/certificates",
+          # Create log file
+          "touch /var/log/certificate-secret-manager.log",
+          "chown ec2-user:ec2-user /var/log/certificate-secret-manager.log",
+          # Reload systemd and enable the service
+          "systemctl daemon-reload",
+          "systemctl enable certificate-manager.service",
+          "systemctl start certificate-manager.service"
+        ]
+        timeoutSeconds = "600" # 10 minutes timeout
+      }
+    }]
+  })
+
+  tags = {
+    Name        = "${var.app_name}-certificate-manager-setup"
+    Environment = var.environment
+  }
+}
+
 # Docker Worker Setup SSM Document
 resource "aws_ssm_document" "docker_worker_setup" {
   name            = "${var.app_name}-docker-worker-setup"
@@ -158,7 +204,19 @@ resource "aws_ssm_association" "docker_manager_setup" {
     values = [aws_instance.private.id]
   }
 
-  depends_on = [aws_ssm_association.cloudwatch_agent_manager]
+  depends_on = [aws_ssm_association.cloudwatch_agent_manager, aws_ssm_parameter.docker_swarm_worker_token, aws_ssm_parameter.docker_swarm_manager_ip, aws_ssm_parameter.docker_swarm_network_name]
+}
+
+# Then: Install certificate manager (depends on Docker manager setup)
+resource "aws_ssm_association" "certificate_manager_setup" {
+  name = aws_ssm_document.certificate_manager_setup.name
+
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.private.id]
+  }
+
+  depends_on = [aws_ssm_association.docker_manager_setup]
 }
 
 # SSM Associations for Worker Instance
@@ -174,7 +232,7 @@ resource "aws_ssm_association" "cloudwatch_agent_worker" {
   depends_on = [aws_instance.public]
 }
 
-# Then: Run Docker worker setup (depends on CloudWatch agent)
+# Then: Run Docker worker setup (depends on CloudWatch agent and Docker manager setup)
 resource "aws_ssm_association" "docker_worker_setup" {
   name = aws_ssm_document.docker_worker_setup.name
 
@@ -183,12 +241,12 @@ resource "aws_ssm_association" "docker_worker_setup" {
     values = [aws_instance.public.id]
   }
 
-  depends_on = [aws_ssm_association.cloudwatch_agent_worker]
+  depends_on = [aws_ssm_association.cloudwatch_agent_worker, aws_ssm_association.docker_manager_setup]
 }
 
 # SSM Parameters for Docker Swarm Configuration
-# These parameters are created by the install-docker-manager.sh script
-# and need to be managed by Terraform to ensure cleanup on destroy
+# These parameters are created by Terraform first with placeholder values
+# Then the install-docker-manager.sh script overwrites them with actual values
 
 resource "aws_ssm_parameter" "docker_swarm_worker_token" {
   name        = "/docker/swarm/worker-token"
@@ -201,9 +259,6 @@ resource "aws_ssm_parameter" "docker_swarm_worker_token" {
     Name        = "${var.app_name}-docker-swarm-worker-token"
     Environment = var.environment
   }
-
-  # This parameter depends on the Docker manager setup being run
-  depends_on = [aws_ssm_association.docker_manager_setup]
 }
 
 resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
@@ -217,9 +272,6 @@ resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
     Name        = "${var.app_name}-docker-swarm-manager-ip"
     Environment = var.environment
   }
-
-  # This parameter depends on the Docker manager setup being run
-  depends_on = [aws_ssm_association.docker_manager_setup]
 }
 
 resource "aws_ssm_parameter" "docker_swarm_network_name" {
@@ -233,7 +285,4 @@ resource "aws_ssm_parameter" "docker_swarm_network_name" {
     Name        = "${var.app_name}-docker-swarm-network-name"
     Environment = var.environment
   }
-
-  # This parameter depends on the Docker manager setup being run
-  depends_on = [aws_ssm_association.docker_manager_setup]
 } 

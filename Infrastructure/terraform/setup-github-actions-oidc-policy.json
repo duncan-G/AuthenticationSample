@@ -67,6 +67,26 @@
         "arn:aws:s3:::codedeploy-*",
         "arn:aws:s3:::codedeploy-*/*"
       ]
+    },
+    {
+      "Sid": "Route53HostedZonePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ListHostedZones",
+        "route53:GetHostedZone",
+        "route53:ListHostedZonesByName"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:UpdateSecret",
+        "secretsmanager:CreateSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:*-secrets*"
     }
   ]
 }
