@@ -153,7 +153,7 @@ EXIT_CODE="$(docker service ps --no-trunc "$SERVICE_NAME" \
 
 # ── 3. Download artefacts ───────────────────────────────────────────────────
 log "📥 Downloading certificates from S3"
-for local fname in "${!FILES[@]}"; do
+for fname in "${!FILES[@]}"; do
   remote="s3://${S3_BUCKET}/${CERT_PREFIX}/${FILES[$fname]}"
   aws s3 cp "$remote" "${STAGING_DIR}/${fname}"
 done

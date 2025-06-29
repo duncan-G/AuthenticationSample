@@ -18,7 +18,6 @@
 ###############################################################################
 
 set -Eeuo pipefail
-shopt -s inherit_errexit
 
 # ── Defaults ────────────────────────────────────────────────────────────────
 readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-secret-manager.log}"
@@ -34,7 +33,17 @@ log() { printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2; }
 
 die() { log "ERROR: $*"; exit 1; }
 
-trap 'die "Line $LINENO exited with status $?"' ERR
+# Error trap that can be customized based on mode
+error_trap() { 
+  log "ERROR: Line $LINENO exited with status $?"
+  if [[ "${DAEMON_MODE:-false}" == "true" ]]; then
+    log "Daemon mode: continuing despite error"
+  else
+    exit 1
+  fi
+}
+
+trap error_trap ERR
 
 # ── CLI parsing ─────────────────────────────────────────────────────────────
 show_help() {
@@ -78,8 +87,10 @@ run_trigger() {
   log "Running certificate renewal trigger"
   if "$TRIGGER_SCRIPT"; then
     log "Trigger completed successfully"
+    return 0
   else
-    die "Trigger failed"
+    log "Trigger failed"
+    return 1
   fi
 }
 
@@ -87,7 +98,7 @@ daemon_loop() {
   log "Daemon mode; interval: ${CHECK_INTERVAL}s (~$((CHECK_INTERVAL/3600)) h)"
   while true; do
     log "===== Renewal cycle start ====="
-    if run_trigger; then
+    if (run_trigger); then
       log "Renewal cycle OK"
     else
       log "Renewal cycle failed; will retry"

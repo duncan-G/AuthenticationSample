@@ -484,15 +484,15 @@ resource "aws_iam_policy" "worker_ecr_pull" {
 #   })
 # }
 
-# Attach worker ECR pull policy to private instance role (worker)
-resource "aws_iam_role_policy_attachment" "private_worker_ecr_pull" {
-  role       = aws_iam_role.private_instance_role.name
+# Attach worker ECR pull policy to public instance role (worker)
+resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
+  role       = aws_iam_role.public_instance_role.name
   policy_arn = aws_iam_policy.worker_ecr_pull.arn
 }
 
-# Attach manager ECR pull policy to public instance role (manager)
-# resource "aws_iam_role_policy_attachment" "public_manager_ecr_pull" {
-#   role       = aws_iam_role.public_instance_role.name
+# Attach manager ECR pull policy to private instance role (manager)
+# resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
+#   role       = aws_iam_role.private_instance_role.name
 #   policy_arn = aws_iam_policy.manager_ecr_pull.arn
 # }
 

@@ -48,19 +48,14 @@ resource "aws_ssm_document" "certificate_manager_setup" {
       inputs = {
         runCommand = [
           # Write the certificate manager daemon service file
-          "cat <<'EOF' > /etc/systemd/system/certificate-secret-manager.service",
+          "cat <<'EOF' > /etc/systemd/system/certificate-manager.service",
           "${indent(2, file("${path.module}/../../certbot/certificate-manager.service"))}",
           "EOF",
-          # Write the certificate manager daemon script
-          "cat <<'EOF' > /home/ec2-user/certificate-manager-daemon.sh",
-          "${indent(2, file("${path.module}/../../certbot/certificate-manager.sh"))}",
-          "EOF",
-          # Write the main certificate manager script
+          # Write the certificate manager script
           "cat <<'EOF' > /home/ec2-user/certificate-manager.sh",
           "${indent(2, file("${path.module}/../../certbot/certificate-manager.sh"))}",
           "EOF",
-          # Make the scripts executable
-          "chmod +x /home/ec2-user/certificate-manager-daemon.sh",
+          # Make the script executable
           "chmod +x /home/ec2-user/certificate-manager.sh",
           # Create certificate directory
           "mkdir -p /home/ec2-user/certificates",
@@ -70,8 +65,8 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           "chown ec2-user:ec2-user /var/log/certificate-secret-manager.log",
           # Reload systemd and enable the service
           "systemctl daemon-reload",
-          "systemctl enable certificate-secret-manager.service",
-          "systemctl start certificate-secret-manager.service"
+          "systemctl enable certificate-manager.service",
+          "systemctl start certificate-manager.service"
         ]
         timeoutSeconds = "600" # 10 minutes timeout
       }
