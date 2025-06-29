@@ -97,7 +97,7 @@ resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
   }
 }
 
-# Attach SSL certificate bucket policy to public instance role (moved from private)
+# Attach SSL certificate bucket policy to public instance role
 resource "aws_iam_role_policy_attachment" "public_ssl_certificates_bucket_access" {
   role       = aws_iam_role.public_instance_role.name
   policy_arn = aws_iam_policy.ssl_certificates_bucket_access_policy.arn
@@ -178,7 +178,7 @@ resource "aws_iam_policy" "certbot_route53_dns_challenge_policy" {
   }
 }
 
-# Attach certbot Route53 DNS challenge policy to public instance role (moved from private)
+# Attach certbot Route53 DNS challenge policy to public instance role
 resource "aws_iam_role_policy_attachment" "public_certbot_route53_dns_challenge" {
   role       = aws_iam_role.public_instance_role.name
   policy_arn = aws_iam_policy.certbot_route53_dns_challenge_policy.arn
@@ -213,4 +213,64 @@ output "certbot_route53_dns_challenge_policy_arn" {
 output "route53_hosted_zone_id" {
   value       = data.aws_route53_zone.existing.zone_id
   description = "Route53 hosted zone ID for certbot DNS challenges"
+}
+
+# S3 bucket for certbot artifacts (Docker image tarballs)
+resource "aws_s3_bucket" "certbot_artifacts" {
+  bucket = "${var.app_name}-certbot-${var.bucket_suffix}"
+
+  tags = {
+    Name        = "${var.app_name}-certbot-artifacts-bucket"
+    Environment = var.environment
+  }
+}
+
+# S3 bucket versioning for certbot artifacts
+resource "aws_s3_bucket_versioning" "certbot_artifacts" {
+  bucket = aws_s3_bucket.certbot_artifacts.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# S3 bucket encryption for certbot artifacts
+resource "aws_s3_bucket_server_side_encryption_configuration" "certbot_artifacts" {
+  bucket = aws_s3_bucket.certbot_artifacts.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# S3 bucket public access block for certbot artifacts
+resource "aws_s3_bucket_public_access_block" "certbot_artifacts" {
+  bucket = aws_s3_bucket.certbot_artifacts.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Output for certbot artifacts bucket
+output "certbot_artifacts_bucket_name" {
+  value       = aws_s3_bucket.certbot_artifacts.bucket
+  description = "Name of the S3 bucket for certbot artifacts"
+}
+
+# ECR repository for certbot image
+resource "aws_ecr_repository" "certbot" {
+  name = "${var.app_name}/certbot"
+  image_tag_mutability = "MUTABLE"
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+# Output for ECR repo URI
+output "certbot_ecr_repo_url" {
+  value       = aws_ecr_repository.certbot.repository_url
+  description = "ECR repository URL for certbot image"
 } 

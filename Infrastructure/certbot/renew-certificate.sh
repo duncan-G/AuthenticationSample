@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# certificate-manager v1.1  —  2025-06-27
+# renew-certificate.sh v1.2  —  2025-06-27
 #
 # Automates issuance / renewal of Let's Encrypt certificates and
 # stores them in an S3 bucket for other containers to consume.
-#-------------------------------------------------------------------------------
-# TODO: Remove DRY_RUN feature after testing is complete
+# Returns exit code 0 for success, 1 for failure.
 #-------------------------------------------------------------------------------
 
 set -Eeuo pipefail
@@ -28,8 +27,6 @@ readonly AWS_ROLE_NAME="${AWS_ROLE_NAME:-your-app-private-instance-role}"
 readonly WILDCARD="${WILDCARD:-true}"
 readonly RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-10}"
 readonly CERT_OUTPUT_DIR="${CERT_OUTPUT_DIR:-/app/certs}"
-# TODO: Remove DRY_RUN after testing is complete
-readonly DRY_RUN="${DRY_RUN:-false}"
 
 # Certbot Docker image
 readonly CERTBOT_IMAGE="certbot/dns-route53:latest"
@@ -104,10 +101,6 @@ run_certbot() {
     certonly --dns-route53
     -m "$EMAIL" --agree-tos --non-interactive
   )
-  
-  if [[ $DRY_RUN == true ]]; then
-    certbot_args+=(--dry-run)
-  fi
   
   if [[ $wildcard == true ]]; then
     certbot_args+=(-d "*.${domain}" -d "${domain}")
@@ -190,7 +183,7 @@ upload_certificate_to_s3() {
 
   for file in "${CERT_FILES[@]}"; do
     local s3_key="$s3_path/$file"
-    local local_file="$local_dir/${cert_type}-$file"   # <— fixed mismatch
+    local local_file="$local_dir/${cert_type}-$file"
     aws s3 cp --only-show-errors "$local_file" "s3://$S3_BUCKET/$s3_key"
     log "Uploaded $file"
   done
@@ -255,12 +248,7 @@ prepare_certificates_for_output() {
 renew_certificates() {
   local cert_dir="$1"
   
-  # TODO: Remove dry run logic after testing is complete
-  if [[ $DRY_RUN == true ]]; then
-    log "DRY RUN MODE: Simulating certificate renewal with certbot"
-  else
-    log "Renewing certificates with certbot"
-  fi
+  log "Renewing certificates with certbot"
 
   # Ensure certbot directories exist
   mkdir -p "$cert_dir"/{live,renewal} /var/{lib,log}/letsencrypt
@@ -272,50 +260,32 @@ renew_certificates() {
   log "Renewing external cert for $DOMAIN"
   run_certbot "$cert_dir" "$DOMAIN" "$WILDCARD"
 
-  # TODO: Remove dry run conditional after testing is complete
-  # In dry run mode, don't copy certificates since they won't be generated
-  if [[ $DRY_RUN != true ]]; then
-    local external_dir="$cert_dir/live/$DOMAIN"
-    cp "$external_dir"/privkey.pem   "$cert_dir/external-privkey.pem"
-    cp "$external_dir"/cert.pem      "$cert_dir/external-cert.pem"
-    cp "$external_dir"/fullchain.pem "$cert_dir/external-fullchain.pem"
-  fi
+  local external_dir="$cert_dir/live/$DOMAIN"
+  cp "$external_dir"/privkey.pem   "$cert_dir/external-privkey.pem"
+  cp "$external_dir"/cert.pem      "$cert_dir/external-cert.pem"
+  cp "$external_dir"/fullchain.pem "$cert_dir/external-fullchain.pem"
 
   # -------- internal (optional) --------
   if [[ -n "$INTERNAL_DOMAIN" ]]; then
     log "Renewing internal cert for $INTERNAL_DOMAIN"
     run_certbot "$cert_dir" "$INTERNAL_DOMAIN" true
 
-    # TODO: Remove dry run conditional after testing is complete
-    # In dry run mode, don't copy certificates since they won't be generated
-    if [[ $DRY_RUN != true ]]; then
-      local internal_dir="$cert_dir/live/$INTERNAL_DOMAIN"
-      cp "$internal_dir"/privkey.pem   "$cert_dir/internal-privkey.pem"
-      cp "$internal_dir"/cert.pem      "$cert_dir/internal-cert.pem"
-      cp "$internal_dir"/fullchain.pem "$cert_dir/internal-fullchain.pem"
-    fi
+    local internal_dir="$cert_dir/live/$INTERNAL_DOMAIN"
+    cp "$internal_dir"/privkey.pem   "$cert_dir/internal-privkey.pem"
+    cp "$internal_dir"/cert.pem      "$cert_dir/internal-cert.pem"
+    cp "$internal_dir"/fullchain.pem "$cert_dir/internal-fullchain.pem"
   fi
 
-  # TODO: Remove dry run conditional after testing is complete
-  if [[ $DRY_RUN != true ]]; then
-    chmod 400 "$cert_dir"/*.pem
-    log "Certificates renewed successfully"
-  else
-    log "DRY RUN: Certificate renewal simulation completed successfully"
-  fi
+  chmod 400 "$cert_dir"/*.pem
+  log "Certificates renewed successfully"
 }
 
 ############################################
 # Main logic
 ############################################
 main() {
-  if [[ $DRY_RUN == true ]]; then
-    log "Certificate manager started in DRY RUN MODE (threshold: $RENEWAL_THRESHOLD_DAYS d)"
-    status "IN_PROGRESS" "Certificate management started (DRY RUN)"
-  else
-    log "Certificate manager started (threshold: $RENEWAL_THRESHOLD_DAYS d)"
-    status "IN_PROGRESS" "Certificate management started"
-  fi
+  log "Certificate renewal started (threshold: $RENEWAL_THRESHOLD_DAYS d)"
+  status "IN_PROGRESS" "Certificate renewal started"
 
   # workspace & cleanup
   local cert_dir
@@ -351,38 +321,20 @@ main() {
 
   # ---- renew if necessary ----
   if $renewal_needed; then
-    if [[ $DRY_RUN == true ]]; then
-      log "DRY RUN: Renewal would be required → simulating certbot invocation"
-    else
-      log "Renewal required → invoking certbot"
-    fi
+    log "Renewal required → invoking certbot"
     renew_certificates "$cert_dir"
     
-    # Skip S3 uploads in dry run mode
-    if [[ $DRY_RUN != true ]]; then
-      upload_certificate_to_s3 external "$cert_dir"
-      [[ -n $INTERNAL_DOMAIN ]] && upload_certificate_to_s3 internal "$cert_dir"
-    else
-      log "DRY RUN: Skipping S3 uploads"
-    fi
+    upload_certificate_to_s3 external "$cert_dir"
+    [[ -n $INTERNAL_DOMAIN ]] && upload_certificate_to_s3 internal "$cert_dir"
   else
     log "All certificates healthy; skipping renewal"
   fi
 
-  # Skip certificate preparation in dry run mode
-  if [[ $DRY_RUN != true ]]; then
-    prepare_certificates_for_output "$cert_dir"
-  else
-    log "DRY RUN: Skipping certificate preparation for output"
-  fi
+  prepare_certificates_for_output "$cert_dir"
 
-  if [[ $DRY_RUN == true ]]; then
-    log "DRY RUN: Certificate management simulation completed successfully 🎉"
-    status "SUCCESS" "Certificate management simulation completed"
-  else
-    log "Certificate management completed successfully 🎉"
-    status "SUCCESS" "Certificate management completed"
-  fi
+  log "Certificate renewal completed successfully 🎉"
+  status "SUCCESS" "Certificate renewal completed"
+  exit 0
 }
 
-main "$@"
+main "$@" 

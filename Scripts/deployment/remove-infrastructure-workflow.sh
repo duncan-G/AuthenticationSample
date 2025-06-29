@@ -204,7 +204,7 @@ display_final_summary() {
     echo "   AWS_DEFAULT_REGION"
     echo "3. Remove GitHub environments:"
     echo "   terraform-staging, terraform-production,"
-    echo "   codedeploy-staging, codedeploy-production"
+    echo "   staging, production"
     
     print_warning "Note: This cleanup does NOT delete your terraform infrastructure."
     print_info "To delete infrastructure, run: terraform destroy"

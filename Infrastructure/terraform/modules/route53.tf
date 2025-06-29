@@ -9,7 +9,7 @@ data "aws_route53_zone" "existing" {
 
 # Local value to reference the hosted zone
 locals {
-  hosted_zone_id = data.aws_route53_zone.existing.zone_id
+  hosted_zone_id   = data.aws_route53_zone.existing.zone_id
   hosted_zone_name = data.aws_route53_zone.existing.name
 }
 

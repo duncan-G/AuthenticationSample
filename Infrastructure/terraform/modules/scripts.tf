@@ -33,36 +33,41 @@ resource "aws_ssm_document" "docker_manager_setup" {
   }
 }
 
-# Certificate Manager Cron Setup SSM Document
-resource "aws_ssm_document" "certificate_manager_cron_setup" {
-  name            = "${var.app_name}-certificate-manager-cron-setup"
+# Certificate Manager Setup SSM Document
+resource "aws_ssm_document" "certificate_manager_setup" {
+  name            = "${var.app_name}-certificate-manager-setup"
   document_type   = "Command"
   document_format = "JSON"
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Install and configure certificate manager cron service"
+    description   = "Install and configure certificate manager daemon service"
     mainSteps = [{
-      name   = "InstallCertificateManagerCron"
+      name   = "InstallCertificateManager"
       action = "aws:runShellScript"
       inputs = {
         runCommand = [
-          # Write the certificate manager cron service file
+          # Write the certificate manager daemon service file
           "cat <<'EOF' > /etc/systemd/system/certificate-secret-manager.service",
-          "${indent(2, file("${path.module}/../certificate-secret-manager.service"))}",
+          "${indent(2, file("${path.module}/../certbot/certificate-secret-manager.service"))}",
           "EOF",
-          # Write the certificate manager cron script
-          "cat <<'EOF' > /home/ec2-user/certificate-manager-cron.sh",
-          "${indent(2, file("${path.module}/../certificate-manager-cron.sh"))}",
+          # Write the certificate manager daemon script
+          "cat <<'EOF' > /home/ec2-user/certificate-manager-daemon.sh",
+          "${indent(2, file("${path.module}/../certbot/certificate-manager-daemon.sh"))}",
           "EOF",
-          # Make the script executable
-          "chmod +x /home/ec2-user/certificate-manager-cron.sh",
+          # Write the main certificate manager script
+          "cat <<'EOF' > /home/ec2-user/certificate-manager.sh",
+          "${indent(2, file("${path.module}/../certbot/certificate-manager.sh"))}",
+          "EOF",
+          # Make the scripts executable
+          "chmod +x /home/ec2-user/certificate-manager-daemon.sh",
+          "chmod +x /home/ec2-user/certificate-manager.sh",
           # Create certificate directory
           "mkdir -p /home/ec2-user/certificates",
           "chown ec2-user:ec2-user /home/ec2-user/certificates",
           # Create log file
-          "touch /var/log/certificate-manager-cron.log",
-          "chown ec2-user:ec2-user /var/log/certificate-manager-cron.log",
+          "touch /var/log/certificate-secret-manager.log",
+          "chown ec2-user:ec2-user /var/log/certificate-secret-manager.log",
           # Reload systemd and enable the service
           "systemctl daemon-reload",
           "systemctl enable certificate-secret-manager.service",
@@ -74,7 +79,7 @@ resource "aws_ssm_document" "certificate_manager_cron_setup" {
   })
 
   tags = {
-    Name        = "${var.app_name}-certificate-manager-cron-setup"
+    Name        = "${var.app_name}-certificate-manager-setup"
     Environment = var.environment
   }
 }
@@ -207,6 +212,18 @@ resource "aws_ssm_association" "docker_manager_setup" {
   depends_on = [aws_ssm_association.cloudwatch_agent_manager, aws_ssm_parameter.docker_swarm_worker_token, aws_ssm_parameter.docker_swarm_manager_ip, aws_ssm_parameter.docker_swarm_network_name]
 }
 
+# Then: Install certificate manager (depends on Docker manager setup)
+resource "aws_ssm_association" "certificate_manager_setup" {
+  name = aws_ssm_document.certificate_manager_setup.name
+
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.private.id]
+  }
+
+  depends_on = [aws_ssm_association.docker_manager_setup]
+}
+
 # SSM Associations for Worker Instance
 # First: Install CloudWatch agent
 resource "aws_ssm_association" "cloudwatch_agent_worker" {
@@ -220,18 +237,6 @@ resource "aws_ssm_association" "cloudwatch_agent_worker" {
   depends_on = [aws_instance.public]
 }
 
-# Then: Install certificate manager cron service on public instance (moved from private)
-resource "aws_ssm_association" "certificate_manager_cron_setup" {
-  name = aws_ssm_document.certificate_manager_cron_setup.name
-
-  targets {
-    key    = "InstanceIds"
-    values = [aws_instance.public.id]
-  }
-
-  depends_on = [aws_ssm_association.cloudwatch_agent_worker]
-}
-
 # Then: Run Docker worker setup (depends on CloudWatch agent and Docker manager setup)
 resource "aws_ssm_association" "docker_worker_setup" {
   name = aws_ssm_document.docker_worker_setup.name
@@ -241,7 +246,7 @@ resource "aws_ssm_association" "docker_worker_setup" {
     values = [aws_instance.public.id]
   }
 
-  depends_on = [aws_ssm_association.cloudwatch_agent_worker, aws_ssm_association.docker_manager_setup, aws_ssm_association.certificate_manager_cron_setup]
+  depends_on = [aws_ssm_association.cloudwatch_agent_worker, aws_ssm_association.docker_manager_setup]
 }
 
 # SSM Parameters for Docker Swarm Configuration
