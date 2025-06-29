@@ -262,7 +262,7 @@ output "certbot_artifacts_bucket_name" {
 
 # ECR repository for certbot image
 resource "aws_ecr_repository" "certbot" {
-  name = "${var.app_name}/certbot"
+  name                 = "${var.app_name}/certbot"
   image_tag_mutability = "MUTABLE"
   image_scanning_configuration {
     scan_on_push = true
