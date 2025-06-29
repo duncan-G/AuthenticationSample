@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# renew-certificate.sh v1.2  —  2025-06-27
+# renew-certificate.sh v1.3  —  2025-06-27
 #
 # Automates issuance / renewal of Let's Encrypt certificates and
 # stores them in an S3 bucket for other containers to consume.
@@ -153,7 +153,7 @@ cleanup_aws_credentials() {
 # S3 Certificate Store
 ############################################
 download_certificate_from_s3() {
-  local cert_type="$1"   # external | internal
+  local cert_type="$1"   # public | internal
   local local_dir="$2"
 
   log "Downloading $cert_type certificate from S3"
@@ -174,19 +174,31 @@ download_certificate_from_s3() {
 }
 
 upload_certificate_to_s3() {
-  local cert_type="$1"   # external | internal
+  local cert_type="$1"   # public | internal
   local local_dir="$2"
+  local run_id="$3"
 
   log "Uploading $cert_type certificate to S3"
 
-  local s3_path="$CERT_PREFIX/$cert_type"
+  local s3_path="$CERT_PREFIX/$cert_type/$run_id"
 
+  # Upload certificate files
   for file in "${CERT_FILES[@]}"; do
     local s3_key="$s3_path/$file"
     local local_file="$local_dir/${cert_type}-$file"
     aws s3 cp --only-show-errors "$local_file" "s3://$S3_BUCKET/$s3_key"
     log "Uploaded $file"
   done
+
+  # For internal certificates, also upload PFX file
+  if [[ "$cert_type" == "internal" ]]; then
+    local pfx_file="$local_dir/${cert_type}-cert.pfx"
+    if [[ -f "$pfx_file" ]]; then
+      local pfx_s3_key="$s3_path/cert.pfx"
+      aws s3 cp --only-show-errors "$pfx_file" "s3://$S3_BUCKET/$pfx_s3_key"
+      log "Uploaded cert.pfx"
+    fi
+  fi
 }
 
 ############################################
@@ -219,21 +231,23 @@ prepare_certificates_for_output() {
   log "Preparing certificates for output → $CERT_OUTPUT_DIR"
   install -m 700 -d "$CERT_OUTPUT_DIR"
 
-  # external certs
-  cp "$cert_dir"/external-cert.pem     "$CERT_OUTPUT_DIR/cert.pem"
-  cp "$cert_dir"/external-privkey.pem  "$CERT_OUTPUT_DIR/cert.key"
-  cp "$cert_dir"/external-fullchain.pem "$CERT_OUTPUT_DIR/fullchain.pem"
+  # Public certs (external)
+  cp "$cert_dir"/public-cert.pem     "$CERT_OUTPUT_DIR/cert.pem"
+  cp "$cert_dir"/public-privkey.pem  "$CERT_OUTPUT_DIR/cert.key"
+  cp "$cert_dir"/public-fullchain.pem "$CERT_OUTPUT_DIR/fullchain.pem"
 
-  # .pfx for .NET
-  openssl pkcs12 -export               \
-      -in  "$CERT_OUTPUT_DIR/cert.pem" \
-      -inkey "$CERT_OUTPUT_DIR/cert.key" \
-      -out "$CERT_OUTPUT_DIR/aspnetapp.pfx" \
-      -passout pass:
-
-  # internal (optional)
+  # Internal certs (if available)
   if [[ -n "$INTERNAL_DOMAIN" && -f "$cert_dir/internal-cert.pem" ]]; then
-    cp "$cert_dir"/internal-*.pem "$CERT_OUTPUT_DIR"/
+    cp "$cert_dir"/internal-cert.pem     "$CERT_OUTPUT_DIR/internal-cert.pem"
+    cp "$cert_dir"/internal-privkey.pem  "$CERT_OUTPUT_DIR/internal-key.pem"
+    cp "$cert_dir"/internal-fullchain.pem "$CERT_OUTPUT_DIR/internal-fullchain.pem"
+    
+    # Create PFX for internal certificate
+    openssl pkcs12 -export               \
+        -in  "$CERT_OUTPUT_DIR/internal-cert.pem" \
+        -inkey "$CERT_OUTPUT_DIR/internal-key.pem" \
+        -out "$CERT_OUTPUT_DIR/internal-cert.pfx" \
+        -passout pass:
   fi
 
   chmod 400 "$CERT_OUTPUT_DIR"/*.{pem,pfx}
@@ -256,14 +270,14 @@ renew_certificates() {
   # Pull the certbot image
   pull_certbot_image
 
-  # -------- external --------
-  log "Renewing external cert for $DOMAIN"
+  # -------- public (external) --------
+  log "Renewing public cert for $DOMAIN"
   run_certbot "$cert_dir" "$DOMAIN" "$WILDCARD"
 
-  local external_dir="$cert_dir/live/$DOMAIN"
-  cp "$external_dir"/privkey.pem   "$cert_dir/external-privkey.pem"
-  cp "$external_dir"/cert.pem      "$cert_dir/external-cert.pem"
-  cp "$external_dir"/fullchain.pem "$cert_dir/external-fullchain.pem"
+  local public_dir="$cert_dir/live/$DOMAIN"
+  cp "$public_dir"/privkey.pem   "$cert_dir/public-privkey.pem"
+  cp "$public_dir"/cert.pem      "$cert_dir/public-cert.pem"
+  cp "$public_dir"/fullchain.pem "$cert_dir/public-fullchain.pem"
 
   # -------- internal (optional) --------
   if [[ -n "$INTERNAL_DOMAIN" ]]; then
@@ -295,18 +309,18 @@ main() {
   fetch_aws_credentials
 
   # ---- download existing certs ----
-  local have_external=false have_internal=false renewal_needed=false
+  local have_public=false have_internal=false renewal_needed=false
 
-  if download_certificate_from_s3 external "$cert_dir"; then
-    have_external=true
+  if download_certificate_from_s3 public "$cert_dir"; then
+    have_public=true
   fi
   if [[ -n $INTERNAL_DOMAIN ]] && download_certificate_from_s3 internal "$cert_dir"; then
     have_internal=true
   fi
 
   # ---- validity checks ----
-  if $have_external && check_certificate_validity "$cert_dir/external-cert.pem"; then
-    log "External cert still valid"
+  if $have_public && check_certificate_validity "$cert_dir/public-cert.pem"; then
+    log "Public cert still valid"
   else
     renewal_needed=true
   fi
@@ -324,8 +338,12 @@ main() {
     log "Renewal required → invoking certbot"
     renew_certificates "$cert_dir"
     
-    upload_certificate_to_s3 external "$cert_dir"
-    [[ -n $INTERNAL_DOMAIN ]] && upload_certificate_to_s3 internal "$cert_dir"
+    # Generate run ID for S3 uploads
+    local run_id
+    run_id=$(date +%Y%m%d%H%M%S)
+    
+    upload_certificate_to_s3 public "$cert_dir" "$run_id"
+    [[ -n $INTERNAL_DOMAIN ]] && upload_certificate_to_s3 internal "$cert_dir" "$run_id"
   else
     log "All certificates healthy; skipping renewal"
   fi

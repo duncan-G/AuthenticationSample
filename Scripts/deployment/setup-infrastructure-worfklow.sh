@@ -52,6 +52,7 @@ get_user_input() {
     
     prompt_user "Enter domain name (e.g., example.com)" "DOMAIN_NAME"
     prompt_user "Enter API subdomain (e.g., api)" "API_SUBDOMAIN" "api"
+    prompt_user "Enter email address for domain verification" "EMAIL_ADDRESS"
     
     # Get Route53 hosted zone ID automatically
     get_route53_hosted_zone_id "$DOMAIN_NAME"
@@ -72,6 +73,7 @@ get_user_input() {
     echo "  Domain Name: $DOMAIN_NAME"
     echo "  Route53 Hosted Zone ID: $ROUTE53_HOSTED_ZONE_ID"
     echo "  API Subdomain: $API_SUBDOMAIN"
+    echo "  Email Address: $EMAIL_ADDRESS"
     
     if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
@@ -158,6 +160,64 @@ create_iam_role() {
     print_success "Policy attached to role"
 }
 
+# Function to create AWS Secrets Manager secret for application configuration
+# NOTE: Shouldn't be 1 secret, but store all secrets in 1 secret to save on cost
+create_application_secrets() {
+    local secret_name="${TF_APP_NAME}-secrets"
+    
+    print_info "Creating AWS Secrets Manager secret for application configuration: $secret_name"
+    
+    # Check if secret already exists
+    if aws secretsmanager describe-secret --secret-id "$secret_name" --profile "$AWS_PROFILE" &> /dev/null; then
+        print_warning "Secret $secret_name already exists, updating with new values"
+        
+        # Create the secret JSON
+        local secret_json
+        secret_json=$(cat <<EOF
+{
+  "app_name": "$TF_APP_NAME",
+  "s3_bucket": "certificate-store-${BUCKET_SUFFIX}",
+  "domain": "$DOMAIN_NAME",
+  "internal_domain": "internal.$DOMAIN_NAME",
+  "email": "$EMAIL_ADDRESS"
+}
+EOF
+)
+        
+        # Update the secret
+        aws secretsmanager update-secret \
+            --profile "$AWS_PROFILE" \
+            --secret-id "$secret_name" \
+            --secret-string "$secret_json"
+        
+        print_success "Secret $secret_name updated successfully"
+    else
+        print_info "Creating new secret: $secret_name"
+        
+        # Create the secret JSON
+        local secret_json
+        secret_json=$(cat <<EOF
+{
+  "app_name": "$TF_APP_NAME",
+  "s3_bucket": "certificate-store-${BUCKET_SUFFIX}",
+  "domain": "$DOMAIN_NAME",
+  "internal_domain": "internal.$DOMAIN_NAME",
+  "email": "$EMAIL_ADDRESS"
+}
+EOF
+)
+        
+        # Create the secret
+        aws secretsmanager create-secret \
+            --profile "$AWS_PROFILE" \
+            --name "$secret_name" \
+            --description "Application configuration for $TF_APP_NAME" \
+            --secret-string "$secret_json"
+        
+        print_success "Secret $secret_name created successfully"
+    fi
+}
+
 # Function to setup OIDC infrastructure
 setup_oidc_infrastructure() {
     print_info "Setting up OIDC infrastructure..."
@@ -227,6 +287,8 @@ display_final_instructions() {
     echo -e "${GREEN}   $BUCKET_NAME${NC}"
     echo "Your Terraform IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
+    echo "Your Application Secrets Manager Secret:"
+    echo -e "${GREEN}   ${TF_APP_NAME}-secrets${NC}"
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
     echo -e "${GREEN}   API Subdomain: $API_SUBDOMAIN${NC}"
@@ -240,6 +302,7 @@ display_final_instructions() {
     print_info "Next steps:"
     echo "   1. Deploy infrastructure using Terraform workflow"
     echo "   2. Use CodeDeploy workflows for application deployments"
+    echo "   3. Application services will use the created Secrets Manager secret"
 }
 
 # Function to show usage
@@ -250,6 +313,7 @@ show_usage() {
     echo "  - Variable substitution in policy files"
     echo "  - OIDC provider and IAM roles/policies for Terraform and CodeDeploy"
     echo "  - S3 bucket for Terraform state backend"
+    echo "  - AWS Secrets Manager secret for application configuration"
     echo "  - GitHub repository secrets and variables"
     echo "  - GitHub environments for Terraform and CodeDeploy"
     echo
@@ -294,6 +358,7 @@ main() {
     
     create_terraform_state_backend
     setup_oidc_infrastructure
+    create_application_secrets
     setup_github_workflow
     
     display_final_instructions
