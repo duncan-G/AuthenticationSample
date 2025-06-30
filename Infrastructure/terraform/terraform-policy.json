@@ -72,7 +72,8 @@
         "ssm:ListDocuments",
         "ssm:GetDocument",
         "ssm:AddTagsToResource",
-        "ssm:DescribeDocumentPermission"
+        "ssm:DescribeDocumentPermission",
+        "ssm:UpdateDocumentDefaultVersion"
       ],
       "Resource": [
         "arn:aws:ssm:*:*:parameter/docker/swarm/*",
