@@ -66,13 +66,13 @@ variable "github_repository" {
   default     = ""
 }
 
-variable "staging_environment" {
+variable "staging_environment_name" {
   description = "Staging environment name for GitHub Actions OIDC trust policy."
   type        = string
   default     = "staging"
 }
 
-variable "production_environment" {
+variable "production_environment_name" {
   description = "Production environment name for GitHub Actions OIDC trust policy."
   type        = string
   default     = "production"

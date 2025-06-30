@@ -25,6 +25,9 @@
 #
 #   AWS_SECRET_NAME            Name of the secret in AWS Secrets Manager
 #
+#   LOG_DIR                    Directory for log files (default: /var/log)
+#   LOG_FILE                   Log file name (default: certificate-renewal.log)
+#
 # ---------------------------------------------------------------------------
 # Requires: docker, aws-cli
 ###############################################################################
@@ -102,6 +105,10 @@ readonly INTERNAL_PFX_SECRET_TARGET="${INTERNAL_PFX_SECRET_TARGET:-internal-cert
 readonly WORKER_CONSTRAINT="${WORKER_CONSTRAINT:-node.role==worker}"
 readonly STAGING_DIR="/tmp/certificate-renewal"
 
+# Log directory for CloudWatch integration
+readonly LOG_DIR="${LOG_DIR:-/var/log}"
+readonly LOG_FILE="${LOG_FILE:-certificate-renewal.log}"
+
 # ── Derived names & paths ────────────────────────────────────────────────────
 RUN_ID="$(date +%Y%m%d%H%M%S)"
 SERVICE_NAME="cert-renewal-${RUN_ID}"
@@ -129,6 +136,7 @@ docker service create \
   --constraint "$WORKER_CONSTRAINT" \
   --restart-condition none \
   --stop-grace-period 5m \
+  --mount type=bind,source="$LOG_DIR",target="$LOG_DIR" \
   --env RUN_ID="$RUN_ID" \
   --env S3_BUCKET="$S3_BUCKET" \
   --env CERT_PREFIX="$CERT_PREFIX" \
@@ -139,6 +147,8 @@ docker service create \
   --env WILDCARD="$WILDCARD" \
   --env RENEWAL_THRESHOLD_DAYS="$RENEWAL_THRESHOLD_DAYS" \
   --env CERT_OUTPUT_DIR="${CERT_OUTPUT_DIR:-/certs}" \
+  --env LOG_DIR="$LOG_DIR" \
+  --env LOG_FILE="$LOG_FILE" \
   "$RENEWAL_IMAGE" >/dev/null
 
 # ── 2. Wait for completion ──────────────────────────────────────────────────

@@ -39,8 +39,8 @@ env:
   TF_VAR_region: ${{ vars.AWS_DEFAULT_REGION || 'us-west-1' }}
   TF_VAR_github_repository: ${{ secrets.GITHUB_REPOSITORY }}
   TF_VAR_deployment_bucket: ${{ secrets.DEPLOYMENT_BUCKET }}
-  TF_VAR_staging_environment: ${{ vars.STAGING_ENVIRONMENT || 'staging' }}
-  TF_VAR_production_environment: ${{ vars.PRODUCTION_ENVIRONMENT || 'production' }}
+  TF_VAR_staging_environment_name: ${{ vars.STAGING_ENVIRONMENT || 'staging' }}
+  TF_VAR_production_environment_name: ${{ vars.PRODUCTION_ENVIRONMENT || 'production' }}
   TF_VAR_environment: ${{ github.event.inputs.environment == 'terraform-production' && 'production' || 'staging' }}
   TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
   TF_VAR_api_subdomain: ${{ vars.API_SUBDOMAIN || 'api' }}
@@ -150,8 +150,8 @@ jobs:
         BUCKET_HASH=$(echo "${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.GITHUB_REPOSITORY }}" | md5sum | cut -c1-8)
         
         # Define bucket names
-        CERTIFICATE_BUCKET="${TF_VAR_app_name}-certificate-store-${TF_VAR_environment}"
-        CODEDEPLOY_BUCKET="codedeploy-${BUCKET_HASH}"
+        CERTIFICATE_BUCKET="${TF_VAR_app_name}-certificate-store-${BUCKET_HASH}"
+        CODEDEPLOY_BUCKET="${TF_VAR_app_name}-codedeploy-${BUCKET_HASH}"
         
         echo "Checking buckets:"
         echo "  Certificate Store: $CERTIFICATE_BUCKET"
@@ -185,7 +185,7 @@ jobs:
         }
         
         # Import certificate store bucket
-        import_bucket_if_needed "$CERTIFICATE_BUCKET" "aws_s3_bucket.certificate_store"
+        import_bucket_if_needed "$CERTIFICATE_BUCKET" "aws_s3_bucket.ssl_certificates_bucket"
         
         # Import CodeDeploy bucket
         import_bucket_if_needed "$CODEDEPLOY_BUCKET" "aws_s3_bucket.codedeploy"
@@ -391,8 +391,8 @@ jobs:
         BUCKET_HASH=$(echo "${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.GITHUB_REPOSITORY }}" | md5sum | cut -c1-8)
         
         # Define bucket names
-        CERTIFICATE_BUCKET="${TF_VAR_app_name}-certificate-store-${TF_VAR_environment}"
-        CODEDEPLOY_BUCKET="codedeploy-${BUCKET_HASH}"
+        CERTIFICATE_BUCKET="${TF_VAR_app_name}-certificate-store-${BUCKET_HASH}"
+        CODEDEPLOY_BUCKET="${TF_VAR_app_name}-codedeploy-${BUCKET_HASH}"
         
         echo "Checking buckets:"
         echo "  Certificate Store: $CERTIFICATE_BUCKET"
@@ -426,7 +426,7 @@ jobs:
         }
         
         # Import certificate store bucket
-        import_bucket_if_needed "$CERTIFICATE_BUCKET" "aws_s3_bucket.certificate_store"
+        import_bucket_if_needed "$CERTIFICATE_BUCKET" "aws_s3_bucket.ssl_certificates_bucket"
         
         # Import CodeDeploy bucket
         import_bucket_if_needed "$CODEDEPLOY_BUCKET" "aws_s3_bucket.codedeploy"
