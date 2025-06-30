@@ -104,6 +104,58 @@ create_terraform_state_backend() {
     aws s3api put-bucket-versioning --bucket "$TF_STATE_BUCKET" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
 }
 
+# Function to create S3 bucket for SSL certificates
+create_certificate_bucket() {
+    CERTIFICATE_BUCKET="${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}"
+    
+    # Certificate bucket lifecycle configuration
+    local certificate_lifecycle='{
+      "Rules": [
+        {
+          "ID": "ssl_certificate_cleanup",
+          "Status": "Enabled",
+          "Filter": {},
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 30
+          },
+          "Expiration": {
+            "Days": 365
+          }
+        }
+      ]
+    }'
+    
+    print_info "Creating certificate bucket..."
+    create_s3_bucket_with_lifecycle "$CERTIFICATE_BUCKET" "$AWS_REGION" "$AWS_PROFILE" "production" "${TF_APP_NAME}-certificate-store" "$certificate_lifecycle"
+    print_success "Certificate bucket created successfully."
+}
+
+# Function to create S3 bucket for CodeDeploy
+create_codedeploy_bucket() {
+    DEPLOYMENT_BUCKET="${TF_APP_NAME}-codedeploy-${BUCKET_SUFFIX}"
+    
+    # CodeDeploy bucket lifecycle configuration
+    local codedeploy_lifecycle='{
+      "Rules": [
+        {
+          "ID": "deployment_cleanup",
+          "Status": "Enabled",
+          "Filter": {},
+          "NoncurrentVersionExpiration": {
+            "NoncurrentDays": 30
+          },
+          "Expiration": {
+            "Days": 90
+          }
+        }
+      ]
+    }'
+    
+    print_info "Creating CodeDeploy bucket..."
+    create_s3_bucket_with_lifecycle "$DEPLOYMENT_BUCKET" "$AWS_REGION" "$AWS_PROFILE" "production" "${TF_APP_NAME}-codedeploy" "$codedeploy_lifecycle"
+    print_success "CodeDeploy bucket created successfully."
+}
+
 # Function to create OIDC provider
 create_oidc_provider() {
     print_info "Creating OIDC provider..."
@@ -450,6 +502,8 @@ main() {
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
     create_terraform_state_backend
+    create_certificate_bucket
+    create_codedeploy_bucket
     setup_oidc_infrastructure
     create_application_secrets
     build_and_push_certbot_image
