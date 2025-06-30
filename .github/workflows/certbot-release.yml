@@ -16,7 +16,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
       APP_NAME: ${{ secrets.APP_NAME }}
       ECR_REPO: ${{ secrets.APP_NAME }}/certbot
     steps:
