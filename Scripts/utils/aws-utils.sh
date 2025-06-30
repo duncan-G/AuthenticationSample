@@ -198,7 +198,7 @@ create_s3_bucket_with_config() {
     print_info "Configuring bucket settings..."
     
     # Enable versioning (idempotent)
-    aws s3api put-bucket-versioning --bucket "$bucket_name" --versioning-configuration Status=Enabled --profile "$profile" 2>/dev/null || true
+    aws s3api put-bucket-versioning --bucket "$bucket_name" --versioning-configuration Status=Enabled --profile "$profile"
     
     # Configure encryption (idempotent)
     aws s3api put-bucket-encryption --bucket "$bucket_name" --profile "$profile" --server-side-encryption-configuration '{
@@ -209,14 +209,14 @@ create_s3_bucket_with_config() {
           }
         }
       ]
-    }' 2>/dev/null || true
+    }'
     
     # Configure public access block (idempotent)
     aws s3api put-public-access-block --bucket "$bucket_name" --profile "$profile" --public-access-block-configuration \
-        BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true 2>/dev/null || true
+        BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
     
     # Add tags (idempotent)
-    aws s3api put-bucket-tagging --bucket "$bucket_name" --profile "$profile" --tagging "TagSet=[{Key=Name,Value=${app_name}-bucket},{Key=Environment,Value=${environment}}]" 2>/dev/null || true
+    aws s3api put-bucket-tagging --bucket "$bucket_name" --profile "$profile" --tagging "TagSet=[{Key=Name,Value=${app_name}-bucket},{Key=Environment,Value=${environment}}]"
     
     if [ "$bucket_exists" = true ]; then
         print_success "Bucket $bucket_name configuration verified."
@@ -240,7 +240,7 @@ create_s3_bucket_with_lifecycle() {
     # Configure custom lifecycle policy (idempotent)
     if [ -n "$lifecycle_config" ]; then
         print_info "Configuring custom lifecycle policy..."
-        aws s3api put-bucket-lifecycle-configuration --bucket "$bucket_name" --profile "$profile" --lifecycle-configuration "$lifecycle_config" 2>/dev/null || true
+        aws s3api put-bucket-lifecycle-configuration --bucket "$bucket_name" --profile "$profile" --lifecycle-configuration "$lifecycle_config"
         print_success "Custom lifecycle policy configured."
     fi
 }

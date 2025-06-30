@@ -15,6 +15,11 @@ data "aws_route53_zone" "existing" {
 # This file contains only the IAM policies and outputs that reference the bucket.
 # The bucket name follows the pattern: ${var.app_name}-certificate-store-${var.bucket_suffix}
 
+locals {
+  certificate_bucket_name = "${var.app_name}-certificate-store-${var.bucket_suffix}"
+  certificate_bucket_arn  = "arn:aws:s3:::${local.certificate_bucket_name}"
+}
+
 # IAM policy for SSL certificate bucket access
 resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
   name        = "${var.app_name}-certificate-store-bucket-access"
@@ -32,8 +37,8 @@ resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}",
-          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}/*"
+          local.certificate_bucket_arn,
+          "${local.certificate_bucket_arn}/*"
         ]
       }
     ]
@@ -66,8 +71,8 @@ resource "aws_iam_policy" "ssl_certificates_bucket_readonly_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}",
-          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}/*"
+          local.certificate_bucket_arn,
+          "${local.certificate_bucket_arn}/*"
         ]
       }
     ]
@@ -138,12 +143,12 @@ resource "aws_iam_role_policy_attachment" "public_certbot_route53_dns_challenge"
 
 # SSL certificate bucket outputs
 output "ssl_certificates_bucket_name" {
-  value       = "${var.app_name}-certificate-store-${var.bucket_suffix}"
+  value       = local.certificate_bucket_name
   description = "Name of the S3 bucket for SSL certificate storage"
 }
 
 output "ssl_certificates_bucket_arn" {
-  value       = "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}"
+  value       = local.certificate_bucket_arn
   description = "ARN of the S3 bucket for SSL certificate storage"
 }
 
