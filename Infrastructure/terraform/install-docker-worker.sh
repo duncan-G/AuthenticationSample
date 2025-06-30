@@ -114,18 +114,24 @@ wait_for_manager() {
     token=$(get_ssm_param worker-token)
     ip=$(get_ssm_param manager-ip)
 
-    if [[ -n $token && -n $ip ]]; then
-      log "DEBUG: Found both parameters – token: ${token:0:10}… ip: $ip"
+    # Only check that both parameters exist and are not placeholder values
+    if [[ -n $token && -n $ip && $token != "placeholder" && $ip != "placeholder" ]]; then
+      log "DEBUG: Found parameters – token: ${token:0:10}… ip: $ip"
       printf '%s %s\n' "$token" "$ip"   # <── ONLY stdout from the function
       return 0
+    else
+      if [[ $token == "placeholder" || $ip == "placeholder" ]]; then
+        log "Attempt $attempt/$MAX_ATTEMPTS ➜ found placeholder values, waiting for manager to update SSM parameters…"
+      else
+        log "Attempt $attempt/$MAX_ATTEMPTS ➜ parameters not found (token: ${token:-empty}, ip: ${ip:-empty}); sleeping 10 s…"
+      fi
     fi
 
-    log "Attempt $attempt/$MAX_ATTEMPTS ➜ not ready; sleeping 10 s…"
     sleep 10
     (( attempt++ ))
   done
 
-  log "Manager parameters not found after $MAX_ATTEMPTS attempts"
+  log "Manager parameters not ready after $MAX_ATTEMPTS attempts"
   return 1
 }
 
@@ -138,10 +144,15 @@ join_swarm() {
   local token ip
   if read -r token ip < <(wait_for_manager); then   # process-substitution, not word-split
     log "Joining Swarm ($ip)…"
-    docker swarm join --token "$token" "$ip"
-    log "Swarm join complete 🎉"
+    if docker swarm join --token "$token" "$ip"; then
+      log "Swarm join complete 🎉"
+    else
+      log "ERROR: Failed to join swarm with token and IP"
+      return 1
+    fi
   else
-    log "Missing token or IP; aborting join"
+    log "ERROR: Failed to obtain valid manager parameters from SSM"
+    log "This usually means the manager setup hasn't completed yet or failed"
     return 1
   fi
 }
