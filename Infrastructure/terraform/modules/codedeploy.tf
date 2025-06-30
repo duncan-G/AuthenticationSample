@@ -116,8 +116,8 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          aws_s3_bucket.codedeploy.arn,
-          "${aws_s3_bucket.codedeploy.arn}/*"
+          "arn:aws:s3:::${var.app_name}-codedeploy-${var.bucket_suffix}",
+          "arn:aws:s3:::${var.app_name}-codedeploy-${var.bucket_suffix}/*"
         ]
       },
       {
@@ -175,84 +175,23 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
 }
 
 ########################
-# CodeDeploy S3 Bucket
+# CodeDeploy S3 Bucket - Managed by Setup Script
 ########################
 
-# S3 bucket for CodeDeploy deployment artifacts
-resource "aws_s3_bucket" "codedeploy" {
-  bucket = "${var.app_name}-codedeploy-${var.bucket_suffix}"
-
-  tags = {
-    Name        = "${var.app_name}-codedeploy-bucket"
-    Environment = var.environment
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# S3 bucket versioning for deployment history
-resource "aws_s3_bucket_versioning" "codedeploy" {
-  bucket = aws_s3_bucket.codedeploy.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-# S3 bucket encryption
-resource "aws_s3_bucket_server_side_encryption_configuration" "codedeploy" {
-  bucket = aws_s3_bucket.codedeploy.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-# S3 bucket public access block
-resource "aws_s3_bucket_public_access_block" "codedeploy" {
-  bucket = aws_s3_bucket.codedeploy.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-# S3 bucket lifecycle policy for deployment artifacts cleanup
-resource "aws_s3_bucket_lifecycle_configuration" "codedeploy" {
-  bucket = aws_s3_bucket.codedeploy.id
-
-  rule {
-    id     = "deployment_cleanup"
-    status = "Enabled"
-
-    filter {
-      prefix = ""
-    }
-
-    noncurrent_version_expiration {
-      noncurrent_days = 30
-    }
-
-    expiration {
-      days = 90
-    }
-  }
-}
+# The CodeDeploy S3 bucket is created and configured by the infrastructure setup script.
+# This file contains only the IAM policies and outputs that reference the bucket.
+# The bucket name follows the pattern: ${var.app_name}-codedeploy-${var.bucket_suffix}
 
 ########################
 # Outputs
 ########################
 
 output "codedeploy_bucket_name" {
-  value       = aws_s3_bucket.codedeploy.bucket
+  value       = "${var.app_name}-codedeploy-${var.bucket_suffix}"
   description = "Name of the S3 bucket for CodeDeploy deployment artifacts"
 }
 
 output "codedeploy_bucket_arn" {
-  value       = aws_s3_bucket.codedeploy.arn
+  value       = "arn:aws:s3:::${var.app_name}-codedeploy-${var.bucket_suffix}"
   description = "ARN of the S3 bucket for CodeDeploy deployment artifacts"
 } 

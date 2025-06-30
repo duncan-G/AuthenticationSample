@@ -11,70 +11,9 @@ data "aws_route53_zone" "existing" {
 # SSL Certificate Store (S3)
 ########################
 
-# S3 bucket for SSL certificate storage
-resource "aws_s3_bucket" "ssl_certificates_bucket" {
-  bucket = "${var.app_name}-certificate-store-${var.bucket_suffix}"
-
-  tags = {
-    Name        = "${var.app_name}-certificate-store-bucket"
-    Environment = var.environment
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-# S3 bucket versioning for SSL certificate history
-resource "aws_s3_bucket_versioning" "ssl_certificates_bucket" {
-  bucket = aws_s3_bucket.ssl_certificates_bucket.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-# S3 bucket encryption
-resource "aws_s3_bucket_server_side_encryption_configuration" "ssl_certificates_bucket" {
-  bucket = aws_s3_bucket.ssl_certificates_bucket.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-# S3 bucket public access block
-resource "aws_s3_bucket_public_access_block" "ssl_certificates_bucket" {
-  bucket = aws_s3_bucket.ssl_certificates_bucket.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-# S3 bucket lifecycle policy
-resource "aws_s3_bucket_lifecycle_configuration" "ssl_certificates_bucket" {
-  bucket = aws_s3_bucket.ssl_certificates_bucket.id
-
-  rule {
-    id     = "ssl_certificate_cleanup"
-    status = "Enabled"
-
-    filter {
-      prefix = ""
-    }
-
-    noncurrent_version_expiration {
-      noncurrent_days = 30
-    }
-
-    expiration {
-      days = 365
-    }
-  }
-}
+# The SSL certificate bucket is created and configured by the infrastructure setup script.
+# This file contains only the IAM policies and outputs that reference the bucket.
+# The bucket name follows the pattern: ${var.app_name}-certificate-store-${var.bucket_suffix}
 
 # IAM policy for SSL certificate bucket access
 resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
@@ -93,8 +32,8 @@ resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          aws_s3_bucket.ssl_certificates_bucket.arn,
-          "${aws_s3_bucket.ssl_certificates_bucket.arn}/*"
+          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}",
+          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}/*"
         ]
       }
     ]
@@ -127,8 +66,8 @@ resource "aws_iam_policy" "ssl_certificates_bucket_readonly_policy" {
           "s3:ListBucket"
         ]
         Resource = [
-          aws_s3_bucket.ssl_certificates_bucket.arn,
-          "${aws_s3_bucket.ssl_certificates_bucket.arn}/*"
+          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}",
+          "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}/*"
         ]
       }
     ]
@@ -199,12 +138,12 @@ resource "aws_iam_role_policy_attachment" "public_certbot_route53_dns_challenge"
 
 # SSL certificate bucket outputs
 output "ssl_certificates_bucket_name" {
-  value       = aws_s3_bucket.ssl_certificates_bucket.bucket
+  value       = "${var.app_name}-certificate-store-${var.bucket_suffix}"
   description = "Name of the S3 bucket for SSL certificate storage"
 }
 
 output "ssl_certificates_bucket_arn" {
-  value       = aws_s3_bucket.ssl_certificates_bucket.arn
+  value       = "arn:aws:s3:::${var.app_name}-certificate-store-${var.bucket_suffix}"
   description = "ARN of the S3 bucket for SSL certificate storage"
 }
 

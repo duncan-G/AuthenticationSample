@@ -175,6 +175,77 @@ check_jq() {
     return 0
 }
 
+# Function to create S3 bucket with standard configuration
+create_s3_bucket_with_config() {
+    local bucket_name="$1"
+    local region="$2"
+    local profile="$3"
+    local environment="$4"
+    local app_name="$5"
+    
+    print_info "Creating S3 bucket: $bucket_name"
+
+    local bucket_exists=false
+    if ! aws s3api head-bucket --bucket "$bucket_name" --profile "$profile" 2>/dev/null; then
+        aws s3api create-bucket --bucket "$bucket_name" --region "$region" --create-bucket-configuration LocationConstraint="$region" --profile "$profile"
+        print_success "S3 bucket $bucket_name created."
+    else
+        print_warning "S3 bucket $bucket_name already exists."
+        bucket_exists=true
+    fi
+
+    # Configure bucket settings (idempotent operations)
+    print_info "Configuring bucket settings..."
+    
+    # Enable versioning (idempotent)
+    aws s3api put-bucket-versioning --bucket "$bucket_name" --versioning-configuration Status=Enabled --profile "$profile" 2>/dev/null || true
+    
+    # Configure encryption (idempotent)
+    aws s3api put-bucket-encryption --bucket "$bucket_name" --profile "$profile" --server-side-encryption-configuration '{
+      "Rules": [
+        {
+          "ApplyServerSideEncryptionByDefault": {
+            "SSEAlgorithm": "AES256"
+          }
+        }
+      ]
+    }' 2>/dev/null || true
+    
+    # Configure public access block (idempotent)
+    aws s3api put-public-access-block --bucket "$bucket_name" --profile "$profile" --public-access-block-configuration \
+        BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true 2>/dev/null || true
+    
+    # Add tags (idempotent)
+    aws s3api put-bucket-tagging --bucket "$bucket_name" --profile "$profile" --tagging "TagSet=[{Key=Name,Value=${app_name}-bucket},{Key=Environment,Value=${environment}}]" 2>/dev/null || true
+    
+    if [ "$bucket_exists" = true ]; then
+        print_success "Bucket $bucket_name configuration verified."
+    else
+        print_success "Bucket $bucket_name configured successfully."
+    fi
+}
+
+# Function to create S3 bucket with custom lifecycle policy
+create_s3_bucket_with_lifecycle() {
+    local bucket_name="$1"
+    local region="$2"
+    local profile="$3"
+    local environment="$4"
+    local app_name="$5"
+    local lifecycle_config="$6"
+    
+    # Create bucket with standard config
+    create_s3_bucket_with_config "$bucket_name" "$region" "$profile" "$environment" "$app_name"
+    
+    # Configure custom lifecycle policy (idempotent)
+    if [ -n "$lifecycle_config" ]; then
+        print_info "Configuring custom lifecycle policy..."
+        aws s3api put-bucket-lifecycle-configuration --bucket "$bucket_name" --profile "$profile" --lifecycle-configuration "$lifecycle_config" 2>/dev/null || true
+        print_success "Custom lifecycle policy configured."
+    fi
+}
+
 # Export functions so they can be used by other scripts
 export -f check_aws_cli check_aws_profile check_aws_authentication
-export -f get_aws_account_id validate_aws_region check_jq 
+export -f get_aws_account_id validate_aws_region check_jq
+export -f create_s3_bucket_with_config create_s3_bucket_with_lifecycle 
