@@ -43,6 +43,12 @@ get_user_input() {
     print_info "Please provide the following information:"
     
     prompt_user "Enter AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
+        
+    AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
     prompt_user "Enter application name (used for Terraform resource naming)" "TF_APP_NAME"
     prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
     prompt_user "Enter terraform staging environment name" "STAGING_ENVIRONMENT" "terraform-staging"
@@ -59,6 +65,7 @@ get_user_input() {
     
     # Calculate bucket suffix using the same logic as elsewhere
     BUCKET_SUFFIX=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
+
     print_info "Calculated bucket suffix: $BUCKET_SUFFIX"
     
     print_info "Configuration Summary:"
@@ -83,18 +90,18 @@ get_user_input() {
 
 # Function to create S3 bucket for Terraform state
 create_terraform_state_backend() {
-    BUCKET_NAME="terraform-state-${BUCKET_SUFFIX}"
+    TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
     
-    print_info "Creating S3 bucket for Terraform state backend: $BUCKET_NAME"
+    print_info "Creating S3 bucket for Terraform state backend: $TF_STATE_BUCKET"
 
-    if ! aws s3api head-bucket --bucket "$BUCKET_NAME" --profile "$AWS_PROFILE" 2>/dev/null; then
-        aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
-        print_success "S3 bucket $BUCKET_NAME created."
+    if ! aws s3api head-bucket --bucket "$TF_STATE_BUCKET" --profile "$AWS_PROFILE" 2>/dev/null; then
+        aws s3api create-bucket --bucket "$TF_STATE_BUCKET" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
+        print_success "S3 bucket $TF_STATE_BUCKET created."
     else
-        print_warning "S3 bucket $BUCKET_NAME already exists."
+        print_warning "S3 bucket $TF_STATE_BUCKET already exists."
     fi
 
-    aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
+    aws s3api put-bucket-versioning --bucket "$TF_STATE_BUCKET" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
 }
 
 # Function to create OIDC provider
@@ -293,7 +300,7 @@ setup_oidc_infrastructure() {
     sed \
         -e "s|\${APP_NAME}|$TF_APP_NAME|g" \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
-        -e "s|\${TF_STATE_BUCKET}|$BUCKET_NAME|g" \
+        -e "s|\${TF_STATE_BUCKET}|$TF_STATE_BUCKET|g" \
         -e "s|\${CERTIFICATE_BUCKET}|$CERTIFICATE_BUCKET|g" \
         -e "s|\${DEPLOYMENT_BUCKET}|$DEPLOYMENT_BUCKET|g" \
         "$ORIGINAL_POLICY_FILE_PATH" > "$PROCESSED_POLICY_FILE_PATH"
@@ -319,7 +326,7 @@ setup_github_workflow() {
 
     add_github_secrets "$GITHUB_REPO_FULL" \
         "AWS_ACCOUNT_ID:$AWS_ACCOUNT_ID" \
-        "TF_STATE_BUCKET:$BUCKET_NAME" \
+        "TF_STATE_BUCKET:$TF_STATE_BUCKET" \
         "TF_APP_NAME:$TF_APP_NAME" \
         "ECR_REPOSITORY_PREFIX:$TF_APP_NAME" \
         "DOMAIN_NAME:$DOMAIN_NAME" \
@@ -350,7 +357,7 @@ display_final_instructions() {
     local ecr_repo_uri="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ecr_repo_name}"
     
     echo "Your Terraform State Bucket:"
-    echo -e "${GREEN}   $BUCKET_NAME${NC}"
+    echo -e "${GREEN}   $TF_STATE_BUCKET${NC}"
     echo "Your Terraform IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
     echo "Your Application Secrets Manager Secret:"
@@ -435,11 +442,6 @@ main() {
     fi
     
     if ! check_aws_authentication "$AWS_PROFILE"; then
-        exit 1
-    fi
-    
-    AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
-    if [ $? -ne 0 ]; then
         exit 1
     fi
 
