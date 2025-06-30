@@ -34,6 +34,7 @@ get_user_input() {
     print_warning "S3 Bucket: Terraform state backend (manual deletion required)"
     print_warning "S3 Bucket: CodeDeploy deployment bucket (manual deletion required)"
     print_warning "S3 Bucket: Certificate store bucket (manual deletion required)"
+    print_warning "ECR Repository: Certbot repository (manual deletion required)"
     print_warning "Github Secrets, Variables and Environments: (manual deletion required)"
     
     if ! prompt_confirmation "Are you sure you want to delete these resources?" "y/N"; then
@@ -181,6 +182,11 @@ display_state_bucket_cleanup_instructions() {
     print_warning "⚠️  WARNING: This will permanently delete your Terraform state and certificates!"
     print_info "Make sure you have backed up your state or are certain you want to delete it."
     print_info "Note: CodeDeploy bucket is managed by Terraform and will be cleaned up with terraform destroy."
+    
+    print_info "To manually delete the certbot ECR repository, run:"
+    echo -e "${YELLOW}# Delete certbot ECR repository:${NC}"
+    echo -e "${GREEN}aws ecr delete-repository --repository-name <app-name>/certbot --force --profile $AWS_PROFILE${NC}"
+    print_warning "⚠️  WARNING: This will permanently delete the certbot Docker images!"
 }
 
 # Function to display final summary
@@ -195,6 +201,8 @@ display_final_summary() {
     echo "     - Terraform state bucket"
     echo "     - Certificate store bucket"
     echo "  ℹ️  CodeDeploy bucket: Managed by Terraform"
+    echo "  ℹ️  ECR Repository: Manual deletion required (see instructions above)"
+    echo "     - Certbot repository"
     
     print_info "Additional cleanup steps:"
     echo "1. Remove GitHub repository secrets:"

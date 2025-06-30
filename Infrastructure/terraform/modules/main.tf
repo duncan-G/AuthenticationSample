@@ -149,6 +149,11 @@ data "aws_ami" "amazon_linux" {
 
 data "aws_caller_identity" "current" {}
 
+# Data source for existing certbot ECR repository (not managed by Terraform)
+data "aws_ecr_repository" "certbot" {
+  name = "${var.app_name}/certbot"
+}
+
 ########################
 # Networking
 ########################
@@ -453,7 +458,7 @@ resource "aws_iam_policy" "worker_ecr_pull" {
           "ecr:BatchGetImage"
         ]
         Resource = [
-          aws_ecr_repository.certbot.arn
+          data.aws_ecr_repository.certbot.arn
           # Add more ECR repositories here as needed
         ]
       }
