@@ -122,6 +122,12 @@ jobs:
           echo "✅ Terraform state backend is accessible"
         fi
 
+    - name: Setup Workspace
+      run: |
+        WORKSPACE="${{ github.event.inputs.environment || 'terraform-staging' }}"
+        terraform workspace select -or-create "$WORKSPACE"
+        echo "Current workspace: $(terraform workspace show)"
+
     - name: Terraform Validate
       id: validate
       run: |
