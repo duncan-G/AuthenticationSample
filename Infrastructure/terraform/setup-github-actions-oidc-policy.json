@@ -59,13 +59,19 @@
         "s3:CreateBucket",
         "s3:ListBucket",
         "s3:DeleteBucket",
-        "s3:PutBucketVersioning"
+        "s3:PutBucketVersioning",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketTagging",
+        "s3:PutLifecycleConfiguration"
       ],
       "Resource": [
         "arn:aws:s3:::terraform-state-*",
         "arn:aws:s3:::terraform-state-*/*",
-        "arn:aws:s3:::codedeploy-*",
-        "arn:aws:s3:::codedeploy-*/*"
+        "arn:aws:s3:::*codedeploy-*",
+        "arn:aws:s3:::*codedeploy-*/*",
+        "arn:aws:s3:::*certificate-store-*",
+        "arn:aws:s3:::*certificate-store-*/*"
       ]
     },
     {
