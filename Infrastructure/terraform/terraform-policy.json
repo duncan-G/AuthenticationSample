@@ -224,7 +224,9 @@
         "arn:aws:s3:::${TF_STATE_BUCKET}",
         "arn:aws:s3:::${TF_STATE_BUCKET}/*",
         "arn:aws:s3:::${DEPLOYMENT_BUCKET}",
-        "arn:aws:s3:::${DEPLOYMENT_BUCKET}/*"
+        "arn:aws:s3:::${DEPLOYMENT_BUCKET}/*",
+        "arn:aws:s3:::${CERTIFICATE_BUCKET}",
+        "arn:aws:s3:::${CERTIFICATE_BUCKET}/*"
       ]
     },
     {

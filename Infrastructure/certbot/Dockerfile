@@ -17,6 +17,8 @@ ADD renew-certificate.sh renew-certificate.sh
 
 RUN chmod +x renew-certificate.sh && \
     mkdir /app/certs && \
-    chmod +x /app/certs
+    chmod +x /app/certs && \
+    mkdir -p /var/log && \
+    chmod 755 /var/log
 
 ENTRYPOINT ["/app/renew-certificate.sh"]

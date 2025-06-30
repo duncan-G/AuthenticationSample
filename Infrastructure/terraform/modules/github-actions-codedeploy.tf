@@ -95,8 +95,8 @@ resource "aws_iam_role" "github_actions_codedeploy" {
           }
           StringEquals = {
             "token.actions.githubusercontent.com:sub" = [
-              "repo:${var.github_repository}:environment:${var.staging_environment}",
-              "repo:${var.github_repository}:environment:${var.production_environment}"
+              "repo:${var.github_repository}:environment:${var.staging_environment_name}",
+              "repo:${var.github_repository}:environment:${var.production_environment_name}"
             ]
           }
         }

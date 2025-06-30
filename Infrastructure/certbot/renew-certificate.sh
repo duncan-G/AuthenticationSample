@@ -11,7 +11,9 @@ set -Eeuo pipefail
 ############################################
 # Globals & configuration
 ############################################
-readonly LOG_FILE="/var/log/certificate-manager.log"
+readonly LOG_DIR="${LOG_DIR:-/var/log}"
+readonly LOG_FILE="${LOG_FILE:-certificate-renewal.log}"
+readonly LOG_FILE_PATH="${LOG_DIR}/${LOG_FILE}"
 readonly STATUS_FILE="/tmp/certificate-manager.status"
 
 readonly S3_BUCKET="${S3_BUCKET:-certificate-store}"
@@ -40,7 +42,7 @@ readonly CERT_FILES=(cert.pem privkey.pem fullchain.pem)
 timestamp() { date "+%Y-%m-%d %H:%M:%S"; }
 
 log() {
-  printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2
+  printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE_PATH" >&2
 }
 
 status() {

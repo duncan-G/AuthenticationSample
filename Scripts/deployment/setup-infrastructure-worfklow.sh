@@ -176,7 +176,7 @@ create_application_secrets() {
         secret_json=$(cat <<EOF
 {
   "app_name": "$TF_APP_NAME",
-  "s3_bucket": "certificate-store-${BUCKET_SUFFIX}",
+  "s3_bucket": "${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}",
   "domain": "$DOMAIN_NAME",
   "internal_domain": "internal.$DOMAIN_NAME",
   "email": "$EMAIL_ADDRESS"
@@ -199,7 +199,7 @@ EOF
         secret_json=$(cat <<EOF
 {
   "app_name": "$TF_APP_NAME",
-  "s3_bucket": "certificate-store-${BUCKET_SUFFIX}",
+  "s3_bucket": "${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}",
   "domain": "$DOMAIN_NAME",
   "internal_domain": "internal.$DOMAIN_NAME",
   "email": "$EMAIL_ADDRESS"
@@ -218,6 +218,63 @@ EOF
     fi
 }
 
+# Function to build and push certbot image to ECR
+build_and_push_certbot_image() {
+    print_info "Building and pushing certbot image to ECR..."
+    
+    # Get ECR login token
+    print_info "Getting ECR login token..."
+    aws ecr get-login-password --region "$AWS_REGION" --profile "$AWS_PROFILE" | \
+        docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    
+    # Create ECR repository if it doesn't exist
+    local ecr_repo_name="${TF_APP_NAME}/certbot"
+    local ecr_repo_uri="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ecr_repo_name}"
+    
+    print_info "Creating ECR repository: $ecr_repo_name"
+    if ! aws ecr describe-repositories --repository-names "$ecr_repo_name" --profile "$AWS_PROFILE" --region "$AWS_REGION" &> /dev/null; then
+        aws ecr create-repository \
+            --repository-name "$ecr_repo_name" \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION"
+        print_success "ECR repository $ecr_repo_name created"
+    else
+        print_warning "ECR repository $ecr_repo_name already exists"
+    fi
+    
+    # Build the certbot image
+    print_info "Building certbot Docker image..."
+    local certbot_dir="$(cd "$SCRIPT_DIR/../../Infrastructure/certbot" && pwd)"
+    
+    cd "$certbot_dir"
+    docker build -t "$ecr_repo_name:latest" .
+    
+    if [ $? -eq 0 ]; then
+        print_success "Certbot image built successfully"
+    else
+        print_error "Failed to build certbot image"
+        exit 1
+    fi
+    
+    # Tag the image for ECR
+    docker tag "$ecr_repo_name:latest" "$ecr_repo_uri:latest"
+    
+    # Push the image to ECR
+    print_info "Pushing certbot image to ECR..."
+    docker push "$ecr_repo_uri:latest"
+    
+    if [ $? -eq 0 ]; then
+        print_success "Certbot image pushed to ECR successfully"
+        print_info "ECR Image URI: $ecr_repo_uri:latest"
+    else
+        print_error "Failed to push certbot image to ECR"
+        exit 1
+    fi
+    
+    # Return to original directory
+    cd - > /dev/null
+}
+
 # Function to setup OIDC infrastructure
 setup_oidc_infrastructure() {
     print_info "Setting up OIDC infrastructure..."
@@ -227,6 +284,9 @@ setup_oidc_infrastructure() {
     
     PROCESSED_POLICY_FILE_PATH="$(pwd)/terraform-policy-processed.json"
     PROCESSED_TRUST_POLICY_FILE_PATH="$(pwd)/github-trust-policy-processed.json"
+
+    CERTIFICATE_BUCKET="${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}"
+    DEPLOYMENT_BUCKET="${TF_APP_NAME}-codedeploy-${BUCKET_SUFFIX}"
     
     print_info "Processing policy files with variable substitution..."
     
@@ -234,6 +294,8 @@ setup_oidc_infrastructure() {
         -e "s|\${APP_NAME}|$TF_APP_NAME|g" \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${TF_STATE_BUCKET}|$BUCKET_NAME|g" \
+        -e "s|\${CERTIFICATE_BUCKET}|$CERTIFICATE_BUCKET|g" \
+        -e "s|\${DEPLOYMENT_BUCKET}|$DEPLOYMENT_BUCKET|g" \
         "$ORIGINAL_POLICY_FILE_PATH" > "$PROCESSED_POLICY_FILE_PATH"
     
     sed \
@@ -283,12 +345,18 @@ display_final_instructions() {
     
     print_info "Your setup is complete and ready to use!"
     
+    # Calculate ECR repository information
+    local ecr_repo_name="${TF_APP_NAME}/certbot"
+    local ecr_repo_uri="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ecr_repo_name}"
+    
     echo "Your Terraform State Bucket:"
     echo -e "${GREEN}   $BUCKET_NAME${NC}"
     echo "Your Terraform IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
     echo "Your Application Secrets Manager Secret:"
     echo -e "${GREEN}   ${TF_APP_NAME}-secrets${NC}"
+    echo "Your ECR Certbot Repository:"
+    echo -e "${GREEN}   $ecr_repo_uri${NC}"
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
     echo -e "${GREEN}   API Subdomain: $API_SUBDOMAIN${NC}"
@@ -303,6 +371,7 @@ display_final_instructions() {
     echo "   1. Deploy infrastructure using Terraform workflow"
     echo "   2. Use CodeDeploy workflows for application deployments"
     echo "   3. Application services will use the created Secrets Manager secret"
+    echo "   4. Certificate renewal will use the ECR certbot image"
 }
 
 # Function to show usage
@@ -314,13 +383,34 @@ show_usage() {
     echo "  - OIDC provider and IAM roles/policies for Terraform and CodeDeploy"
     echo "  - S3 bucket for Terraform state backend"
     echo "  - AWS Secrets Manager secret for application configuration"
+    echo "  - ECR repository creation and certbot image building/pushing"
     echo "  - GitHub repository secrets and variables"
     echo "  - GitHub environments for Terraform and CodeDeploy"
     echo
     echo "Prerequisites:"
     echo "  - AWS CLI configured with appropriate profile"
     echo "  - GitHub CLI authenticated"
+    echo "  - Docker installed and running"
     exit 1
+}
+
+# Function to check Docker availability
+check_docker() {
+    print_info "Checking Docker availability..."
+    
+    if ! command -v docker &> /dev/null; then
+        print_error "Docker is not installed or not in PATH"
+        print_error "Please install Docker and ensure it's running"
+        exit 1
+    fi
+    
+    if ! docker info &> /dev/null; then
+        print_error "Docker is not running or not accessible"
+        print_error "Please start Docker and ensure you have permissions to run docker commands"
+        exit 1
+    fi
+    
+    print_success "Docker is available and running"
 }
 
 # Main execution
@@ -331,6 +421,7 @@ main() {
     
     check_aws_cli
     check_github_cli
+    check_docker
 
     GITHUB_REPO_FULL=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
     if ! validate_repo "$GITHUB_REPO_FULL"; then
@@ -359,6 +450,7 @@ main() {
     create_terraform_state_backend
     setup_oidc_infrastructure
     create_application_secrets
+    build_and_push_certbot_image
     setup_github_workflow
     
     display_final_instructions

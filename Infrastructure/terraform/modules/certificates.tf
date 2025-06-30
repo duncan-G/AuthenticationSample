@@ -13,10 +13,10 @@ data "aws_route53_zone" "existing" {
 
 # S3 bucket for SSL certificate storage
 resource "aws_s3_bucket" "ssl_certificates_bucket" {
-  bucket = "${var.app_name}-ssl-certificates-${var.bucket_suffix}"
+  bucket = "${var.app_name}-certificate-store-${var.bucket_suffix}"
 
   tags = {
-    Name        = "${var.app_name}-ssl-certificates-bucket"
+    Name        = "${var.app_name}-certificate-store-bucket"
     Environment = var.environment
   }
 
@@ -78,7 +78,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "ssl_certificates_bucket" {
 
 # IAM policy for SSL certificate bucket access
 resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
-  name        = "${var.app_name}-ssl-certificates-bucket-access"
+  name        = "${var.app_name}-certificate-store-bucket-access"
   description = "Allow access to SSL certificate storage S3 bucket"
 
   policy = jsonencode({
@@ -101,7 +101,7 @@ resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
   })
 
   tags = {
-    Name        = "${var.app_name}-ssl-certificates-bucket-access"
+    Name        = "${var.app_name}-certificate-store-bucket-access"
     Environment = var.environment
   }
 }
@@ -114,7 +114,7 @@ resource "aws_iam_role_policy_attachment" "public_ssl_certificates_bucket_access
 
 # IAM policy for SSL certificate bucket read-only access (private instances)
 resource "aws_iam_policy" "ssl_certificates_bucket_readonly_policy" {
-  name        = "${var.app_name}-ssl-certificates-bucket-readonly"
+  name        = "${var.app_name}-certificate-store-bucket-readonly"
   description = "Allow read-only access to SSL certificate storage S3 bucket"
 
   policy = jsonencode({
@@ -135,7 +135,7 @@ resource "aws_iam_policy" "ssl_certificates_bucket_readonly_policy" {
   })
 
   tags = {
-    Name        = "${var.app_name}-ssl-certificates-bucket-readonly"
+    Name        = "${var.app_name}-certificate-store-bucket-readonly"
     Environment = var.environment
   }
 }
