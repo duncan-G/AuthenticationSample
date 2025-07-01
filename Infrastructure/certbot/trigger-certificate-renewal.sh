@@ -25,7 +25,7 @@
 #   WORKER_CONSTRAINT          Node label to pin the one-shot task
 #
 #   LOG_DIR                    Directory for log files (default: /var/log)
-#   LOG_FILE                   Log file name (default: certificate-renewal.log)
+#   LOG_FILE                   Log file name (default: /var/log/certificate-manager/certificate-renewal.log)
 #
 # ---------------------------------------------------------------------------
 # Requires: docker, aws-cli
@@ -36,8 +36,8 @@ shopt -s inherit_errexit
 
 # ── Logging configuration ────────────────────────────────────────────────────
 # Log directory for CloudWatch integration
-readonly LOG_DIR="${LOG_DIR:-/var/log}"
-readonly LOG_FILE="${LOG_FILE:-certificate-renewal.log}"
+readonly LOG_DIR="${LOG_DIR:-/var/log/certificate-manager}"
+readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/certificate-renewal.log}"
 
 # ── Logging helpers ──────────────────────────────────────────────────────────
 timestamp()  { date '+%Y-%m-%d %H:%M:%S'; }
