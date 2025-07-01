@@ -148,7 +148,7 @@ init_swarm() {
   [[ -n "$ip" ]] || { log "ERROR: Could not retrieve local IP address"; return 1; }
   log "DEBUG: Retrieved local IP: $ip"
 
-  if docker swarm init --advertise-addr "$ip"; then
+  if docker swarm init --advertise-addr "$ip" >/dev/null 2>&1; then
     log "Swarm initialised with advertise-addr $ip"
     printf '%s\n' "$ip:2377"
   else

@@ -51,18 +51,25 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           "cat <<'EOF' > /etc/systemd/system/certificate-manager.service",
           "${indent(2, file("${path.module}/../../certbot/certificate-manager.service"))}",
           "EOF",
-          # Write the certificate manager script
-          "cat <<'EOF' > /home/ec2-user/certificate-manager.sh",
+          # Write the certificate manager script to /usr/local/bin
+          "cat <<'EOF' > /usr/local/bin/certificate-manager.sh",
           "${indent(2, file("${path.module}/../../certbot/certificate-manager.sh"))}",
           "EOF",
-          # Make the script executable
-          "chmod +x /home/ec2-user/certificate-manager.sh",
-          # Create certificate directory
-          "mkdir -p /home/ec2-user/certificates",
-          "chown ec2-user:ec2-user /home/ec2-user/certificates",
-          # Create log file
-          "touch /var/log/certificate-secret-manager.log",
-          "chown ec2-user:ec2-user /var/log/certificate-secret-manager.log",
+          # Write the trigger script to /usr/local/bin
+          "cat <<'EOF' > /usr/local/bin/trigger-certificate-renewal.sh",
+          "${indent(2, file("${path.module}/../../certbot/trigger-certificate-renewal.sh"))}",
+          "EOF",
+          # Make the scripts executable
+          "chmod +x /usr/local/bin/certificate-manager.sh",
+          "chmod +x /usr/local/bin/trigger-certificate-renewal.sh",
+          # Create necessary directories (systemd will create StateDirectory, RuntimeDirectory, and LogsDirectory)
+          "mkdir -p /var/lib/certificate-manager",
+          "mkdir -p /run/certificate-manager",
+          "mkdir -p /var/log/certificate-manager",
+          # Set proper ownership for systemd directories
+          "chown ec2-user:ec2-user /var/lib/certificate-manager",
+          "chown ec2-user:ec2-user /run/certificate-manager",
+          "chown ec2-user:ec2-user /var/log/certificate-manager",
           # Reload systemd and enable the service
           "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",
