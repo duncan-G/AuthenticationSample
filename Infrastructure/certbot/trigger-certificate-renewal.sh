@@ -8,13 +8,14 @@
 #   hot-swaps those into a consumer service.
 #
 # ---------------------------------------------------------------------------
-# Environment variables (all have sensible defaults):
-#   S3_BUCKET                  S3 bucket for artefacts
-#   CERT_PREFIX                Folder prefix in the bucket
-#   DOMAIN / INTERNAL_DOMAIN   FQDNs for public / internal certs
-#   EMAIL                      ACME notification address
-#   WILDCARD                   "true" → request *.DOMAIN in addition
-#   RENEWAL_THRESHOLD_DAYS     Renew if cert expires within N days
+# Environment variables:
+#   AWS_SECRET_NAME            Name of the secret in AWS Secrets Manager (REQUIRED)
+#                              The secret must contain: app_name, s3_bucket, domain, 
+#                              internal_domain, email
+#
+#   CERT_PREFIX                Folder prefix in the bucket (default: cert)
+#   WILDCARD                   "true" → request *.DOMAIN in addition (default: false)
+#   RENEWAL_THRESHOLD_DAYS     Renew if cert expires within N days (default: 30)
 #
 #   DOCKER_IMAGE_NAME / TAG    Image that performs the renewal
 #   CONSUMER_SERVICE           Service that needs the secrets
@@ -22,8 +23,6 @@
 #   *_SECRET_TARGET            Mount points inside CONSUMER_SERVICE
 #
 #   WORKER_CONSTRAINT          Node label to pin the one-shot task
-#
-#   AWS_SECRET_NAME            Name of the secret in AWS Secrets Manager
 #
 #   LOG_DIR                    Directory for log files (default: /var/log)
 #   LOG_FILE                   Log file name (default: certificate-renewal.log)
@@ -42,7 +41,7 @@ fatal()      { log "ERROR: $*"; exit 1; }
 trap 'fatal "Line $LINENO exited with status $?"' ERR
 
 # ── AWS Secrets Manager integration ──────────────────────────────────────────
-readonly AWS_SECRET_NAME="${AWS_SECRET_NAME:-certificate-renewal-config}"
+readonly AWS_SECRET_NAME="${AWS_SECRET_NAME}"
 
 fetch_secrets_from_aws() {
   log "🔐 Fetching configuration from AWS Secrets Manager: $AWS_SECRET_NAME"
@@ -53,8 +52,7 @@ fetch_secrets_from_aws() {
   # Fetch the secret
   local secret_json
   secret_json=$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME" --query SecretString --output text 2>/dev/null) || {
-    log "WARNING: Failed to fetch secret '$AWS_SECRET_NAME', using environment defaults"
-    return 1
+    fatal "Failed to fetch secret '$AWS_SECRET_NAME' from AWS Secrets Manager"
   }
   
   # Parse JSON and export variables
@@ -78,15 +76,18 @@ fetch_secrets_from_aws() {
 }
 
 # ── Configuration ───────────────────────────────────────────────────────────
-# Try to fetch secrets from AWS, fall back to environment variables
-fetch_secrets_from_aws || log "Using environment variable defaults"
+# Fetch secrets from AWS - script will terminate if this fails
+fetch_secrets_from_aws
 
-readonly TF_APP_NAME="${TF_APP_NAME:-certificate-renewal}"
-readonly S3_BUCKET="${S3_BUCKET:-my-bucket}"
+# Critical configuration from AWS Secrets Manager (no fallbacks)
+readonly TF_APP_NAME="${TF_APP_NAME}"
+readonly S3_BUCKET="${S3_BUCKET}"
+readonly DOMAIN="${DOMAIN}"
+readonly INTERNAL_DOMAIN="${INTERNAL_DOMAIN}"
+readonly EMAIL="${EMAIL}"
+
+# Optional configuration with defaults
 readonly CERT_PREFIX="${CERT_PREFIX:-cert}"
-readonly DOMAIN="${DOMAIN:-example.com}"
-readonly INTERNAL_DOMAIN="${INTERNAL_DOMAIN:-internal.example.com}"
-readonly EMAIL="${EMAIL:-admin@example.com}"
 readonly WILDCARD="${WILDCARD:-false}"
 readonly RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-30}"
 
