@@ -51,8 +51,7 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           "cat <<'EOF' > /etc/systemd/system/certificate-manager.service",
           "${indent(2, file("${path.module}/../../certbot/certificate-manager.service"))}",
           "EOF",
-          # Add environment variable to the service file
-          "sed -i '/ExecStart=/a Environment=\"AWS_SECRET_NAME=${var.app_name}-secrets\"' /etc/systemd/system/certificate-manager.service",
+
           # Write the certificate manager script to /usr/local/bin
           "cat <<'EOF' > /usr/local/bin/certificate-manager.sh",
           "${indent(2, file("${path.module}/../../certbot/certificate-manager.sh"))}",
@@ -61,6 +60,8 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           "cat <<'EOF' > /usr/local/bin/trigger-certificate-renewal.sh",
           "${indent(2, file("${path.module}/../../certbot/trigger-certificate-renewal.sh"))}",
           "EOF",
+          # Add environment variable to the trigger script
+          "sed -i '1a export AWS_SECRET_NAME=\"${var.app_name}-secrets\"' /usr/local/bin/trigger-certificate-renewal.sh",
           # Make the scripts executable
           "chmod +x /usr/local/bin/certificate-manager.sh",
           "chmod +x /usr/local/bin/trigger-certificate-renewal.sh",

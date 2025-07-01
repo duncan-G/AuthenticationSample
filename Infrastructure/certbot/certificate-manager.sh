@@ -47,12 +47,9 @@ trap error_trap ERR
 
 # ── CLI parsing ─────────────────────────────────────────────────────────────
 show_help() {
-  cat <<EOF
-Usage: ${0##*/} [--daemon] [--help]
-
-  --daemon, -d   Run continuously every \$CHECK_INTERVAL seconds
-  --help,   -h   Show this help
-EOF
+  printf 'Usage: %s [--daemon] [--help]\n\n' "${0##*/}"
+  printf '  --daemon, -d   Run continuously every %s seconds\n' "$CHECK_INTERVAL"
+  printf '  --help,   -h   Show this help\n'
 }
 
 DAEMON_MODE=false
