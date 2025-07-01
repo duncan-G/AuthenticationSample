@@ -64,7 +64,8 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           # Make the scripts executable
           "chmod +x /usr/local/bin/certificate-manager.sh",
           "chmod +x /usr/local/bin/trigger-certificate-renewal.sh",
-          # Create necessary directories (systemd will create StateDirectory, RuntimeDirectory, and LogsDirectory)
+          # systemd creates /run/certificate-manager via the RuntimeDirectory directive.
+          # The other directories required by the service need to be created manually.
           "mkdir -p /var/lib/certificate-manager",
           "mkdir -p /run/certificate-manager",
           "mkdir -p /var/log/certificate-manager",
