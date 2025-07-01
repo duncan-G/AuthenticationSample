@@ -37,7 +37,7 @@ shopt -s inherit_errexit
 # ── Logging configuration ────────────────────────────────────────────────────
 # Log directory for CloudWatch integration
 readonly LOG_DIR="${LOG_DIR:-/var/log/certificate-manager}"
-readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/certificate-renewal.log}"
+readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/trigger-renewal.log}"
 
 # ── Logging helpers ──────────────────────────────────────────────────────────
 timestamp()  { date '+%Y-%m-%d %H:%M:%S'; }
