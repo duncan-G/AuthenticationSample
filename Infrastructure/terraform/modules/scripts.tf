@@ -47,7 +47,7 @@ resource "aws_ssm_document" "certificate_manager_setup" {
       action = "aws:runShellScript"
       inputs = {
         runCommand = [
-          # Write the certificate manager daemon service file with environment variable
+          # Write the certificate manager daemon service file
           "cat <<'EOF' > /etc/systemd/system/certificate-manager.service",
           "${indent(2, file("${path.module}/../../certbot/certificate-manager.service"))}",
           "EOF",
