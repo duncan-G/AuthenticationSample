@@ -80,11 +80,12 @@ fetch_secrets_from_aws() {
 fetch_secrets_from_aws
 
 # Critical configuration from AWS Secrets Manager (no fallbacks)
-readonly TF_APP_NAME="${TF_APP_NAME}"
-readonly S3_BUCKET="${S3_BUCKET}"
-readonly DOMAIN="${DOMAIN}"
-readonly INTERNAL_DOMAIN="${INTERNAL_DOMAIN}"
-readonly EMAIL="${EMAIL}"
+# Validate that all required variables are non-empty after fetching from Secrets Manager
+readonly TF_APP_NAME="${TF_APP_NAME:?TF_APP_NAME not set in secret or is empty}"
+readonly S3_BUCKET="${S3_BUCKET:?S3_BUCKET not set in secret or is empty}"
+readonly DOMAIN="${DOMAIN:?DOMAIN not set in secret or is empty}"
+readonly INTERNAL_DOMAIN="${INTERNAL_DOMAIN:?INTERNAL_DOMAIN not set in secret or is empty}"
+readonly EMAIL="${EMAIL:?EMAIL not set in secret or is empty}"
 
 # Optional configuration with defaults
 readonly CERT_PREFIX="${CERT_PREFIX:-cert}"
