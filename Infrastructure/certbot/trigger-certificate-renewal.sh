@@ -34,6 +34,11 @@
 set -Eeuo pipefail
 shopt -s inherit_errexit
 
+# ── Logging configuration ────────────────────────────────────────────────────
+# Log directory for CloudWatch integration
+readonly LOG_DIR="${LOG_DIR:-/var/log}"
+readonly LOG_FILE="${LOG_FILE:-certificate-renewal.log}"
+
 # ── Logging helpers ──────────────────────────────────────────────────────────
 timestamp()  { date '+%Y-%m-%d %H:%M:%S'; }
 log()        { printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2; }
@@ -108,10 +113,6 @@ readonly INTERNAL_PFX_SECRET_TARGET="${INTERNAL_PFX_SECRET_TARGET:-internal-cert
 
 readonly WORKER_CONSTRAINT="${WORKER_CONSTRAINT:-node.role==worker}"
 readonly STAGING_DIR="/tmp/certificate-renewal"
-
-# Log directory for CloudWatch integration
-readonly LOG_DIR="${LOG_DIR:-/var/log}"
-readonly LOG_FILE="${LOG_FILE:-certificate-renewal.log}"
 
 # ── Derived names & paths ────────────────────────────────────────────────────
 RUN_ID="$(date +%Y%m%d%H%M%S)"
