@@ -459,7 +459,6 @@ resource "aws_iam_policy" "worker_ecr_pull" {
         ]
         Resource = [
           data.aws_ecr_repository.certbot.arn
-          # Add more ECR repositories here as needed
         ]
       }
     ]
@@ -467,27 +466,27 @@ resource "aws_iam_policy" "worker_ecr_pull" {
 }
 
 # Policy for EC2 manager instances to pull images from ECR
-# resource "aws_iam_policy" "manager_ecr_pull" {
-#   name        = "${var.app_name}-manager-ecr-pull"
-#   description = "Allow EC2 manager instances to pull images from ECR"
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "ecr:GetAuthorizationToken",
-#           "ecr:BatchCheckLayerAvailability",
-#           "ecr:GetDownloadUrlForLayer",
-#           "ecr:BatchGetImage"
-#         ]
-#         Resource = [
-#           # Add ECR repositories here when manager needs to pull images
-#         ]
-#       }
-#     ]
-#   })
-# }
+resource "aws_iam_policy" "manager_ecr_pull" {
+  name        = "${var.app_name}-manager-ecr-pull"
+  description = "Allow EC2 manager instances to pull images from ECR"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = [
+          data.aws_ecr_repository.certbot.arn,
+        ]
+      }
+    ]
+  })
+}
 
 # Attach worker ECR pull policy to public instance role (worker)
 resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
@@ -496,10 +495,10 @@ resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
 }
 
 # Attach manager ECR pull policy to private instance role (manager)
-# resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
-#   role       = aws_iam_role.private_instance_role.name
-#   policy_arn = aws_iam_policy.manager_ecr_pull.arn
-# }
+resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
+  role       = aws_iam_role.private_instance_role.name
+  policy_arn = aws_iam_policy.manager_ecr_pull.arn
+}
 
 # Instance Profiles
 resource "aws_iam_instance_profile" "public_instance_profile" {

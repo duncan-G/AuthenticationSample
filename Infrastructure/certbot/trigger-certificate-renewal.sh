@@ -41,7 +41,7 @@ readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/certificate-renewal.
 
 # ── Logging helpers ──────────────────────────────────────────────────────────
 timestamp()  { date '+%Y-%m-%d %H:%M:%S'; }
-log()        { printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2; }
+log() { printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2; }
 fatal()      { log "ERROR: $*"; exit 1; }
 trap 'fatal "Line $LINENO exited with status $?"' ERR
 
@@ -102,7 +102,7 @@ readonly RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-30}"
 # Construct AWS role name dynamically based on app name
 readonly AWS_ROLE_NAME="${TF_APP_NAME}-public-instance-role"
 
-readonly RENEWAL_IMAGE="${DOCKER_IMAGE_NAME:-certificate-renewal}:${DOCKER_IMAGE_TAG:-latest}"
+readonly RENEWAL_IMAGE="${TF_APP_NAME}/certbot:latest"
 readonly CONSUMER_SERVICE="${CONSUMER_SERVICE:-envoy}"
 
 readonly PUBLIC_CERT_SECRET_TARGET="${PUBLIC_CERT_SECRET_TARGET:-cert.pem}"
