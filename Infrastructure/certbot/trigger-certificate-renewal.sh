@@ -36,7 +36,7 @@ shopt -s inherit_errexit
 
 # ── Logging helpers ──────────────────────────────────────────────────────────
 timestamp()  { date '+%Y-%m-%d %H:%M:%S'; }
-log()        { printf '[ %s ] %s\n' "$(timestamp)" "$*"; }
+log()        { printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2; }
 fatal()      { log "ERROR: $*"; exit 1; }
 trap 'fatal "Line $LINENO exited with status $?"' ERR
 
@@ -51,8 +51,10 @@ fetch_secrets_from_aws() {
   
   # Fetch the secret
   local secret_json
-  secret_json=$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME" --query SecretString --output text 2>/dev/null) || {
-    fatal "Failed to fetch secret '$AWS_SECRET_NAME' from AWS Secrets Manager"
+  local aws_error
+  secret_json=$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME" --query SecretString --output text 2>&1) || {
+    aws_error="$secret_json"
+    fatal "Failed to fetch secret '$AWS_SECRET_NAME' from AWS Secrets Manager: $aws_error"
   }
   
   # Parse JSON and export variables
