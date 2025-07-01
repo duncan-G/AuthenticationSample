@@ -3,7 +3,7 @@
 # certificate-manager.sh
 #
 # Fires `trigger-certificate-renewal.sh` either once or at a fixed interval
-# (daemon mode).  Logs go to STDERR *and* `/var/log/certificate-secret-manager.log`.
+# (daemon mode).  Logs go to STDERR *and* the configured log file (default: /var/log/certificate-manager/certificate-manager.log).
 #
 # ---------------------------------------------------------------------------
 # Usage:
@@ -20,7 +20,7 @@
 set -Eeuo pipefail
 
 # ── Defaults ────────────────────────────────────────────────────────────────
-readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-secret-manager.log}"
+readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/certificate-manager.log}"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly TRIGGER_SCRIPT="${TRIGGER_SCRIPT:-${SCRIPT_DIR}/trigger-certificate-renewal.sh}"
 readonly CHECK_INTERVAL="${CHECK_INTERVAL:-86400}"   # 24 h

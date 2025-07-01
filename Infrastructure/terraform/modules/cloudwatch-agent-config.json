@@ -18,14 +18,14 @@
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
-            "file_path": "/var/log/certificate-secret-manager.log",
-            "log_group_name": "/aws/ec2/${app_name}-certificate-secret-manager",
+            "file_path": "/var/log/certificate-manager/certificate-manager.log",
+            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
             "log_stream_name": "{instance_id}",
             "timezone": "UTC",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
-            "file_path": "/var/log/certificate-renewal.log",
+            "file_path": "/var/log/certificate-manager/certificate-renewal.log",
             "log_group_name": "/aws/ec2/${app_name}-certificate-renewal",
             "log_stream_name": "{instance_id}",
             "timezone": "UTC",
