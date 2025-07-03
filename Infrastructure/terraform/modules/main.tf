@@ -88,10 +88,9 @@ variable "domain_name" {
   }
 }
 
-variable "api_subdomain" {
-  description = "API subdomain (e.g., api.yourdomain.com)"
-  type        = string
-  default     = "api"
+variable "subdomains" {
+  description = "Subdomains for the application (e.g., api,admin,portal)"
+  type        = list(string)
 }
 
 variable "route53_hosted_zone_id" {
@@ -500,6 +499,8 @@ resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
   policy_arn = aws_iam_policy.manager_ecr_pull.arn
 }
 
+
+
 # Instance Profiles
 resource "aws_iam_instance_profile" "public_instance_profile" {
   name = "${var.app_name}-ec2-public-instance-profile"
@@ -532,16 +533,6 @@ resource "aws_cloudwatch_log_group" "docker_worker" {
 
   tags = {
     Name        = "${var.app_name}-docker-worker-logs"
-    Environment = var.environment
-  }
-}
-
-resource "aws_cloudwatch_log_group" "certificate_secret_manager" {
-  name              = "/aws/ec2/${var.app_name}-certificate-secret-manager"
-  retention_in_days = 30
-
-  tags = {
-    Name        = "${var.app_name}-certificate-secret-manager-logs"
     Environment = var.environment
   }
 }
@@ -613,6 +604,8 @@ resource "aws_instance" "private" {
   }
 }
 
+
+
 ########################
 # Outputs
 ########################
@@ -626,3 +619,5 @@ output "private_instance_ip" {
   value       = aws_instance.private.private_ip
   description = "Private IP of the private subnet instance"
 }
+
+

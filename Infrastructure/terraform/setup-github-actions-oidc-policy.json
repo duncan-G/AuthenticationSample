@@ -121,6 +121,20 @@
       "Resource": [
         "arn:aws:ecr:*:*:repository/*/certbot*"
       ]
+    },
+    {
+      "Sid": "EBSVolumePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeVolumes",
+        "ec2:CreateVolume",
+        "ec2:CreateTags",
+        "ec2:DescribeTags"
+      ],
+      "Resource": [
+        "*"
+      ]
     }
   ]
 }

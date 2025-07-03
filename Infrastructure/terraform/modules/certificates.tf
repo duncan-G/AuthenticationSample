@@ -2,6 +2,21 @@
 # SSL Certificates Management
 ########################
 
+########################
+# CloudWatch Log Group for Certificate Management
+########################
+
+# CloudWatch Log Group for certificate management (consolidated)
+resource "aws_cloudwatch_log_group" "certificate_manager" {
+  name              = "/aws/ec2/${var.app_name}-certificate-manager"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.app_name}-certificate-manager-logs"
+    Environment = var.environment
+  }
+}
+
 # Data source for existing hosted zone (for certbot DNS challenges)
 data "aws_route53_zone" "existing" {
   zone_id = var.route53_hosted_zone_id
@@ -22,7 +37,8 @@ resource "aws_iam_policy" "secrets_manager_access_policy" {
       {
         Effect = "Allow"
         Action = [
-          "secretsmanager:GetSecretValue"
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue"
         ]
         Resource = [
           "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.app_name}-secrets*"
@@ -213,4 +229,70 @@ output "certificate_renewal_secret_name" {
 output "certificate_renewal_secret_arn" {
   value       = "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.app_name}-secrets"
   description = "ARN of the AWS Secrets Manager secret for certificate renewal configuration"
+}
+
+########################
+# EBS Volume for Let's Encrypt Certificates
+########################
+
+variable "certbot_ebs_volume_id" {
+  description = "ID of the existing EBS volume to attach for Let's Encrypt certificates"
+  type        = string
+  default     = ""
+}
+
+# Policy for EBS volume operations
+resource "aws_iam_policy" "ebs_volume_access" {
+  name        = "${var.app_name}-ebs-volume-access"
+  description = "Allow EC2 instances to manage EBS volumes"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVolumes",
+          "ec2:DescribeVolumeStatus",
+          "ec2:DescribeInstances",
+          "ec2:AttachVolume",
+          "ec2:DetachVolume"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.app_name}-ebs-volume-access"
+    Environment = var.environment
+  }
+}
+
+# Attach EBS volume access policy to public instance role
+resource "aws_iam_role_policy_attachment" "public_ebs_volume_access" {
+  role       = aws_iam_role.public_instance_role.name
+  policy_arn = aws_iam_policy.ebs_volume_access.arn
+}
+
+########################
+# EBS Volume Attachment for Let's Encrypt Certificates
+########################
+
+resource "aws_volume_attachment" "certbot_ebs_attachment" {
+  count       = var.certbot_ebs_volume_id != "" ? 1 : 0
+  device_name = "/dev/sdf"
+  volume_id   = var.certbot_ebs_volume_id
+  instance_id = aws_instance.public.id
+
+  # Wait for the instance to be running before attaching
+  depends_on = [aws_instance.public]
+}
+
+########################
+# EBS Volume Outputs
+########################
+
+output "certbot_ebs_attachment_status" {
+  value       = var.certbot_ebs_volume_id != "" ? "Attached to public instance as /dev/sdf" : "No EBS volume configured"
+  description = "Status of the EBS volume attachment for Let's Encrypt certificates"
 }

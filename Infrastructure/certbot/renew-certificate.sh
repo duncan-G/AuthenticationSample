@@ -1,359 +1,365 @@
 #!/usr/bin/env bash
-# renew-certificate.sh v1.3  —  2025-06-27
+###############################################################################
+# renew-certificate.sh  ▸ 2025-07-03
 #
-# Automates issuance / renewal of Let's Encrypt certificates and
-# stores them in an S3 bucket for other containers to consume.
-# Returns exit code 0 for success, 1 for failure.
-#-------------------------------------------------------------------------------
-
+# ACME automation for multi‑domain stacks running in AWS (Route 53).
+# Optimised for Docker **Swarm** but works standalone.
+#
+# Exit codes:
+#   0 - Success
+#   1 - General error
+#   2 - Missing dependencies
+#   3 - AWS credential error
+#   4 - Certbot error
+#   5 - S3 upload error
+###############################################################################
 set -Eeuo pipefail
+shopt -s inherit_errexit nullglob
 
-############################################
-# Globals & configuration
-############################################
-readonly LOG_DIR="${LOG_DIR:-/var/log/certificate-manager}"
-readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/certificate-renewal.log}"
-readonly STATUS_FILE="/tmp/certificate-manager.status"
+################################################################################
+# Globals ---------------------------------------------------------------------
+################################################################################
+readonly SCRIPT_NAME=${0##*/}
+readonly DEFAULT_RENEWAL_THRESHOLD_DAYS=10
+readonly STATUS_FILE=/tmp/certificate-manager.status
+readonly LETSENCRYPT_DIR=/etc/letsencrypt
 
-readonly S3_BUCKET="${S3_BUCKET:-certificate-store}"
-readonly CERT_PREFIX="${CERT_PREFIX:-certificates}"
+# Exit code tracking
+EXIT_CODE=0
 
-readonly DOMAIN="${DOMAIN:-yourdomain.com}"
-readonly INTERNAL_DOMAIN="${INTERNAL_DOMAIN:-}"          # optional
-readonly EMAIL="${EMAIL:-admin@yourdomain.com}"
+################################################################################
+# Usage -----------------------------------------------------------------------
+################################################################################
+usage() {
+  cat <<EOF
+Usage: $SCRIPT_NAME [--force] [--dry-run]
 
-# The **role name** attached to this EC2 instance/Task (not the ARN/ID).
-readonly AWS_ROLE_NAME="${AWS_ROLE_NAME:-your-app-private-instance-role}"
-
-readonly WILDCARD="${WILDCARD:-true}"
-readonly RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-10}"
-readonly CERT_OUTPUT_DIR="${CERT_OUTPUT_DIR:-/app/certs}"
-
-# Certbot Docker image
-readonly CERTBOT_IMAGE="certbot/dns-route53:latest"
-
-# single source-of-truth for certificate filenames
-readonly CERT_FILES=(cert.pem privkey.pem fullchain.pem)
-
-############################################
-# Helper utilities
-############################################
-timestamp() { date "+%Y-%m-%d %H:%M:%S"; }
-
-log() {
-  printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2
+Options:
+  --force        Renew certificates regardless of remaining validity.
+  --dry-run      Execute everything except the final Certbot/S3/AWS writes.
+  -h, --help     Show this help.
+EOF
 }
 
-status() {
-  local state="$1" msg="$2"
-  printf '%s: %s at %s\n' "$state" "$msg" "$(timestamp)" >"$STATUS_FILE"
-  log "STATUS ➜ $state – $msg"
-}
-
-on_error() {
-  local ec=$? line=$1
-  status "FAILED" "line $line exited with code $ec"
-  exit "$ec"
-}
-trap 'on_error $LINENO' ERR
-trap cleanup_aws_credentials EXIT      # always clear creds on exit
-
-############################################
-# Prerequisite check (fail fast)
-############################################
-for bin in jq aws openssl docker; do
-  command -v "$bin" >/dev/null 2>&1 || {
-    log "ERROR: required binary '$bin' not found in PATH"; exit 1;
-  }
+################################################################################
+# CLI arguments ----------------------------------------------------------------
+################################################################################
+FORCE=false
+DRY_RUN=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force)   FORCE=true ; shift ;;
+    --dry-run) DRY_RUN=true ; shift ;;
+    -h|--help) usage ; exit 0 ;;
+    *) echo "Unknown option: $1" >&2 ; usage ; exit 1 ;;
+  esac
 done
 
-############################################
-# Docker helpers
-############################################
-pull_certbot_image() {
-  log "Pulling certbot Docker image: $CERTBOT_IMAGE"
-  if docker pull "$CERTBOT_IMAGE"; then
-    log "Successfully pulled certbot image"
+################################################################################
+# Helper: import a Swarm secret if env‑var is empty ----------------------------
+################################################################################
+import_secret() {
+  local var=$1 path="/run/secrets/$var"
+  [[ -z ${!var:-} && -f $path ]] && export "$var"="$(<"$path")"
+}
+
+# Mandatory/optional secrets
+for s in AWS_ROLE_NAME CERTIFICATE_STORE ACME_EMAIL DOMAINS AWS_SECRET_NAME; do
+  import_secret "$s"
+done
+
+################################################################################
+# Verify mandatory dependencies & variables -----------------------------------
+################################################################################
+need_cmd() { 
+  command -v "$1" &>/dev/null || { 
+    echo "ERROR: '$1' not found in PATH" >&2 
+    EXIT_CODE=2
+    return 1
+  }; 
+}
+
+for bin in jq aws openssl certbot curl; do 
+  need_cmd "$bin" || exit $EXIT_CODE
+done
+
+[[ -n ${CERTIFICATE_STORE:-}       ]] || { echo "CERTIFICATE_STORE is required (secret or env)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${ACME_EMAIL:-}           ]] || { echo "ACME_EMAIL is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${AWS_ROLE_NAME:-}   ]] || { echo "AWS_ROLE_NAME is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${DOMAINS:-}         ]] || { echo "DOMAINS is required (comma‑separated)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${AWS_SECRET_NAME:-} ]] || { echo "AWS_SECRET_NAME is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+
+RENEWAL_THRESHOLD_DAYS=${RENEWAL_THRESHOLD_DAYS:-$DEFAULT_RENEWAL_THRESHOLD_DAYS}
+CERT_PREFIX=${CERT_PREFIX:-certificates}
+RUN_ID=${RUN_ID:-$(date +%Y%m%d%H%M%S)}
+LOG_DIR='/var/log/certificate-manager'
+LOG_FILE='${LOG_DIR}/certificate-renewal.log'
+CERT_OUTPUT_DIR='/app/certs'
+
+IFS=',' read -r -a DOMAIN_ARRAY <<< "$DOMAINS"
+
+mkdir -p "$LOG_DIR" /var/{lib,log}/letsencrypt "$CERT_OUTPUT_DIR"
+
+################################################################################
+# Logging utilities -----------------------------------------------------------
+################################################################################
+_ts() { date '+%Y-%m-%d %H:%M:%S'; }
+log()  { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
+status() {
+  printf '%s: %s at %s\n' "$1" "$2" "$(_ts)" >"$STATUS_FILE"
+  log "STATUS ➜ $1 – $2"
+}
+trap 'status FAILED "line $LINENO exited with code $?"; EXIT_CODE=1' ERR
+
+################################################################################
+# Random secret generator -----------------------------------------------------
+################################################################################
+random_secret() {
+  if openssl rand -base64 27 &>/dev/null; then
+    # 36 printable chars after stripping '=' and '/' (URL‑safe-ish)
+    openssl rand -base64 27 | tr -d /= | cut -c1-36
   else
-    log "ERROR: Failed to pull certbot image"
-    status "FAILED" "Docker image pull failed"
-    exit 1
+    LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*()_+=-[]{}<>?.,' </dev/urandom | head -c 36
   fi
+  echo
 }
 
-run_certbot() {
-  local cert_dir="$1"
-  local domain="$2"
-  local wildcard="$3"
-  
-  local docker_args=(
-    run --rm
-    -v "$cert_dir:/etc/letsencrypt"
-    -v "/var/lib/letsencrypt:/var/lib/letsencrypt"
-    -v "/var/log/letsencrypt:/var/log/letsencrypt"
-    -e AWS_ACCESS_KEY_ID
-    -e AWS_SECRET_ACCESS_KEY
-    -e AWS_SESSION_TOKEN
-    -e AWS_DEFAULT_REGION
-    "$CERTBOT_IMAGE"
-  )
-  
-  local certbot_args=(
-    certonly --dns-route53
-    -m "$EMAIL" --agree-tos --non-interactive
-  )
-  
-  if [[ $wildcard == true ]]; then
-    certbot_args+=(-d "*.${domain}" -d "${domain}")
-  else
-    certbot_args+=(-d "${domain}")
-  fi
-  
-  log "Running certbot for domain: $domain"
-  docker "${docker_args[@]}" certbot "${certbot_args[@]}"
+################################################################################
+# AWS IMDSv2 helpers ----------------------------------------------------------
+################################################################################
+fetch_creds() {
+  log "🔐 Fetching AWS credentials (role: $AWS_ROLE_NAME)"
+  local token creds_json
+  token=$(curl -sSf -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 300' \
+                http://169.254.169.254/latest/api/token) || {
+    log "ERROR: Failed to get IMDSv2 token"
+    EXIT_CODE=3
+    return 1
+  }
+  creds_json=$(curl -sSf -H "X-aws-ec2-metadata-token: $token" \
+                "http://169.254.169.254/latest/meta-data/iam/security-credentials/$AWS_ROLE_NAME") || {
+    log "ERROR: Failed to get AWS credentials"
+    EXIT_CODE=3
+    return 1
+  }
+  [[ $(jq -r .Code <<< "$creds_json") == Success ]] || { 
+    log "ERROR: creds response not Success"; 
+    EXIT_CODE=3
+    return 1
+  }
+  export AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId <<< "$creds_json")
+  export AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey <<< "$creds_json")
+  export AWS_SESSION_TOKEN=$(jq -r .Token <<< "$creds_json")
+  export AWS_DEFAULT_REGION=$(curl -sSf -H "X-aws-ec2-metadata-token: $token" \
+                                    http://169.254.169.254/latest/meta-data/placement/region) || {
+    log "ERROR: Failed to get AWS region"
+    EXIT_CODE=3
+    return 1
+  }
 }
+cleanup_creds() { unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_DEFAULT_REGION; }
+trap cleanup_creds EXIT
 
-############################################
-# AWS helpers
-############################################
-fetch_aws_credentials() {
-  log "Fetching AWS credentials using IMDSv2"
+################################################################################
+# Certbot helpers -------------------------------------------------------------
+################################################################################
+certbot_action() {
+  # Build domain flags – certbot supports comma separation only for --renew-by-default
+  local flags=()
+  for d in "${DOMAIN_ARRAY[@]}"; do flags+=( -d "$d" ); done
 
-  local token
-  token=$(curl -s -X PUT \
-      -H "X-aws-ec2-metadata-token-ttl-seconds: 300" \
-      "http://169.254.169.254/latest/api/token") || true
-
-  [[ -z $token ]] && { log "ERROR: IMDSv2 token unavailable"; status "FAILED" "IMDSv2 token missing"; exit 1; }
-
-  local creds_json
-  creds_json=$(curl -s -H "X-aws-ec2-metadata-token: $token" \
-      "http://169.254.169.254/latest/meta-data/iam/security-credentials/$AWS_ROLE_NAME") || true
-
-  if [[ $(jq -r '.Code' <<<"$creds_json") != "Success" ]]; then
-    log "ERROR: failed to fetch AWS credentials (role: $AWS_ROLE_NAME)"
-    status "FAILED" "AWS credential fetch failed"
-    exit 1
+  if $FORCE; then
+    flags+=( --force-renewal )
   fi
 
-  export AWS_ACCESS_KEY_ID=$(jq -r '.AccessKeyId'     <<<"$creds_json")
-  export AWS_SECRET_ACCESS_KEY=$(jq -r '.SecretAccessKey' <<<"$creds_json")
-  export AWS_SESSION_TOKEN=$(jq -r '.Token'           <<<"$creds_json")
-  export AWS_DEFAULT_REGION=$(curl -s -H "X-aws-ec2-metadata-token: $token" \
-      http://169.254.169.254/latest/meta-data/placement/region)
+  if $DRY_RUN; then
+    flags+=( --dry-run )
+  fi
 
-  log "AWS credentials exported to environment (region: $AWS_DEFAULT_REGION)"
-}
-
-cleanup_aws_credentials() {
-  log "Cleaning up AWS credentials from environment"
-  unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_DEFAULT_REGION
-}
-
-############################################
-# S3 Certificate Store
-############################################
-download_certificate_from_s3() {
-  local cert_type="$1"   # public | internal
-  local local_dir="$2"
-
-  log "Downloading $cert_type certificate from S3"
-
-  local s3_path="$CERT_PREFIX/$cert_type"
-
-  for file in "${CERT_FILES[@]}"; do
-    local s3_key="$s3_path/$file"
-    local local_file="$local_dir/${cert_type}-$file"
-    if aws s3 cp --only-show-errors "s3://$S3_BUCKET/$s3_key" "$local_file"; then
-      log "Downloaded $file"
+  if [[ -d "$LETSENCRYPT_DIR/live/${DOMAIN_ARRAY[0]}" ]]; then
+    log "🔄 Running certbot renew for ${#DOMAIN_ARRAY[@]} domain(s)"
+    if certbot renew --deploy-hook "true" --quiet "${flags[@]}"; then
+      log "✅ Certbot renew completed successfully"
     else
-      log "Certificate file $file not found in S3"
+      log "❌ Certbot renew failed"
+      EXIT_CODE=4
       return 1
     fi
-  done
-  log "$cert_type certificate downloaded successfully"
-}
-
-upload_certificate_to_s3() {
-  local cert_type="$1"   # public | internal
-  local local_dir="$2"
-  local run_id="$3"
-
-  log "Uploading $cert_type certificate to S3"
-
-  local s3_path="$CERT_PREFIX/$cert_type/$run_id"
-
-  # Upload certificate files
-  for file in "${CERT_FILES[@]}"; do
-    local s3_key="$s3_path/$file"
-    local local_file="$local_dir/${cert_type}-$file"
-    aws s3 cp --only-show-errors "$local_file" "s3://$S3_BUCKET/$s3_key"
-    log "Uploaded $file"
-  done
-
-  # For internal certificates, also upload PFX file
-  if [[ "$cert_type" == "internal" ]]; then
-    local pfx_file="$local_dir/${cert_type}-cert.pfx"
-    if [[ -f "$pfx_file" ]]; then
-      local pfx_s3_key="$s3_path/cert.pfx"
-      aws s3 cp --only-show-errors "$pfx_file" "s3://$S3_BUCKET/$pfx_s3_key"
-      log "Uploaded cert.pfx"
-    fi
-  fi
-}
-
-############################################
-# Certificate validation
-############################################
-check_certificate_validity() {
-  local cert_file="$1" days_threshold="${2:-$RENEWAL_THRESHOLD_DAYS}"
-
-  log "Checking certificate: $cert_file (threshold $days_threshold d)"
-
-  [[ -f $cert_file ]] || { log "Missing file $cert_file"; return 1; }
-
-  local expiry_date expiry_ts now days_left
-  expiry_date=$(openssl x509 -in "$cert_file" -noout -enddate | cut -d= -f2) || return 1
-  expiry_ts=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$expiry_date" +%s)
-  now=$(date +%s)
-  days_left=$(( (expiry_ts - now) / 86400 ))
-
-  log "Expires: $expiry_date  (in $days_left days)"
-
-  (( days_left > days_threshold ))
-}
-
-############################################
-# Certificate output management
-############################################
-prepare_certificates_for_output() {
-  local cert_dir="$1"
-
-  log "Preparing certificates for output → $CERT_OUTPUT_DIR"
-  install -m 700 -d "$CERT_OUTPUT_DIR"
-
-  # Public certs (external)
-  cp "$cert_dir"/public-cert.pem     "$CERT_OUTPUT_DIR/cert.pem"
-  cp "$cert_dir"/public-privkey.pem  "$CERT_OUTPUT_DIR/cert.key"
-  cp "$cert_dir"/public-fullchain.pem "$CERT_OUTPUT_DIR/fullchain.pem"
-
-  # Internal certs (if available)
-  if [[ -n "$INTERNAL_DOMAIN" && -f "$cert_dir/internal-cert.pem" ]]; then
-    cp "$cert_dir"/internal-cert.pem     "$CERT_OUTPUT_DIR/internal-cert.pem"
-    cp "$cert_dir"/internal-privkey.pem  "$CERT_OUTPUT_DIR/internal-key.pem"
-    cp "$cert_dir"/internal-fullchain.pem "$CERT_OUTPUT_DIR/internal-fullchain.pem"
-    
-    # Create PFX for internal certificate
-    openssl pkcs12 -export               \
-        -in  "$CERT_OUTPUT_DIR/internal-cert.pem" \
-        -inkey "$CERT_OUTPUT_DIR/internal-key.pem" \
-        -out "$CERT_OUTPUT_DIR/internal-cert.pfx" \
-        -passout pass:
-  fi
-
-  chmod 400 "$CERT_OUTPUT_DIR"/*.{pem,pfx}
-
-  date -u +%Y-%m-%dT%H:%M:%SZ > "$CERT_OUTPUT_DIR/last-updated.txt"
-  log "Certificates prepared successfully"
-}
-
-############################################
-# Certificate renewal
-############################################
-renew_certificates() {
-  local cert_dir="$1"
-  
-  log "Renewing certificates with certbot"
-
-  # Ensure certbot directories exist
-  mkdir -p "$cert_dir"/{live,renewal} /var/{lib,log}/letsencrypt
-
-  # Pull the certbot image
-  pull_certbot_image
-
-  # -------- public (external) --------
-  log "Renewing public cert for $DOMAIN"
-  run_certbot "$cert_dir" "$DOMAIN" "$WILDCARD"
-
-  local public_dir="$cert_dir/live/$DOMAIN"
-  cp "$public_dir"/privkey.pem   "$cert_dir/public-privkey.pem"
-  cp "$public_dir"/cert.pem      "$cert_dir/public-cert.pem"
-  cp "$public_dir"/fullchain.pem "$cert_dir/public-fullchain.pem"
-
-  # -------- internal (optional) --------
-  if [[ -n "$INTERNAL_DOMAIN" ]]; then
-    log "Renewing internal cert for $INTERNAL_DOMAIN"
-    run_certbot "$cert_dir" "$INTERNAL_DOMAIN" true
-
-    local internal_dir="$cert_dir/live/$INTERNAL_DOMAIN"
-    cp "$internal_dir"/privkey.pem   "$cert_dir/internal-privkey.pem"
-    cp "$internal_dir"/cert.pem      "$cert_dir/internal-cert.pem"
-    cp "$internal_dir"/fullchain.pem "$cert_dir/internal-fullchain.pem"
-  fi
-
-  chmod 400 "$cert_dir"/*.pem
-  log "Certificates renewed successfully"
-}
-
-############################################
-# Main logic
-############################################
-main() {
-  log "Certificate renewal started (threshold: $RENEWAL_THRESHOLD_DAYS d)"
-  status "IN_PROGRESS" "Certificate renewal started"
-
-  # workspace & cleanup
-  local cert_dir
-  cert_dir=$(mktemp -d /tmp/certificates.XXXXXX)
-  trap 'rm -rf "$cert_dir"' EXIT
-
-  fetch_aws_credentials
-
-  # ---- download existing certs ----
-  local have_public=false have_internal=false renewal_needed=false
-
-  if download_certificate_from_s3 public "$cert_dir"; then
-    have_public=true
-  fi
-  if [[ -n $INTERNAL_DOMAIN ]] && download_certificate_from_s3 internal "$cert_dir"; then
-    have_internal=true
-  fi
-
-  # ---- validity checks ----
-  if $have_public && check_certificate_validity "$cert_dir/public-cert.pem"; then
-    log "Public cert still valid"
   else
-    renewal_needed=true
-  fi
-
-  if [[ -n $INTERNAL_DOMAIN ]]; then
-    if $have_internal && check_certificate_validity "$cert_dir/internal-cert.pem"; then
-      log "Internal cert still valid"
+    log "🆕 Initial certificate request for ${#DOMAIN_ARRAY[@]} domain(s)"
+    if certbot certonly --dns-route53 -m "$EMAIL" --agree-tos --non-interactive \
+                       --quiet "${flags[@]}"; then
+      log "✅ Certbot certonly completed successfully"
     else
-      renewal_needed=true
+      log "❌ Certbot certonly failed"
+      EXIT_CODE=4
+      return 1
     fi
   fi
+}
 
-  # ---- renew if necessary ----
-  if $renewal_needed; then
-    log "Renewal required → invoking certbot"
-    renew_certificates "$cert_dir"
-    
-    # Generate run ID for S3 uploads
-    local run_id
-    run_id=$(date +%Y%m%d%H%M%S)
-    
-    upload_certificate_to_s3 public "$cert_dir" "$run_id"
-    [[ -n $INTERNAL_DOMAIN ]] && upload_certificate_to_s3 internal "$cert_dir" "$run_id"
+################################################################################
+# Certificate validity helpers ------------------------------------------------
+################################################################################
+cert_days_left() {
+  local pem=$1 exp exp_ts now
+  exp=$(openssl x509 -noout -enddate -in "$pem" | cut -d= -f2)
+  exp_ts=$(date -d "$exp" +%s)
+  now=$(date +%s)
+  echo $(((exp_ts-now)/86400))
+}
+needs_renewal() {
+  [[ $FORCE == true ]] && return 0
+  local pem="$LETSENCRYPT_DIR/live/${DOMAIN_ARRAY[0]}/cert.pem"
+  [[ -f $pem ]] || return 0
+  local left=$(cert_days_left "$pem")
+  (( left <= RENEWAL_THRESHOLD_DAYS ))
+}
+
+################################################################################
+# PFX generation & output prep -------------------------------------------------
+################################################################################
+create_pfx() {
+  local domain=$1 password=$2 src="$LETSENCRYPT_DIR/live/$domain" tgt="$CERT_OUTPUT_DIR/$domain/cert.pfx"
+  local pass_arg=[[ -n $password ]] && pass_arg="pass:$password" || pass_arg="pass:"
+  if openssl pkcs12 -export -in "$src/cert.pem" -inkey "$src/privkey.pem" \
+                   -out "$tgt" -passout "$pass_arg" -passin pass: -quiet; then
+    chmod 400 "$tgt"
   else
-    log "All certificates healthy; skipping renewal"
+    log "WARNING: Failed to create PFX for $domain"
+  fi
+}
+prepare_output() {
+  log "📦 Preparing output directory => $CERT_OUTPUT_DIR"
+  local password="$1"
+  for d in "${DOMAIN_ARRAY[@]}"; do
+    local src="$LETSENCRYPT_DIR/live/$d" tgt="$CERT_OUTPUT_DIR/$d"
+    [[ -d $src ]] || { log "WARNING: missing $src"; continue; }
+    install -d -m700 "$tgt"
+    cp "$src"/{cert.pem,privkey.pem,fullchain.pem} "$tgt/" 2>/dev/null || true
+    create_pfx "$d" "$password"
+  done
+  # Canonical symlinks for consumers (pick first domain)
+  ln -sf "${DOMAIN_ARRAY[0]}"/cert.pem      "$CERT_OUTPUT_DIR/cert.pem"
+  ln -sf "${DOMAIN_ARRAY[0]}"/privkey.pem   "$CERT_OUTPUT_DIR/cert.key"
+  ln -sf "${DOMAIN_ARRAY[0]}"/fullchain.pem "$CERT_OUTPUT_DIR/fullchain.pem"
+  ln -sf "${DOMAIN_ARRAY[0]}"/cert.pfx      "$CERT_OUTPUT_DIR/cert.pfx"
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$CERT_OUTPUT_DIR/last-updated.txt"
+}
+
+################################################################################
+# AWS Secrets Manager ---------------------------------------------------------
+################################################################################
+update_secret_password() {
+  local new_password="$1"
+  log "🔐 Storing new certificate password in AWS Secrets Manager (versioned)"
+
+  local secret_json
+  if secret_json=$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME" \
+                    --query SecretString --output text 2>/dev/null); then
+    secret_json=$(jq --arg p "$new_password" '.CERTIFICATE_PASSWORD=$p' <<<"$secret_json")
+  else
+    secret_json=$(jq -n --arg p "$new_password" '{CERTIFICATE_PASSWORD:$p}')
   fi
 
-  prepare_certificates_for_output "$cert_dir"
+  # put-secret-value creates a new version each time – better auditing
+  if echo "$secret_json" | aws secretsmanager put-secret-value \
+    --secret-id "$AWS_SECRET_NAME" --secret-string file:///dev/stdin --output text &>/dev/null; then
+    log "✅ Certificate password updated in AWS Secrets Manager"
+  else
+    log "❌ Failed to update certificate password in AWS Secrets Manager"
+    EXIT_CODE=1
+    return 1
+  fi
+}
 
-  log "Certificate renewal completed successfully 🎉"
-  status "SUCCESS" "Certificate renewal completed"
+################################################################################
+# S3 distribution -------------------------------------------------------------
+################################################################################
+upload_to_s3() {
+  $DRY_RUN && { log "☁️  Dry‑run: skip S3 upload"; return; }
+  log "☁️  Uploading artefacts to s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID/"
+  
+  local upload_failed=false
+  for d in "${DOMAIN_ARRAY[@]}"; do
+    local src="$LETSENCRYPT_DIR/live/$d" dst="s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID/$d/"
+    if aws s3 cp --only-show-errors --recursive "$src" "$dst"; then
+      log "✅ Uploaded certificate files for $d"
+    else
+      log "❌ Failed to upload certificate files for $d"
+      upload_failed=true
+    fi
+    
+    if [[ -f "$CERT_OUTPUT_DIR/$d/cert.pfx" ]]; then
+      if aws s3 cp --only-show-errors "$CERT_OUTPUT_DIR/$d/cert.pfx" "$dst"; then
+        log "✅ Uploaded PFX file for $d"
+      else
+        log "❌ Failed to upload PFX file for $d"
+        upload_failed=true
+      fi
+    fi
+  done
+  
+  if [[ "$upload_failed" == "true" ]]; then
+    log "❌ S3 upload completed with errors"
+    EXIT_CODE=5
+    return 1
+  else
+    log "✅ S3 upload completed successfully"
+  fi
+}
+
+################################################################################
+# Main ------------------------------------------------------------------------
+################################################################################
+main() {
+  status IN_PROGRESS "Renewal task started (threshold ${RENEWAL_THRESHOLD_DAYS}d)"
+  
+  if ! fetch_creds; then
+    log "❌ Failed to fetch AWS credentials"
+    status FAILED "AWS credential error"
+    exit $EXIT_CODE
+  fi
+
+  [[ -d $LETSENCRYPT_DIR ]] || { 
+    log "ERROR: $LETSENCRYPT_DIR missing (EBS not mounted?)"; 
+    EXIT_CODE=1
+    status FAILED "LetsEncrypt directory missing"
+    exit $EXIT_CODE
+  }
+
+  if needs_renewal; then
+    log "🔧 Renewal required"
+    local new_pass=$(random_secret)
+    
+    if ! update_secret_password "$new_pass"; then
+      log "❌ Failed to update certificate password"
+      status FAILED "Password update error"
+      exit $EXIT_CODE
+    fi
+    
+    if ! certbot_action; then
+      log "❌ Certbot action failed"
+      status FAILED "Certbot error"
+      exit $EXIT_CODE
+    fi
+    
+    prepare_output "$new_pass"
+    
+    if ! upload_to_s3; then
+      log "❌ S3 upload failed"
+      status FAILED "S3 upload error"
+      exit $EXIT_CODE
+    fi
+    # Post‑renew hook placeholder (e.g., send SIGUSR1 to nginx for reload)
+  else
+    log "✅ Certificates healthy (> ${RENEWAL_THRESHOLD_DAYS}d)"
+    prepare_output  # still refresh timestamps/hashes
+  fi
+
+  status SUCCESS "Certificate process complete"
+  log "🎉 Certificate renewal completed successfully"
   exit 0
 }
 
-main "$@" 
+main "$@"
