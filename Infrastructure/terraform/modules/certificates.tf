@@ -253,33 +253,13 @@ resource "aws_iam_policy" "ebs_volume_access" {
         Action = [
           "ec2:DescribeVolumes",
           "ec2:DescribeVolumeStatus",
-          "ec2:DescribeInstances"
-        ]
-        Resource = [
-          "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/*",
-          "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
-        ]
-        Condition = {
-          StringEquals = {
-            "aws:RequestTag/Name" = "${var.app_name}-letsencrypt-persistent"
-          }
-        }
-      },
-      {
-        Effect = "Allow"
-        Action = [
+          "ec2:DescribeInstances",
           "ec2:AttachVolume",
-          "ec2:DetachVolume"
+          "ec2:DetachVolume",
+          "ec2:CreateVolume",
+          "ec2:DeleteVolume"
         ]
-        Resource = [
-          var.certbot_ebs_volume_id != "" ? "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/${var.certbot_ebs_volume_id}" : "",
-          "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/${aws_instance.public.id}"
-        ]
-        Condition = {
-          StringEquals = {
-            "aws:RequestTag/Name" = "${var.app_name}-letsencrypt-persistent"
-          }
-        }
+        Resource = "*"
       }
     ]
   })
