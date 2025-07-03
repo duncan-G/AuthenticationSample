@@ -463,12 +463,26 @@ setup_oidc_infrastructure() {
 setup_github_workflow() {
     print_info "Setting up GitHub secrets and environments..."
 
+    # Convert comma-separated subdomains to Terraform list format
+    # Terraform expects a JSON array like ["api", "admin", "portal"]
+    # but we accept comma-separated input like "api,admin,portal"
+    local subdomains_list
+    if [[ -n "$SUBDOMAINS" ]]; then
+        # Convert comma-separated string to JSON array format for Terraform
+        # Example: "api,admin,portal" -> ["api", "admin", "portal"]
+        subdomains_list=$(echo "$SUBDOMAINS" | tr ',' '\n' | jq -R . | jq -s .)
+        print_info "Converted subdomains to Terraform list format: $subdomains_list"
+    else
+        subdomains_list='[]'
+        print_warning "No subdomains provided, using empty list"
+    fi
+
     add_github_secrets "$GITHUB_REPO_FULL" \
         "AWS_ACCOUNT_ID:$AWS_ACCOUNT_ID" \
         "TF_STATE_BUCKET:$TF_STATE_BUCKET" \
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
-        "SUBDOMAINS:$SUBDOMAINS"
+        "SUBDOMAINS:$subdomains_list"
     
     add_github_variables "$GITHUB_REPO_FULL" \
         "AWS_REGION:$AWS_REGION" \
