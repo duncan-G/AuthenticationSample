@@ -238,7 +238,11 @@ output "certificate_renewal_secret_arn" {
 variable "certbot_ebs_volume_id" {
   description = "ID of the existing EBS volume to attach for Let's Encrypt certificates"
   type        = string
-  default     = ""
+
+  validation {
+    condition     = length(var.certbot_ebs_volume_id) > 0
+    error_message = "EBS volume ID must not be empty."
+  }
 }
 
 # Policy for EBS volume operations
@@ -281,7 +285,6 @@ resource "aws_iam_role_policy_attachment" "public_ebs_volume_access" {
 ########################
 
 resource "aws_volume_attachment" "certbot_ebs_attachment" {
-  count       = var.certbot_ebs_volume_id != "" ? 1 : 0
   device_name = "/dev/sdf"
   volume_id   = var.certbot_ebs_volume_id
   instance_id = aws_instance.public.id
@@ -295,6 +298,6 @@ resource "aws_volume_attachment" "certbot_ebs_attachment" {
 ########################
 
 output "certbot_ebs_attachment_status" {
-  value       = var.certbot_ebs_volume_id != "" ? "Attached to public instance as /dev/sdf" : "No EBS volume configured"
+  value       = "Attached to public instance as /dev/sdf"
   description = "Status of the EBS volume attachment for Let's Encrypt certificates"
 }

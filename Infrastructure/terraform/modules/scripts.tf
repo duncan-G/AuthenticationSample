@@ -101,11 +101,8 @@ resource "aws_ssm_document" "certificate_manager_setup" {
   }
 }
 
-
-
 # EBS Volume Setup SSM Document
 resource "aws_ssm_document" "ebs_volume_setup" {
-  count           = var.certbot_ebs_volume_id != "" ? 1 : 0
   name            = "${var.app_name}-ebs-volume-setup"
   document_type   = "Command"
   document_format = "JSON"
@@ -318,12 +315,9 @@ resource "aws_ssm_association" "docker_worker_setup" {
   depends_on = [aws_ssm_association.cloudwatch_agent_worker, aws_ssm_association.docker_manager_setup]
 }
 
-
-
 # Then: Setup EBS volume and certbot directories (depends on Docker worker setup and EBS volume attachment)
 resource "aws_ssm_association" "ebs_volume_setup" {
-  count = var.certbot_ebs_volume_id != "" ? 1 : 0
-  name  = aws_ssm_document.ebs_volume_setup[0].name
+  name = aws_ssm_document.ebs_volume_setup.name
 
   targets {
     key    = "InstanceIds"
