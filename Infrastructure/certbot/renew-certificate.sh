@@ -64,7 +64,7 @@ import_secret() {
 }
 
 # Mandatory/optional secrets
-for s in AWS_ROLE_NAME CERTIFICATE_STORE ACME_EMAIL DOMAINS AWS_SECRET_NAME; do
+for s in AWS_ROLE_NAME CERTIFICATE_STORE ACME_EMAIL DOMAINS_NAMES AWS_SECRET_NAME; do
   import_secret "$s"
 done
 
@@ -86,7 +86,7 @@ done
 [[ -n ${CERTIFICATE_STORE:-}       ]] || { echo "CERTIFICATE_STORE is required (secret or env)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
 [[ -n ${ACME_EMAIL:-}           ]] || { echo "ACME_EMAIL is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
 [[ -n ${AWS_ROLE_NAME:-}   ]] || { echo "AWS_ROLE_NAME is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
-[[ -n ${DOMAINS:-}         ]] || { echo "DOMAINS is required (comma‑separated)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${DOMAINS_NAMES:-}         ]] || { echo "DOMAINS_NAMES is required (comma‑separated)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
 [[ -n ${AWS_SECRET_NAME:-} ]] || { echo "AWS_SECRET_NAME is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
 
 RENEWAL_THRESHOLD_DAYS=${RENEWAL_THRESHOLD_DAYS:-$DEFAULT_RENEWAL_THRESHOLD_DAYS}
@@ -96,7 +96,7 @@ LOG_DIR='/var/log/certificate-manager'
 LOG_FILE='${LOG_DIR}/certificate-renewal.log'
 CERT_OUTPUT_DIR='/app/certs'
 
-IFS=',' read -r -a DOMAIN_ARRAY <<< "$DOMAINS"
+IFS=',' read -r -a DOMAIN_ARRAY <<< "$DOMAINS_NAMES"
 
 mkdir -p "$LOG_DIR" /var/{lib,log}/letsencrypt "$CERT_OUTPUT_DIR"
 
@@ -187,7 +187,7 @@ certbot_action() {
     fi
   else
     log "🆕 Initial certificate request for ${#DOMAIN_ARRAY[@]} domain(s)"
-    if certbot certonly --dns-route53 -m "$EMAIL" --agree-tos --non-interactive \
+    if certbot certonly --dns-route53 -m "$ACME_EMAIL" --agree-tos --non-interactive \
                        --quiet "${flags[@]}"; then
       log "✅ Certbot certonly completed successfully"
     else

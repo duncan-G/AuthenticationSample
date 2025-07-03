@@ -159,7 +159,7 @@ service_id="$(docker service create \
   --secret source=aws_role_name_${RUN_ID},target=AWS_ROLE_NAME \
   --secret source=certificate_store_${RUN_ID},target=CERTIFICATE_STORE \
   --secret source=acme_email_${RUN_ID},target=ACME_EMAIL \
-  --secret source=domains${RUN_ID},target=SUBDOMAIN_NAMES \
+  --secret source=subdomain_names_${RUN_ID},target=DOMAINS_NAMES \
   --env AWS_SECRET_NAME="$AWS_SECRET_NAME" \
   "$RENEWAL_IMAGE")" || fatal "Unable to create service"
 
