@@ -21,7 +21,7 @@ resource "aws_route53_record" "main_domain" {
 # A records for each subdomain pointing to the public instance
 resource "aws_route53_record" "subdomains" {
   for_each = toset(var.subdomains)
-  
+
   zone_id = local.hosted_zone_id
   name    = "${each.value}.${var.domain_name}"
   type    = "A"
