@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 ###############################################################################
 # setup-ebs-volume.sh – First‑boot bootstrap for an EBS volume that stores
-# Let’s Encrypt material. Idempotent: safe to re‑run.
+# Let's Encrypt material. Idempotent: safe to re‑run.
 #
 #  1. Waits for the device to appear (with user‑configurable timeout).
 #  2. Formats the volume **iff** no filesystem is present.
 #  3. Mounts it, creates LE sub‑dirs, fixes perms, and persists the mount in
-#     /etc/fstab.
+#     /etc/fstab using UUID for reliability.
 #  4. Logs to both stderr and /var/log/certificate-manager/ebs-volume-setup.log.
 #
 # Requires: bash 4+, util-linux (lsblk, blkid, mount), coreutils, grep, sed.
@@ -38,6 +38,13 @@ wait_for_device() {
 
 has_fs() { blkid -o value -s TYPE "$DEVICE_NAME" &>/dev/null; }
 
+get_uuid() {
+  local uuid
+  uuid=$(blkid -o value -s UUID "$DEVICE_NAME" 2>/dev/null)
+  [[ -n "$uuid" ]] || fatal "Could not get UUID for device $DEVICE_NAME"
+  echo "$uuid"
+}
+
 mount_opts="defaults,nofail"
 
 ###############################################################################
@@ -61,6 +68,10 @@ else
   mkfs -t "$FILESYSTEM_TYPE" -F "$DEVICE_NAME"
 fi
 
+# Get UUID for reliable mounting
+UUID=$(get_uuid)
+log "Using UUID: $UUID for device $DEVICE_NAME"
+
 log "Mounting $DEVICE_NAME to $MOUNT_POINT"
 mount -o "$mount_opts" "$DEVICE_NAME" "$MOUNT_POINT"
 
@@ -72,10 +83,10 @@ done
 chown -R root:root "$MOUNT_POINT"
 chmod 700 "$MOUNT_POINT" "$MOUNT_POINT"/{live,renewal,archive}
 
-# Persist across reboots
+# Persist across reboots using UUID for reliability
 if ! grep -qs "[[:space:]]$MOUNT_POINT[[:space:]]" /etc/fstab; then
-  echo "$DEVICE_NAME $MOUNT_POINT $FILESYSTEM_TYPE $mount_opts 0 2" >> /etc/fstab
-  log "Added entry to /etc/fstab"
+  echo "UUID=$UUID $MOUNT_POINT $FILESYSTEM_TYPE $mount_opts 0 2" >> /etc/fstab
+  log "Added UUID-based entry to /etc/fstab"
 fi
 
 log "🎉 EBS volume setup finished successfully"
