@@ -133,8 +133,14 @@
         "ec2:DescribeTags"
       ],
       "Resource": [
-        "*"
-      ]
+        "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/*",
+        "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Name": "${var.app_name}-letsencrypt-persistent"
+        }
+      }
     }
   ]
 }

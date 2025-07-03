@@ -243,8 +243,8 @@ variable "certbot_ebs_volume_id" {
 
 # Policy for EBS volume operations
 resource "aws_iam_policy" "ebs_volume_access" {
-  name        = "${var.app_name}-ebs-volume-access"
-  description = "Allow EC2 instances to manage EBS volumes"
+  name        = "${var.app_name}-letsencrypt-persistent"
+  description = "Allow EC2 instances to manage EBS volumes for Let's Encrypt certificates"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -257,13 +257,21 @@ resource "aws_iam_policy" "ebs_volume_access" {
           "ec2:AttachVolume",
           "ec2:DetachVolume"
         ]
-        Resource = "*"
+        Resource = [
+          "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:volume/*",
+          "arn:aws:ec2:${var.region}:${data.aws_caller_identity.current.account_id}:instance/*"
+        ]
+        Condition = {
+          StringEquals = {
+            "aws:RequestTag/Name" = "${var.app_name}-letsencrypt-persistent"
+          }
+        }
       }
     ]
   })
 
   tags = {
-    Name        = "${var.app_name}-ebs-volume-access"
+    Name        = "${var.app_name}-letsencrypt-persistent"
     Environment = var.environment
   }
 }

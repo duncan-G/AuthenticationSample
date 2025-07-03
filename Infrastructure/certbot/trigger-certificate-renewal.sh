@@ -90,7 +90,10 @@ APP_NAME="${APP_NAME:-$(jq -r '.APP_NAME' <<<"$secret_json")}"
 CERTIFICATE_STORE="${CERTIFICATE_STORE:-$(jq -r '.CERTIFICATE_STORE' <<<"$secret_json")}"
 DOMAIN_NAME="${DOMAIN_NAME:-$(jq -r '.DOMAIN_NAME' <<<"$secret_json")}"
 # Extract subdomain names from SUBDOMAIN_NAME_1, SUBDOMAIN_NAME_2, etc.
-SUBDOMAIN_NAMES="$(jq -r 'to_entries | map(select(.key | startswith("SUBDOMAIN_NAME_"))) | sort_by(.key) | .[].value' <<<"$secret_json" | tr '\n' ',')"
+SUBDOMAIN_NAMES="$(
+  jq -r 'to_entries | map(select(.key | startswith("SUBDOMAIN_NAME_"))) | sort_by(.key) | .[].value' <<<"$secret_json" \
+  | awk '{$1=$1};1' | paste -sd, -
+)"
 EMAIL="${EMAIL:-$(jq -r '.EMAIL' <<<"$secret_json")}"
 
 for v in APP_NAME CERTIFICATE_STORE DOMAIN_NAME EMAIL; do
@@ -104,22 +107,26 @@ RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-10}"
 AWS_ROLE_NAME="${AWS_ROLE_NAME:-${APP_NAME}-public-instance-role}"
 RENEWAL_IMAGE="${RENEWAL_IMAGE:-${APP_NAME}/certbot:latest}"
 
-# Services to update with public certificates (comma-separated)
-PUBLIC_SERVICES_STR="${PUBLIC_SERVICES:-}"
-# Convert to array
-IFS=',' read -ra PUBLIC_SERVICES <<< "$PUBLIC_SERVICES_STR"
+# Services by domain mapping (JSON format: {"domain1": ["service1", "service2"], "domain2": ["service3"]})
+SERVICES_BY_DOMAIN_JSON="${SERVICES_BY_DOMAIN:-}"
 
-# Services to update with internal certificates (comma-separated)
-INTERNAL_SERVICES_STR="${INTERNAL_SERVICES:-}"
-# Convert to array
-IFS=',' read -ra INTERNAL_SERVICES <<< "$INTERNAL_SERVICES_STR"
+# Parse services by domain from JSON or create empty mapping
+if [[ -n "$SERVICES_BY_DOMAIN_JSON" ]]; then
+  # Validate JSON format
+  if ! jq empty <<< "$SERVICES_BY_DOMAIN_JSON" 2>/dev/null; then
+    fatal "Invalid JSON format in SERVICES_BY_DOMAIN: $SERVICES_BY_DOMAIN_JSON"
+  fi
+  log "📋 Services by domain configuration: $SERVICES_BY_DOMAIN_JSON"
+else
+  SERVICES_BY_DOMAIN_JSON="{}"
+  log "ℹ️  No services by domain configuration provided"
+fi
 
 readonly CERT_OUTPUT_DIR="${CERT_OUTPUT_DIR:-/certs}"
-readonly PUBLIC_CERT_SECRET_TARGET="${PUBLIC_CERT_SECRET_TARGET:-cert.pem}"
-readonly PUBLIC_KEY_SECRET_TARGET="${PUBLIC_KEY_SECRET_TARGET:-cert.key}"
-readonly INTERNAL_CERT_SECRET_TARGET="${INTERNAL_CERT_SECRET_TARGET:-internal-cert.pem}"
-readonly INTERNAL_KEY_SECRET_TARGET="${INTERNAL_KEY_SECRET_TARGET:-internal-key.pem}"
-readonly INTERNAL_PFX_SECRET_TARGET="${INTERNAL_PFX_SECRET_TARGET:-internal-cert.pfx}"
+readonly CERT_SECRET_TARGET="${CERT_SECRET_TARGET:-cert.pem}"
+readonly KEY_SECRET_TARGET="${KEY_SECRET_TARGET:-cert.key}"
+readonly FULLCHAIN_SECRET_TARGET="${FULLCHAIN_SECRET_TARGET:-fullchain.pem}"
+readonly PFX_SECRET_TARGET="${PFX_SECRET_TARGET:-cert.pfx}"
 
 ###############################################################################
 # Create transient Docker secrets for configuration
@@ -180,87 +187,71 @@ while true; do
   sleep 3
 done
 
-###############################################################################
-# Download artefacts from S3
-###############################################################################
-log "📥 Downloading certificates to $STAGING_DIR"
+#------------------------------------------------------------------------------
+# Download artefacts & publish secrets
+#------------------------------------------------------------------------------
+log "📥 Pulling certificates into $STAGING_DIR …"
 
-declare -A FILEMAP=(
-  [public-cert.pem]   "public/${RUN_ID}/cert.pem"
-  [public-key.pem]    "public/${RUN_ID}/key.pem"
-  [internal-cert.pem] "internal/${RUN_ID}/cert.pem"
-  [internal-key.pem]  "internal/${RUN_ID}/key.pem"
-  [internal-cert.pfx] "internal/${RUN_ID}/cert.pfx"
-)
-
-for f in "${!FILEMAP[@]}"; do
-  aws s3 cp "s3://${CERTIFICATE_STORE}/${APP_NAME}/${FILEMAP[$f]}" "${STAGING_DIR}/$f" --quiet || \
-    fatal "Missing artefact: ${FILEMAP[$f]}"
+# Download per‑domain artefacts
+for domain in "${DOMAIN_ARRAY[@]}"; do
+  s3_prefix="$APP_NAME/$RUN_ID/$domain/"
+  dest="$STAGING_DIR/$domain"
+  mkdir -p "$dest"
+  log "   ↳ $domain"
+  if ! aws s3 cp "s3://$CERTIFICATE_STORE/$s3_prefix" "$dest/" --recursive --only-show-errors; then
+    fatal "Download failed for $domain" 
+  fi
+  [[ -s "$dest/cert.pem" ]] || log "⚠️  No cert.pem found for $domain (may be new sub‑domain?)"
 done
 
-###############################################################################
-# Create Swarm secrets for the new certificates
-###############################################################################
-log "🔐 Generating Swarm secrets for fresh certs"
-declare -A NEW_SECRETS=(
-  [public-cert.pem]   "public-cert-${RUN_ID}"
-  [public-key.pem]    "public-key-${RUN_ID}"
-  [internal-cert.pem] "internal-cert-${RUN_ID}"
-  [internal-key.pem]  "internal-key-${RUN_ID}"
-  [internal-cert.pfx] "internal-pfx-${RUN_ID}"
-)
-
-for f in "${!NEW_SECRETS[@]}"; do
-  docker secret create "${NEW_SECRETS[$f]}" "${STAGING_DIR}/$f" >/dev/null || \
-    fatal "Unable to create secret for $f"
-  SECRETS_TO_CLEANUP+=("${NEW_SECRETS[$f]}")
+# Flatten file‑tree & create secrets
+log "🔐 Publishing Swarm secrets …"
+declare -A NEW_SECRETS=()
+for domain in "${DOMAIN_ARRAY[@]}"; do
+  src="$STAGING_DIR/$domain"
+  [[ -d "$src" ]] || continue
+  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+    [[ -f "$src/$f" ]] || continue
+    flat="${domain//./-}-$f"        # dots → dashes (Swarm secret name safe)
+    cp -p "$src/$f" "$STAGING_DIR/$flat"
+    secret_name="$flat-$RUN_ID"
+    docker secret create "$secret_name" "$STAGING_DIR/$flat" >/dev/null || fatal "Cannot create secret $secret_name"
+    NEW_SECRETS["$domain/$f"]="$secret_name"
+    SECRETS_TO_CLEANUP+=("$secret_name")
+  done
 done
+log "   → ${#NEW_SECRETS[@]} new secrets ready."
 
-###############################################################################
-# Hot‑swap secrets into the consumer services
-###############################################################################
-
-# Update services with public certificates
-if [ ${#PUBLIC_SERVICES[@]} -gt 0 ]; then
-  log "🌐 Updating ${#PUBLIC_SERVICES[@]} service(s) with public certificates"
-  for service in "${PUBLIC_SERVICES[@]}"; do
-    log "♻️  Updating public certificates in $service"
-    
-    docker service update \
-      --secret-rm "$PUBLIC_CERT_SECRET_TARGET" \
-      --secret-rm "$PUBLIC_KEY_SECRET_TARGET" \
-      --secret-add source="${NEW_SECRETS[public-cert.pem]}",target="$PUBLIC_CERT_SECRET_TARGET" \
-      --secret-add source="${NEW_SECRETS[public-key.pem]}",target="$PUBLIC_KEY_SECRET_TARGET" \
-      "$service" || fatal "Failed to update public certificates in service: $service"
-  done
+#------------------------------------------------------------------------------
+# Hot‑swap secrets into services
+#------------------------------------------------------------------------------
+if [[ -n "${SERVICES_BY_DOMAIN:-}" && "$SERVICES_BY_DOMAIN" != "{}" ]]; then
+  log "🔄 Rotating secrets in target services …"
+  jq -e empty <<<"$SERVICES_BY_DOMAIN" || fatal "SERVICES_BY_DOMAIN is not valid JSON."
+  while IFS= read -r domain; do
+    mapfile -t services < <(jq -r --arg d "$domain" '.[$d][]' <<< "$SERVICES_BY_DOMAIN")
+    ((${#services[@]})) || continue
+    for svc in "${services[@]}"; do
+      log "   ↻ $svc ← $domain"
+      args=(docker service update --quiet
+            --secret-rm cert.pem
+            --secret-rm privkey.pem
+            --secret-rm fullchain.pem
+            --secret-rm cert.pfx)
+      for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+        sec="${NEW_SECRETS[$domain/$f]:-}"
+        [[ -n "$sec" ]] && args+=(--secret-add "source=$sec,target=$f")
+      done
+      args+=("$svc")
+      "${args[@]}" >/dev/null || fatal "Failed to update $svc"
+    done
+  done < <(jq -r 'keys[]' <<< "$SERVICES_BY_DOMAIN")
 else
-  log "ℹ️  No services configured for public certificate updates"
+  log "ℹ️  No SERVICES_BY_DOMAIN mapping provided — skipping service updates."
 fi
 
-# Update services with internal certificates
-if [ ${#INTERNAL_SERVICES[@]} -gt 0 ]; then
-  log "🔒 Updating ${#INTERNAL_SERVICES[@]} service(s) with internal certificates"
-  for service in "${INTERNAL_SERVICES[@]}"; do
-    log "♻️  Updating internal certificates in $service"
-    
-    docker service update \
-      --secret-rm "$INTERNAL_CERT_SECRET_TARGET" \
-      --secret-rm "$INTERNAL_KEY_SECRET_TARGET" \
-      --secret-rm "$INTERNAL_PFX_SECRET_TARGET" \
-      --secret-add source="${NEW_SECRETS[internal-cert.pem]}",target="$INTERNAL_CERT_SECRET_TARGET" \
-      --secret-add source="${NEW_SECRETS[internal-key.pem]}",target="$INTERNAL_KEY_SECRET_TARGET" \
-      --secret-add source="${NEW_SECRETS[internal-cert.pfx]}",target="$INTERNAL_PFX_SECRET_TARGET" \
-      "$service" || fatal "Failed to update internal certificates in service: $service"
-  done
-else
-  log "ℹ️  No services configured for internal certificate updates"
-fi
-
-###############################################################################
-log "🎉 Certificates rotated successfully"
-if [ ${#PUBLIC_SERVICES[@]} -gt 0 ]; then
-  log "   Public certificates updated in: ${PUBLIC_SERVICES[*]}"
-fi
-if [ ${#INTERNAL_SERVICES[@]} -gt 0 ]; then
-  log "   Internal certificates updated in: ${INTERNAL_SERVICES[*]}"
-fi
+#------------------------------------------------------------------------------
+# Report
+#------------------------------------------------------------------------------
+log "🎉 Certificate rotation complete (domains: ${DOMAIN_ARRAY[*]})"
+exit 0

@@ -92,9 +92,9 @@ done
 RENEWAL_THRESHOLD_DAYS=${RENEWAL_THRESHOLD_DAYS:-$DEFAULT_RENEWAL_THRESHOLD_DAYS}
 CERT_PREFIX=${CERT_PREFIX:-certificates}
 RUN_ID=${RUN_ID:-$(date +%Y%m%d%H%M%S)}
-LOG_DIR='/var/log/certificate-manager'
-LOG_FILE='${LOG_DIR}/certificate-renewal.log'
-CERT_OUTPUT_DIR='/app/certs'
+LOG_DIR="/var/log/certificate-manager"
+LOG_FILE="${LOG_DIR}/certificate-renewal.log"
+CERT_OUTPUT_DIR="/app/certs"
 
 IFS=',' read -r -a DOMAIN_ARRAY <<< "$DOMAINS_NAMES"
 
