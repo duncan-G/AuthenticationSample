@@ -379,6 +379,7 @@ create_certbot_ebs_volume() {
         print_warning "EBS volume already exists: $existing_volume_id"
         print_info "Volume name: $volume_name"
         print_info "Volume ID: $existing_volume_id"
+        CERTBOT_EBS_VOLUME_ID="$existing_volume_id"
         return 0
     fi
     
@@ -404,6 +405,9 @@ create_certbot_ebs_volume() {
         print_info "Type: gp3"
         print_info "Encrypted: Yes"
         print_info "Availability Zone: $availability_zone"
+        
+        # Store the volume ID for later use
+        CERTBOT_EBS_VOLUME_ID="$volume_id"
         
         # Wait for volume to be available
         print_info "Waiting for volume to become available..."
@@ -482,7 +486,8 @@ setup_github_workflow() {
         "TF_STATE_BUCKET:$TF_STATE_BUCKET" \
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
-        "SUBDOMAINS:$subdomains_list"
+        "SUBDOMAINS:$subdomains_list" \
+        "CERTBOT_EBS_VOLUME_ID:$CERTBOT_EBS_VOLUME_ID"
     
     add_github_variables "$GITHUB_REPO_FULL" \
         "AWS_REGION:$AWS_REGION" \
@@ -518,6 +523,7 @@ display_final_instructions() {
     echo -e "${GREEN}   $ecr_repo_uri${NC}"
     echo "Your EBS Volume for Let's Encrypt:"
     echo -e "${GREEN}   Volume Name: ${APP_NAME}-letsencrypt-persistent${NC}"
+    echo -e "${GREEN}   Volume ID: $CERTBOT_EBS_VOLUME_ID${NC}"
     echo -e "${GREEN}   Device: /dev/sdf (will be attached to public instance)${NC}"
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
