@@ -86,7 +86,7 @@ jobs:
       with: 
         role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
         role-session-name: GitHubActions-Terraform-${{ github.run_id }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ vars.AWS_REGION }}
 
     - name: Terraform Format Check
       id: fmt
@@ -282,7 +282,7 @@ jobs:
       with:
         role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
         role-session-name: GitHubActions-Terraform-Apply-${{ github.run_id }}
-        aws-region: ${{ env.AWS_REGION }}
+        aws-region: ${{ vars.AWS_REGION }}
 
     - name: Terraform Init
       run: |
