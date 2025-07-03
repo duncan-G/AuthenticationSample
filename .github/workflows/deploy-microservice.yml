@@ -22,7 +22,7 @@ on:
         required: true
 
 env:
-  AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION || 'us-west-1' }}
+  AWS_DEFAULT_REGION: ${{ vars.AWS_REGION || 'us-west-1' }}
   
 permissions:
   contents: read
@@ -47,7 +47,7 @@ jobs:
       with:
         role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-codedeploy
         role-session-name: GitHubActions-CodeDeploy-${{ github.run_id }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -123,7 +123,7 @@ jobs:
       with:
         role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-codedeploy
         role-session-name: GitHubActions-CodeDeploy-${{ github.run_id }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+        aws-region: ${{ env.AWS_REGION }}
 
     - name: Create Deployment Package
       run: |

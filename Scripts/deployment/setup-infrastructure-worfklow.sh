@@ -49,7 +49,7 @@ get_user_input() {
         exit 1
     fi
 
-    prompt_user "Enter application name (used for Terraform resource naming)" "TF_APP_NAME"
+    prompt_user "Enter application name (used for Terraform resource naming)" "APP_NAME"
     prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
     prompt_user "Enter terraform staging environment name" "STAGING_ENVIRONMENT" "terraform-staging"
     prompt_user "Enter terraform production environment name" "PRODUCTION_ENVIRONMENT" "terraform-production"
@@ -57,8 +57,8 @@ get_user_input() {
     prompt_user "Enter production environment name" "CODEDEPLOY_PRODUCTION_ENVIRONMENT" "production"
     
     prompt_user "Enter domain name (e.g., example.com)" "DOMAIN_NAME"
-    prompt_user "Enter API subdomain (e.g., api)" "API_SUBDOMAIN" "api"
-    prompt_user "Enter email address for domain verification" "EMAIL_ADDRESS"
+    prompt_user "Enter API subdomains (comma-separated, e.g., api,admin,portal)" "SUBDOMAINS" "api,internal"
+    prompt_user "Enter email address for domain verification" "ACME_EMAIL"
     
     # Get Route53 hosted zone ID automatically
     get_route53_hosted_zone_id "$DOMAIN_NAME"
@@ -71,7 +71,7 @@ get_user_input() {
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"
     echo "  GitHub Repository: $GITHUB_REPO_FULL"
-    echo "  Terraform App Name: $TF_APP_NAME"
+    echo "  Terraform App Name: $APP_NAME"
     echo "  AWS Region: $AWS_REGION"
     echo "  Terraform Staging Environment: $STAGING_ENVIRONMENT"
     echo "  Terraform Production Environment: $PRODUCTION_ENVIRONMENT"
@@ -79,8 +79,8 @@ get_user_input() {
     echo "  CodeDeploy Production Environment: $CODEDEPLOY_PRODUCTION_ENVIRONMENT"
     echo "  Domain Name: $DOMAIN_NAME"
     echo "  Route53 Hosted Zone ID: $ROUTE53_HOSTED_ZONE_ID"
-    echo "  API Subdomain: $API_SUBDOMAIN"
-    echo "  Email Address: $EMAIL_ADDRESS"
+    echo "  API Subdomains: $SUBDOMAINS"
+    echo "  Email Address: $ACME_EMAIL"
     
     if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
@@ -106,7 +106,7 @@ create_terraform_state_backend() {
 
 # Function to create S3 bucket for SSL certificates
 create_certificate_bucket() {
-    CERTIFICATE_BUCKET="${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}"
+    CERTIFICATE_BUCKET="${APP_NAME}-certificate-store-${BUCKET_SUFFIX}"
     
     # Certificate bucket lifecycle configuration
     local certificate_lifecycle='{
@@ -126,13 +126,13 @@ create_certificate_bucket() {
     }'
     
     print_info "Creating certificate bucket..."
-    create_s3_bucket_with_lifecycle "$CERTIFICATE_BUCKET" "$AWS_REGION" "$AWS_PROFILE" "production" "${TF_APP_NAME}-certificate-store" "$certificate_lifecycle"
+    create_s3_bucket_with_lifecycle "$CERTIFICATE_BUCKET" "$AWS_REGION" "$AWS_PROFILE" "production" "${APP_NAME}-certificate-store" "$certificate_lifecycle"
     print_success "Certificate bucket created successfully."
 }
 
 # Function to create S3 bucket for CodeDeploy
 create_codedeploy_bucket() {
-    DEPLOYMENT_BUCKET="${TF_APP_NAME}-codedeploy-${BUCKET_SUFFIX}"
+    DEPLOYMENT_BUCKET="${APP_NAME}-codedeploy-${BUCKET_SUFFIX}"
     
     # CodeDeploy bucket lifecycle configuration
     local codedeploy_lifecycle='{
@@ -152,7 +152,7 @@ create_codedeploy_bucket() {
     }'
     
     print_info "Creating CodeDeploy bucket..."
-    create_s3_bucket_with_lifecycle "$DEPLOYMENT_BUCKET" "$AWS_REGION" "$AWS_PROFILE" "production" "${TF_APP_NAME}-codedeploy" "$codedeploy_lifecycle"
+    create_s3_bucket_with_lifecycle "$DEPLOYMENT_BUCKET" "$AWS_REGION" "$AWS_PROFILE" "production" "${APP_NAME}-codedeploy" "$codedeploy_lifecycle"
     print_success "CodeDeploy bucket created successfully."
 }
 
@@ -219,62 +219,78 @@ create_iam_role() {
     print_success "Policy attached to role"
 }
 
-# Function to create AWS Secrets Manager secret for application configuration
-# NOTE: Shouldn't be 1 secret, but store all secrets in 1 secret to save on cost
+#######################################################################
+# create_application_secrets
+# --------------------------
+# Build a JSON payload (static + existing secrets) and create or
+# update an AWS Secrets Manager secret named "<APP_NAME>-secrets".
+#######################################################################
 create_application_secrets() {
-    local secret_name="${TF_APP_NAME}-secrets"
-    
-    print_info "Creating AWS Secrets Manager secret for application configuration: $secret_name"
-    
-    # Check if secret already exists
-    if aws secretsmanager describe-secret --secret-id "$secret_name" --profile "$AWS_PROFILE" &> /dev/null; then
-        print_warning "Secret $secret_name already exists, updating with new values"
-        
-        # Create the secret JSON
-        local secret_json
-        secret_json=$(cat <<EOF
-{
-  "app_name": "$TF_APP_NAME",
-  "s3_bucket": "${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}",
-  "domain": "$DOMAIN_NAME",
-  "internal_domain": "internal.$DOMAIN_NAME",
-  "email": "$EMAIL_ADDRESS"
-}
-EOF
-)
-        
-        # Update the secret
-        aws secretsmanager update-secret \
-            --profile "$AWS_PROFILE" \
-            --secret-id "$secret_name" \
-            --secret-string "$secret_json"
-        
-        print_success "Secret $secret_name updated successfully"
-    else
-        print_info "Creating new secret: $secret_name"
-        
-        # Create the secret JSON
-        local secret_json
-        secret_json=$(cat <<EOF
-{
-  "app_name": "$TF_APP_NAME",
-  "s3_bucket": "${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}",
-  "domain": "$DOMAIN_NAME",
-  "internal_domain": "internal.$DOMAIN_NAME",
-  "email": "$EMAIL_ADDRESS"
-}
-EOF
-)
-        
-        # Create the secret
-        aws secretsmanager create-secret \
-            --profile "$AWS_PROFILE" \
-            --name "$secret_name" \
-            --description "Application configuration for $TF_APP_NAME" \
-            --secret-string "$secret_json"
-        
-        print_success "Secret $secret_name created successfully"
-    fi
+  local -r secret_name="${APP_NAME:?}-secrets"
+  local -r aws_opts=(--profile "${AWS_PROFILE:?}")
+  local secret_json
+
+  print_info "Creating/updating AWS secret: $secret_name"
+
+  # ------------------------------------------------------------------
+  # 1. Static JSON – safest to let jq assemble it for proper escaping
+  # ------------------------------------------------------------------
+  local static_json
+  local subdomain_json="{}"
+
+  # --------------------------------------------------------------
+  # 1a. Build flat SUBDOMAIN_<n> entries if SUBDOMAINS is provided
+  # --------------------------------------------------------------
+  if [[ -n "$SUBDOMAINS" ]]; then
+    print_info "Processing subdomains: $SUBDOMAINS"
+    # shellcheck disable=SC2016
+    subdomain_json=$(echo "$SUBDOMAINS" | tr ',' '\n' | jq -Rn --arg DOMAIN_NAME "$DOMAIN_NAME" '
+      # Read each line (sub-domain) into an array
+      [inputs] as $subs
+      # Reduce into {"SUBDOMAIN_NAME_1": "foo.example.com", ...}
+      | reduce range(0; $subs|length) as $i ({}; 
+          . + {("SUBDOMAIN_NAME_" + ($i + 1 | tostring)) : 
+               ($subs[$i] + ( $DOMAIN_NAME    # append ".<domain>" only if set
+                               | if length>0 then "." + . else "" end ))}
+        )
+    ')
+  fi
+
+  # ----------------------------------------------------------------
+  # 1b. Assemble static JSON with sub-domain pairs
+  # ----------------------------------------------------------------
+  secret_json=$(jq -n \
+      --arg APP_NAME "$APP_NAME" \
+      --arg CERTIFICATE_STORE "${APP_NAME}-certificate-store-${BUCKET_SUFFIX}" \
+      --arg ACME_EMAIL "$ACME_EMAIL" \
+      --arg DOMAIN_NAME "$DOMAIN_NAME" \
+      --argjson SUBDOMAIN_PAIRS "$subdomain_json" \
+      '{
+         APP_NAME:         $APP_NAME,
+         CERTIFICATE_STORE:$CERTIFICATE_STORE,
+         DOMAIN_NAME:      $DOMAIN_NAME,
+         ACME_EMAIL:       $ACME_EMAIL
+       } + $SUBDOMAIN_PAIRS')
+
+  # ------------------------------------------------------------------
+  # 2. Create or update the secret
+  # ------------------------------------------------------------------
+  if aws secretsmanager describe-secret --secret-id "$secret_name" "${aws_opts[@]}" &>/dev/null; then
+    print_warning "Secret exists – updating"
+    aws secretsmanager update-secret \
+        --secret-id "$secret_name" \
+        --secret-string "$secret_json" \
+        "${aws_opts[@]}"
+    print_success "Secret $secret_name updated ✔"
+  else
+    print_info "Secret not found – creating"
+    aws secretsmanager create-secret \
+        --name "$secret_name" \
+        --description "Application configuration for $APP_NAME" \
+        --secret-string "$secret_json" \
+        "${aws_opts[@]}"
+    print_success "Secret $secret_name created ✔"
+  fi
 }
 
 # Function to build and push certbot image to ECR
@@ -287,7 +303,7 @@ build_and_push_certbot_image() {
         docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     
     # Create ECR repository if it doesn't exist
-    local ecr_repo_name="${TF_APP_NAME}/certbot"
+    local ecr_repo_name="${APP_NAME}/certbot"
     local ecr_repo_uri="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ecr_repo_name}"
     
     print_info "Creating ECR repository: $ecr_repo_name"
@@ -334,6 +350,77 @@ build_and_push_certbot_image() {
     cd - > /dev/null
 }
 
+# Function to create EBS volume for Let's Encrypt certificates
+create_certbot_ebs_volume() {
+    print_info "Creating EBS volume for Let's Encrypt certificates..."
+    
+    local volume_name="${APP_NAME}-letsencrypt-persistent"
+    local availability_zone
+    
+    # Get availability zone from the region
+    availability_zone=$(aws ec2 describe-availability-zones \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --query 'AvailabilityZones[0].ZoneName' \
+        --output text)
+    
+    print_info "Using availability zone: $availability_zone"
+    
+    # Check if volume already exists
+    local existing_volume_id
+    existing_volume_id=$(aws ec2 describe-volumes \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --filters "Name=tag:Name,Values=$volume_name" \
+        --query 'Volumes[0].VolumeId' \
+        --output text 2>/dev/null)
+    
+    if [ "$existing_volume_id" != "None" ] && [ -n "$existing_volume_id" ]; then
+        print_warning "EBS volume already exists: $existing_volume_id"
+        print_info "Volume name: $volume_name"
+        print_info "Volume ID: $existing_volume_id"
+        return 0
+    fi
+    
+    # Create the EBS volume
+    print_info "Creating new EBS volume..."
+    local volume_id
+    volume_id=$(aws ec2 create-volume \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --size 1 \
+        --volume-type gp3 \
+        --encrypted \
+        --availability-zone "$availability_zone" \
+        --tag-specifications "ResourceType=volume,Tags=[{Key=Name,Value=$volume_name},{Key=Purpose,Value='Let\'s Encrypt certificates'},{Key=Environment,Value='production'},{Key=ManagedBy,Value='manual'}]" \
+        --query 'VolumeId' \
+        --output text)
+    
+    if [ $? -eq 0 ] && [ -n "$volume_id" ]; then
+        print_success "EBS volume created successfully"
+        print_info "Volume ID: $volume_id"
+        print_info "Volume name: $volume_name"
+        print_info "Size: 1 GB"
+        print_info "Type: gp3"
+        print_info "Encrypted: Yes"
+        print_info "Availability Zone: $availability_zone"
+        
+        # Wait for volume to be available
+        print_info "Waiting for volume to become available..."
+        aws ec2 wait volume-available \
+            --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" \
+            --volume-ids "$volume_id"
+        
+        print_success "EBS volume is ready for use"
+        print_warning "Note: This volume will need to be manually attached to your EC2 instance after infrastructure deployment"
+        print_info "The volume will be attached to the public instance at device /dev/sdf"
+    else
+        print_error "Failed to create EBS volume"
+        exit 1
+    fi
+}
+
 # Function to setup OIDC infrastructure
 setup_oidc_infrastructure() {
     print_info "Setting up OIDC infrastructure..."
@@ -344,13 +431,13 @@ setup_oidc_infrastructure() {
     PROCESSED_POLICY_FILE_PATH="$(pwd)/terraform-policy-processed.json"
     PROCESSED_TRUST_POLICY_FILE_PATH="$(pwd)/github-trust-policy-processed.json"
 
-    CERTIFICATE_BUCKET="${TF_APP_NAME}-certificate-store-${BUCKET_SUFFIX}"
-    DEPLOYMENT_BUCKET="${TF_APP_NAME}-codedeploy-${BUCKET_SUFFIX}"
+    CERTIFICATE_BUCKET="${APP_NAME}-certificate-store-${BUCKET_SUFFIX}"
+    DEPLOYMENT_BUCKET="${APP_NAME}-codedeploy-${BUCKET_SUFFIX}"
     
     print_info "Processing policy files with variable substitution..."
     
     sed \
-        -e "s|\${APP_NAME}|$TF_APP_NAME|g" \
+        -e "s|\${APP_NAME}|$APP_NAME|g" \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${TF_STATE_BUCKET}|$TF_STATE_BUCKET|g" \
         -e "s|\${CERTIFICATE_BUCKET}|$CERTIFICATE_BUCKET|g" \
@@ -376,19 +463,32 @@ setup_oidc_infrastructure() {
 setup_github_workflow() {
     print_info "Setting up GitHub secrets and environments..."
 
+    # Convert comma-separated subdomains to Terraform list format
+    # Terraform expects a JSON array like ["api", "admin", "portal"]
+    # but we accept comma-separated input like "api,admin,portal"
+    local subdomains_list
+    if [[ -n "$SUBDOMAINS" ]]; then
+        # Convert comma-separated string to JSON array format for Terraform
+        # Example: "api,admin,portal" -> ["api", "admin", "portal"]
+        subdomains_list=$(echo "$SUBDOMAINS" | tr ',' '\n' | jq -R . | jq -s .)
+        print_info "Converted subdomains to Terraform list format: $subdomains_list"
+    else
+        subdomains_list='[]'
+        print_warning "No subdomains provided, using empty list"
+    fi
+
     add_github_secrets "$GITHUB_REPO_FULL" \
         "AWS_ACCOUNT_ID:$AWS_ACCOUNT_ID" \
         "TF_STATE_BUCKET:$TF_STATE_BUCKET" \
-        "TF_APP_NAME:$TF_APP_NAME" \
-        "ECR_REPOSITORY_PREFIX:$TF_APP_NAME" \
-        "DOMAIN_NAME:$DOMAIN_NAME" \
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
-        "BUCKET_SUFFIX:$BUCKET_SUFFIX"
+        "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
+        "SUBDOMAINS:$subdomains_list"
     
     add_github_variables "$GITHUB_REPO_FULL" \
-        "AWS_DEFAULT_REGION:$AWS_REGION" \
-        "API_SUBDOMAIN:$API_SUBDOMAIN"
-    
+        "AWS_REGION:$AWS_REGION" \
+        "APP_NAME:$APP_NAME" \
+        "DOMAIN_NAME:$DOMAIN_NAME" \
+
     create_github_environments "$GITHUB_REPO_FULL" \
         "$STAGING_ENVIRONMENT" \
         "$PRODUCTION_ENVIRONMENT"
@@ -405,7 +505,7 @@ display_final_instructions() {
     print_info "Your setup is complete and ready to use!"
     
     # Calculate ECR repository information
-    local ecr_repo_name="${TF_APP_NAME}/certbot"
+    local ecr_repo_name="${APP_NAME}/certbot"
     local ecr_repo_uri="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ecr_repo_name}"
     
     echo "Your Terraform State Bucket:"
@@ -413,12 +513,15 @@ display_final_instructions() {
     echo "Your Terraform IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
     echo "Your Application Secrets Manager Secret:"
-    echo -e "${GREEN}   ${TF_APP_NAME}-secrets${NC}"
+    echo -e "${GREEN}   ${APP_NAME}-secrets${NC}"
     echo "Your ECR Certbot Repository:"
     echo -e "${GREEN}   $ecr_repo_uri${NC}"
+    echo "Your EBS Volume for Let's Encrypt:"
+    echo -e "${GREEN}   Volume Name: ${APP_NAME}-letsencrypt-persistent${NC}"
+    echo -e "${GREEN}   Device: /dev/sdf (will be attached to public instance)${NC}"
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
-    echo -e "${GREEN}   API Subdomain: $API_SUBDOMAIN${NC}"
+    echo -e "${GREEN}   API Subdomains: $SUBDOMAINS${NC}"
     echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
     
     print_info "You can now use the GitHub Actions workflows!"
@@ -507,6 +610,7 @@ main() {
     setup_oidc_infrastructure
     create_application_secrets
     build_and_push_certbot_image
+    create_certbot_ebs_volume
     setup_github_workflow
     
     display_final_instructions

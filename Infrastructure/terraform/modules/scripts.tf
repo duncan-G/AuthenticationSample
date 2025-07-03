@@ -101,6 +101,58 @@ resource "aws_ssm_document" "certificate_manager_setup" {
   }
 }
 
+
+
+# EBS Volume Setup SSM Document
+resource "aws_ssm_document" "ebs_volume_setup" {
+  count           = var.certbot_ebs_volume_id != "" ? 1 : 0
+  name            = "${var.app_name}-ebs-volume-setup"
+  document_type   = "Command"
+  document_format = "JSON"
+
+  content = jsonencode({
+    schemaVersion = "2.2"
+    description   = "Setup EBS volume for Let's Encrypt certificates and certbot directories"
+    mainSteps = [{
+      name   = "SetupEBSVolume"
+      action = "aws:runShellScript"
+      inputs = {
+        runCommand = [
+          # Setup certbot directories first
+          "mkdir -p /var/log/certificate-manager",
+          "chown ec2-user:ec2-user /var/log/certificate-manager",
+          "chmod 755 /var/log/certificate-manager",
+          # Create log files with proper permissions
+          "touch /var/log/certificate-manager/certificate-manager.log",
+          "touch /var/log/certificate-manager/ebs-volume-setup.log",
+          "chown ec2-user:ec2-user /var/log/certificate-manager/*.log",
+          "chmod 644 /var/log/certificate-manager/*.log",
+          # Create certbot directories (required by renew-certificate.sh)
+          "mkdir -p /var/lib/letsencrypt",
+          "mkdir -p /var/log/letsencrypt",
+          "chown ec2-user:ec2-user /var/lib/letsencrypt /var/log/letsencrypt",
+          "chmod 755 /var/lib/letsencrypt /var/log/letsencrypt",
+          # Write the EBS volume setup script to disk
+          "cat <<'EOF' > /tmp/setup-ebs-volume.sh",
+          "${indent(2, file("${path.module}/../../certbot/setup-ebs-volume.sh"))}",
+          "EOF",
+          "chmod +x /tmp/setup-ebs-volume.sh",
+          # Execute the EBS volume setup script
+          "/tmp/setup-ebs-volume.sh",
+          # Clean up the temporary script
+          "rm -f /tmp/setup-ebs-volume.sh"
+        ]
+        timeoutSeconds = "300" # 5 minutes timeout
+      }
+    }]
+  })
+
+  tags = {
+    Name        = "${var.app_name}-ebs-volume-setup"
+    Environment = var.environment
+  }
+}
+
 # Docker Worker Setup SSM Document
 resource "aws_ssm_document" "docker_worker_setup" {
   name            = "${var.app_name}-docker-worker-setup"
@@ -229,7 +281,7 @@ resource "aws_ssm_association" "docker_manager_setup" {
   depends_on = [aws_ssm_association.cloudwatch_agent_manager, aws_ssm_parameter.docker_swarm_worker_token, aws_ssm_parameter.docker_swarm_manager_ip, aws_ssm_parameter.docker_swarm_network_name]
 }
 
-# Then: Install certificate manager (depends on Docker manager setup)
+# Then: Install certificate manager (depends on Docker manager setup and Docker worker setup)
 resource "aws_ssm_association" "certificate_manager_setup" {
   name = aws_ssm_document.certificate_manager_setup.name
 
@@ -238,7 +290,7 @@ resource "aws_ssm_association" "certificate_manager_setup" {
     values = [aws_instance.private.id]
   }
 
-  depends_on = [aws_ssm_association.docker_manager_setup]
+  depends_on = [aws_ssm_association.docker_manager_setup, aws_ssm_association.docker_worker_setup]
 }
 
 # SSM Associations for Worker Instance
@@ -264,6 +316,21 @@ resource "aws_ssm_association" "docker_worker_setup" {
   }
 
   depends_on = [aws_ssm_association.cloudwatch_agent_worker, aws_ssm_association.docker_manager_setup]
+}
+
+
+
+# Then: Setup EBS volume and certbot directories (depends on Docker worker setup and EBS volume attachment)
+resource "aws_ssm_association" "ebs_volume_setup" {
+  count = var.certbot_ebs_volume_id != "" ? 1 : 0
+  name  = aws_ssm_document.ebs_volume_setup[0].name
+
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.public.id]
+  }
+
+  depends_on = [aws_ssm_association.docker_worker_setup, aws_volume_attachment.certbot_ebs_attachment]
 }
 
 # SSM Parameters for Docker Swarm Configuration

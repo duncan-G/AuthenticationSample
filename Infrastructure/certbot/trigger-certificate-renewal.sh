@@ -2,212 +2,256 @@
 ###############################################################################
 # trigger-certificate-renewal.sh
 #
-# • Starts a one-shot Swarm service that renews certificates and pushes them
-#   to S3 (the container's ENTRYPOINT must exit 0 on success).
-# • Downloads the fresh certs, turns them into Swarm secrets / configs, and
-#   hot-swaps those into a consumer service.
+# One‑shot certificate renewal for Docker Swarm stacks.
 #
-# ---------------------------------------------------------------------------
-# Environment variables:
-#   AWS_SECRET_NAME            Name of the secret in AWS Secrets Manager (REQUIRED)
-#                              The secret must contain: app_name, s3_bucket, domain, 
-#                              internal_domain, email
+# 1.  Starts a transient Swarm service that renews ACME certificates and uploads
+#     them to S3. The service *must* exit 0 on success.
+# 2.  Downloads the artefacts locally, stores them as Swarm secrets/configs, and
+#     hot‑swaps them into a target service.
+# 3.  The renewal service generates a new certificate password for each renewal
+#     and stores it in AWS Secrets Manager.
 #
-#   CERT_PREFIX                Folder prefix in the bucket (default: cert)
-#   WILDCARD                   "true" → request *.DOMAIN in addition (default: false)
-#   RENEWAL_THRESHOLD_DAYS     Renew if cert expires within N days (default: 30)
+# Security model ▸ All sensitive values (AWS role, bucket, e‑mail, domains …)
+# are distributed as Swarm *secrets*. Non‑sensitive runtime knobs stay in the
+# environment.
 #
-#   DOCKER_IMAGE_NAME / TAG    Image that performs the renewal
-#   CONSUMER_SERVICE           Service that needs the secrets
+# ── Prerequisites ────────────────────────────────────────────────────────────
+# • bash 4+, docker ≥20.10, aws‑cli v2, jq
+# ─────────────────────────────────────────────────────────────────────────────
 #
-#   *_SECRET_TARGET            Mount points inside CONSUMER_SERVICE
-#
-#   WORKER_CONSTRAINT          Node label to pin the one-shot task
-#
-#   LOG_DIR                    Directory for log files (default: /var/log)
-#   LOG_FILE                   Log file name (default: /var/log/certificate-manager/certificate-renewal.log)
-#
-# ---------------------------------------------------------------------------
-# Requires: docker, aws-cli
+# Required AWS Secrets Manager entry (JSON):
+# {
+#   "APP_NAME"              : "myapp",
+#   "CERTIFICATE_STORE"     : "my‑bucket",
+#   "DOMAIN_NAME"           : "example.com",
+#   "ACME_EMAIL"            : "admin@example.com",
+#   "CERTIFICATE_PASSWORD"  : "password",
+#   "SUBDOMAIN_NAME_1"      : "api.example.com",
+#   "SUBDOMAIN_NAME_2"      : "admin.example.com"
+# }
 ###############################################################################
 
 set -Eeuo pipefail
 shopt -s inherit_errexit
 
-# ── Logging configuration ────────────────────────────────────────────────────
-# Log directory for CloudWatch integration
+# ── Globals & defaults ───────────────────────────────────────────────────────
 readonly LOG_DIR="${LOG_DIR:-/var/log/certificate-manager}"
-readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/trigger-renewal.log}"
-
-# ── Logging helpers ──────────────────────────────────────────────────────────
-timestamp()  { date '+%Y-%m-%d %H:%M:%S'; }
-log() { printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2; }
-fatal()      { log "ERROR: $*"; exit 1; }
-trap 'fatal "Line $LINENO exited with status $?"' ERR
-
-# ── AWS Secrets Manager integration ──────────────────────────────────────────
-readonly AWS_SECRET_NAME="${AWS_SECRET_NAME}"
-
-fetch_secrets_from_aws() {
-  log "🔐 Fetching configuration from AWS Secrets Manager: $AWS_SECRET_NAME"
-  
-  # Check if AWS CLI is available
-  command -v aws &>/dev/null || fatal "AWS CLI not found"
-  
-  # Fetch the secret
-  local secret_json
-  local aws_error
-  secret_json=$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME" --query SecretString --output text 2>&1) || {
-    aws_error="$secret_json"
-    fatal "Failed to fetch secret '$AWS_SECRET_NAME' from AWS Secrets Manager: $aws_error"
-  }
-  
-  # Parse JSON and export variables
-  # Expected JSON structure:
-  # {
-  #   "app_name": "myapp",
-  #   "s3_bucket": "my-bucket",
-  #   "domain": "example.com", 
-  #   "internal_domain": "internal.example.com",
-  #   "email": "admin@example.com"
-  # }
-  
-  # Extract values using jq
-  export TF_APP_NAME="${TF_APP_NAME:-$(echo "$secret_json" | jq -r '.app_name // empty')}"
-  export S3_BUCKET="${S3_BUCKET:-$(echo "$secret_json" | jq -r '.s3_bucket // empty')}"
-  export DOMAIN="${DOMAIN:-$(echo "$secret_json" | jq -r '.domain // empty')}"
-  export INTERNAL_DOMAIN="${INTERNAL_DOMAIN:-$(echo "$secret_json" | jq -r '.internal_domain // empty')}"
-  export EMAIL="${EMAIL:-$(echo "$secret_json" | jq -r '.email // empty')}"
-  
-  log "✅ Configuration loaded from AWS Secrets Manager"
-}
-
-# ── Configuration ───────────────────────────────────────────────────────────
-# Fetch secrets from AWS - script will terminate if this fails
-fetch_secrets_from_aws
-
-# Critical configuration from AWS Secrets Manager (no fallbacks)
-# Validate that all required variables are non-empty after fetching from Secrets Manager
-readonly TF_APP_NAME="${TF_APP_NAME:?TF_APP_NAME not set in secret or is empty}"
-readonly S3_BUCKET="${S3_BUCKET:?S3_BUCKET not set in secret or is empty}"
-readonly DOMAIN="${DOMAIN:?DOMAIN not set in secret or is empty}"
-readonly INTERNAL_DOMAIN="${INTERNAL_DOMAIN:?INTERNAL_DOMAIN not set in secret or is empty}"
-readonly EMAIL="${EMAIL:?EMAIL not set in secret or is empty}"
-
-# Optional configuration with defaults
-readonly CERT_PREFIX="${CERT_PREFIX:-cert}"
-readonly WILDCARD="${WILDCARD:-false}"
-readonly RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-30}"
-
-# Construct AWS role name dynamically based on app name
-readonly AWS_ROLE_NAME="${TF_APP_NAME}-public-instance-role"
-
-readonly RENEWAL_IMAGE="${TF_APP_NAME}/certbot:latest"
-readonly CONSUMER_SERVICE="${CONSUMER_SERVICE:-envoy}"
-
-readonly PUBLIC_CERT_SECRET_TARGET="${PUBLIC_CERT_SECRET_TARGET:-cert.pem}"
-readonly PUBLIC_KEY_SECRET_TARGET="${PUBLIC_KEY_SECRET_TARGET:-cert.key}"
-readonly INTERNAL_CERT_SECRET_TARGET="${INTERNAL_CERT_SECRET_TARGET:-internal-cert.pem}"
-readonly INTERNAL_KEY_SECRET_TARGET="${INTERNAL_KEY_SECRET_TARGET:-internal-key.pem}"
-readonly INTERNAL_PFX_SECRET_TARGET="${INTERNAL_PFX_SECRET_TARGET:-internal-cert.pfx}"
-
+readonly LOG_FILE="${LOG_FILE:-${LOG_DIR}/trigger-renewal.log}"
+readonly LETSENCRYPT_DIR="${LETSENCRYPT_DIR:-/etc/letsencrypt}"
+readonly LETSENCRYPT_LOG_DIR="${LETSENCRYPT_LOG_DIR:-/var/log/letsencrypt}"
+readonly STAGING_DIR="$(mktemp -d -t cert‑renew.XXXXXXXX)"
+readonly RUN_ID="$(date +%Y%m%d%H%M%S)"
+readonly SERVICE_NAME="cert-renew-${RUN_ID}"
+readonly TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-900}"   # 15 min safety net
 readonly WORKER_CONSTRAINT="${WORKER_CONSTRAINT:-node.role==worker}"
-readonly STAGING_DIR="/tmp/certificate-renewal"
 
-# ── Derived names & paths ────────────────────────────────────────────────────
-RUN_ID="$(date +%Y%m%d%H%M%S)"
-SERVICE_NAME="cert-renewal-${RUN_ID}"
+# Will be populated later and cleaned up automatically
+SECRETS_TO_CLEANUP=()
 
-declare -A FILES=(
-  # local-name                        remote-path-suffix
-  [public-cert.pem]   "public/${RUN_ID}/cert.pem"
-  [public-key.pem]    "public/${RUN_ID}/key.pem"
-  [internal-cert.pem] "internal/${RUN_ID}/cert.pem"
-  [internal-key.pem]  "internal/${RUN_ID}/key.pem"
-  [internal-cert.pfx] "internal/${RUN_ID}/cert.pfx"
-)
+###############################################################################
+# Logging helpers
+###############################################################################
+_ts()      { date '+%Y-%m-%d %H:%M:%S'; }
+log()      { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
+fatal()    { log "\e[31mERROR:\e[0m $*"; exit 1; }
 
-mkdir -p "$STAGING_DIR"
+###############################################################################
+# Cleanup – always runs (EXIT trap)
+###############################################################################
+cleanup() {
+  local rc=$?
+  log "🧺 Cleaning up (exit status: $rc)"
+  [[ -n "${SERVICE_NAME:-}" ]] && docker service rm -f "$SERVICE_NAME" >/dev/null 2>&1 || true
+  if ((${#SECRETS_TO_CLEANUP[@]})); then
+    docker secret rm "${SECRETS_TO_CLEANUP[@]}" >/dev/null 2>&1 || true
+  fi
+  rm -rf "$STAGING_DIR"
+}
+trap cleanup EXIT
+trap 'fatal "command failed at line $LINENO"' ERR
 
-# ── Validation ──────────────────────────────────────────────────────────────
-for bin in docker aws; do
+###############################################################################
+# Binary checks
+###############################################################################
+for bin in docker aws jq; do
   command -v "$bin" &>/dev/null || fatal "Required binary not found: $bin"
 done
 
-# ── 1. Launch renewal task ──────────────────────────────────────────────────
-log "▶️  Launching renewal service $SERVICE_NAME"
-docker service create \
+###############################################################################
+# Configuration – pulled from AWS Secrets Manager
+###############################################################################
+log "🔐 Fetching secret \"$AWS_SECRET_NAME\" from AWS Secrets Manager"
+
+secret_json="$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME" \
+               --query SecretString --output text)" || \
+  fatal "Failed to retrieve secret \"$AWS_SECRET_NAME\""
+
+APP_NAME="${APP_NAME:-$(jq -r '.APP_NAME' <<<"$secret_json")}"
+CERTIFICATE_STORE="${CERTIFICATE_STORE:-$(jq -r '.CERTIFICATE_STORE' <<<"$secret_json")}"
+DOMAIN_NAME="${DOMAIN_NAME:-$(jq -r '.DOMAIN_NAME' <<<"$secret_json")}"
+# Extract subdomain names from SUBDOMAIN_NAME_1, SUBDOMAIN_NAME_2, etc.
+SUBDOMAIN_NAMES="$(
+  jq -r 'to_entries | map(select(.key | startswith("SUBDOMAIN_NAME_"))) | sort_by(.key) | .[].value' <<<"$secret_json" \
+  | awk '{$1=$1};1' | paste -sd, -
+)"
+EMAIL="${EMAIL:-$(jq -r '.EMAIL' <<<"$secret_json")}"
+
+for v in APP_NAME CERTIFICATE_STORE DOMAIN_NAME EMAIL; do
+  [[ -z "${!v}" || ${!v} == "null" ]] && fatal "\"$v\" missing in secret or env"
+  readonly "$v"
+done
+
+readonly SUBDOMAIN_NAMES
+
+RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-10}"
+AWS_ROLE_NAME="${AWS_ROLE_NAME:-${APP_NAME}-public-instance-role}"
+RENEWAL_IMAGE="${RENEWAL_IMAGE:-${APP_NAME}/certbot:latest}"
+
+# Services by domain mapping (JSON format: {"domain1": ["service1", "service2"], "domain2": ["service3"]})
+SERVICES_BY_DOMAIN_JSON="${SERVICES_BY_DOMAIN:-}"
+
+# Parse services by domain from JSON or create empty mapping
+if [[ -n "$SERVICES_BY_DOMAIN_JSON" ]]; then
+  # Validate JSON format
+  if ! jq empty <<< "$SERVICES_BY_DOMAIN_JSON" 2>/dev/null; then
+    fatal "Invalid JSON format in SERVICES_BY_DOMAIN: $SERVICES_BY_DOMAIN_JSON"
+  fi
+  log "📋 Services by domain configuration: $SERVICES_BY_DOMAIN_JSON"
+else
+  SERVICES_BY_DOMAIN_JSON="{}"
+  log "ℹ️  No services by domain configuration provided"
+fi
+
+readonly CERT_OUTPUT_DIR="${CERT_OUTPUT_DIR:-/certs}"
+readonly CERT_SECRET_TARGET="${CERT_SECRET_TARGET:-cert.pem}"
+readonly KEY_SECRET_TARGET="${KEY_SECRET_TARGET:-cert.key}"
+readonly FULLCHAIN_SECRET_TARGET="${FULLCHAIN_SECRET_TARGET:-fullchain.pem}"
+readonly PFX_SECRET_TARGET="${PFX_SECRET_TARGET:-cert.pfx}"
+
+###############################################################################
+# Create transient Docker secrets for configuration
+###############################################################################
+log "🔐 Creating runtime Docker secrets"
+create_secret() {
+  local name=$1 value=$2
+  local id
+  id="$(printf '%s' "$value" | docker secret create "$name" -)" || fatal "Unable to create secret $name"
+  SECRETS_TO_CLEANUP+=("$name")
+  printf '%s' "$id"
+}
+
+create_secret aws_role_name_${RUN_ID}   "$AWS_ROLE_NAME"
+create_secret certificate_store_${RUN_ID}       "$CERTIFICATE_STORE"
+create_secret acme_email_${RUN_ID}      "$EMAIL"
+create_secret domain_name_${RUN_ID}     "$DOMAIN_NAME"
+create_secret subdomain_names_${RUN_ID} "$SUBDOMAIN_NAMES"
+log "✅ Runtime secrets ready"
+
+###############################################################################
+# Launch renewal task
+###############################################################################
+log "▶️  Launching renewal service: $SERVICE_NAME"
+service_id="$(docker service create \
+  --quiet \
   --name "$SERVICE_NAME" \
   --constraint "$WORKER_CONSTRAINT" \
   --restart-condition none \
   --stop-grace-period 5m \
   --mount type=bind,source="$LOG_DIR",target="$LOG_DIR" \
+  --mount type=bind,source="$LETSENCRYPT_DIR",target="$LETSENCRYPT_DIR" \
+  --mount type=bind,source="$LETSENCRYPT_LOG_DIR",target="$LETSENCRYPT_LOG_DIR" \
   --env RUN_ID="$RUN_ID" \
-  --env S3_BUCKET="$S3_BUCKET" \
-  --env CERT_PREFIX="$CERT_PREFIX" \
-  --env DOMAIN="$DOMAIN" \
-  --env INTERNAL_DOMAIN="$INTERNAL_DOMAIN" \
-  --env EMAIL="$EMAIL" \
-  --env AWS_ROLE_NAME="${AWS_ROLE_NAME:-}" \
-  --env WILDCARD="$WILDCARD" \
+  --env CERT_PREFIX="$APP_NAME" \
   --env RENEWAL_THRESHOLD_DAYS="$RENEWAL_THRESHOLD_DAYS" \
-  --env CERT_OUTPUT_DIR="${CERT_OUTPUT_DIR:-/certs}" \
-  --env LOG_DIR="$LOG_DIR" \
-  --env LOG_FILE="$LOG_FILE" \
-  "$RENEWAL_IMAGE" >/dev/null
+  --secret source=aws_role_name_${RUN_ID},target=AWS_ROLE_NAME \
+  --secret source=certificate_store_${RUN_ID},target=CERTIFICATE_STORE \
+  --secret source=acme_email_${RUN_ID},target=ACME_EMAIL \
+  --secret source=subdomain_names_${RUN_ID},target=DOMAINS_NAMES \
+  --env AWS_SECRET_NAME="$AWS_SECRET_NAME" \
+  "$RENEWAL_IMAGE")" || fatal "Unable to create service"
 
-# ── 2. Wait for completion ──────────────────────────────────────────────────
-log "⏳ Waiting for renewal task to finish…"
-until docker service ps --filter desired-state=running "$SERVICE_NAME" | grep -qv Running; do
+###############################################################################
+# Wait for the task to finish – with timeout
+###############################################################################
+log "⏳ Waiting for completion (timeout ${TIMEOUT_SECONDS}s)"
+end=$((SECONDS+TIMEOUT_SECONDS))
+while true; do
+  state="$(docker service ps --no-trunc --filter desired-state=shutdown --format '{{.CurrentState}}' "$service_id" | head -n1)" || true
+  case "$state" in
+    *\ running)   ;; # still working
+    *\ "Complete") break ;;
+    *\ "Failed"*)  docker service logs "$service_id" || true; fatal "Renewal task failed" ;;
+    *)             ;; # not started yet
+  esac
+  (( SECONDS < end )) || fatal "Timeout waiting for renewal task"
   sleep 3
 done
 
-EXIT_CODE="$(docker service ps --no-trunc "$SERVICE_NAME" \
-            --filter desired-state=shutdown --format '{{.ExitCode}}')"
-(( EXIT_CODE == 0 )) || fatal "Renewal failed (exit $EXIT_CODE)"
+#------------------------------------------------------------------------------
+# Download artefacts & publish secrets
+#------------------------------------------------------------------------------
+log "📥 Pulling certificates into $STAGING_DIR …"
 
-# ── 3. Download artefacts ───────────────────────────────────────────────────
-log "📥 Downloading certificates from S3"
-for fname in "${!FILES[@]}"; do
-  remote="s3://${S3_BUCKET}/${CERT_PREFIX}/${FILES[$fname]}"
-  aws s3 cp "$remote" "${STAGING_DIR}/${fname}"
+# Download per‑domain artefacts
+for domain in "${DOMAIN_ARRAY[@]}"; do
+  s3_prefix="$APP_NAME/$RUN_ID/$domain/"
+  dest="$STAGING_DIR/$domain"
+  mkdir -p "$dest"
+  log "   ↳ $domain"
+  if ! aws s3 cp "s3://$CERTIFICATE_STORE/$s3_prefix" "$dest/" --recursive --only-show-errors; then
+    fatal "Download failed for $domain" 
+  fi
+  [[ -s "$dest/cert.pem" ]] || log "⚠️  No cert.pem found for $domain (may be new sub‑domain?)"
 done
 
-# ── 4. Create Swarm secrets ─────────────────────────────────────────────────
-log "🔐 Creating Swarm secrets"
-declare -A SECRETS=(
-  [public-cert.pem]="public-cert-${RUN_ID}"
-  [public-key.pem]="public-key-${RUN_ID}"
-  [internal-cert.pem]="internal-cert-${RUN_ID}"
-  [internal-key.pem]="internal-key-${RUN_ID}"
-  [internal-cert.pfx]="internal-pfx-${RUN_ID}"
-)
-for fname in "${!SECRETS[@]}"; do
-  docker secret create "${SECRETS[$fname]}" "${STAGING_DIR}/${fname}" >/dev/null
+# Flatten file‑tree & create secrets
+log "🔐 Publishing Swarm secrets …"
+declare -A NEW_SECRETS=()
+for domain in "${DOMAIN_ARRAY[@]}"; do
+  src="$STAGING_DIR/$domain"
+  [[ -d "$src" ]] || continue
+  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+    [[ -f "$src/$f" ]] || continue
+    flat="${domain//./-}-$f"        # dots → dashes (Swarm secret name safe)
+    cp -p "$src/$f" "$STAGING_DIR/$flat"
+    secret_name="$flat-$RUN_ID"
+    docker secret create "$secret_name" "$STAGING_DIR/$flat" >/dev/null || fatal "Cannot create secret $secret_name"
+    NEW_SECRETS["$domain/$f"]="$secret_name"
+    SECRETS_TO_CLEANUP+=("$secret_name")
+  done
 done
+log "   → ${#NEW_SECRETS[@]} new secrets ready."
 
-# ── 5. Hot-swap secrets in consumer service ─────────────────────────────────
-log "♻️  Updating secrets in $CONSUMER_SERVICE"
-docker service update \
-  --secret-rm "$PUBLIC_CERT_SECRET_TARGET" \
-  --secret-rm "$PUBLIC_KEY_SECRET_TARGET" \
-  --secret-rm "$INTERNAL_CERT_SECRET_TARGET" \
-  --secret-rm "$INTERNAL_KEY_SECRET_TARGET" \
-  --secret-rm "$INTERNAL_PFX_SECRET_TARGET" \
-  --secret-add source="${SECRETS[public-cert.pem]}",target="$PUBLIC_CERT_SECRET_TARGET" \
-  --secret-add source="${SECRETS[public-key.pem]}",target="$PUBLIC_KEY_SECRET_TARGET" \
-  --secret-add source="${SECRETS[internal-cert.pem]}",target="$INTERNAL_CERT_SECRET_TARGET" \
-  --secret-add source="${SECRETS[internal-key.pem]}",target="$INTERNAL_KEY_SECRET_TARGET" \
-  --secret-add source="${SECRETS[internal-cert.pfx]}",target="$INTERNAL_PFX_SECRET_TARGET" \
-  "$CONSUMER_SERVICE"
+#------------------------------------------------------------------------------
+# Hot‑swap secrets into services
+#------------------------------------------------------------------------------
+if [[ -n "${SERVICES_BY_DOMAIN:-}" && "$SERVICES_BY_DOMAIN" != "{}" ]]; then
+  log "🔄 Rotating secrets in target services …"
+  jq -e empty <<<"$SERVICES_BY_DOMAIN" || fatal "SERVICES_BY_DOMAIN is not valid JSON."
+  while IFS= read -r domain; do
+    mapfile -t services < <(jq -r --arg d "$domain" '.[$d][]' <<< "$SERVICES_BY_DOMAIN")
+    ((${#services[@]})) || continue
+    for svc in "${services[@]}"; do
+      log "   ↻ $svc ← $domain"
+      args=(docker service update --quiet
+            --secret-rm cert.pem
+            --secret-rm privkey.pem
+            --secret-rm fullchain.pem
+            --secret-rm cert.pfx)
+      for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+        sec="${NEW_SECRETS[$domain/$f]:-}"
+        [[ -n "$sec" ]] && args+=(--secret-add "source=$sec,target=$f")
+      done
+      args+=("$svc")
+      "${args[@]}" >/dev/null || fatal "Failed to update $svc"
+    done
+  done < <(jq -r 'keys[]' <<< "$SERVICES_BY_DOMAIN")
+else
+  log "ℹ️  No SERVICES_BY_DOMAIN mapping provided — skipping service updates."
+fi
 
-# ── 6. Cleanup ──────────────────────────────────────────────────────────────
-log "🧹 Cleaning up"
-docker service rm "$SERVICE_NAME" >/dev/null
-rm -f "$STAGING_DIR"/*
-
-log "🎉 Certificates updated:"
-printf '   • %s → %s\n' \
-  "Public"   "${SECRETS[public-cert.pem]}, ${SECRETS[public-key.pem]}" \
-  "Internal" "${SECRETS[internal-cert.pem]}, ${SECRETS[internal-key.pem]}, ${SECRETS[internal-cert.pfx]}"
-log "   All secrets now available to $CONSUMER_SERVICE"
+#------------------------------------------------------------------------------
+# Report
+#------------------------------------------------------------------------------
+log "🎉 Certificate rotation complete (domains: ${DOMAIN_ARRAY[*]})"
+exit 0

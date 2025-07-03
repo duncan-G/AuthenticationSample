@@ -18,10 +18,12 @@ resource "aws_route53_record" "main_domain" {
   records = [aws_instance.public.public_ip]
 }
 
-# A record for the API subdomain pointing to the public instance
-resource "aws_route53_record" "api_subdomain" {
+# A records for each subdomain pointing to the public instance
+resource "aws_route53_record" "subdomains" {
+  for_each = toset(var.subdomains)
+
   zone_id = local.hosted_zone_id
-  name    = "${var.api_subdomain}.${var.domain_name}"
+  name    = "${each.value}.${var.domain_name}"
   type    = "A"
   ttl     = "300"
 
@@ -65,7 +67,7 @@ output "main_domain_url" {
   value       = "https://${var.domain_name}"
 }
 
-output "api_domain_url" {
-  description = "API subdomain URL"
-  value       = "https://${var.api_subdomain}.${var.domain_name}"
+output "subdomain_urls" {
+  description = "Subdomain URLs"
+  value       = [for subdomain in var.subdomains : "https://${subdomain}.${var.domain_name}"]
 } 

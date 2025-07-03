@@ -39,6 +39,13 @@
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
+            "file_path": "/var/log/certificate-manager/ebs-volume-setup.log",
+            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
+            "log_stream_name": "{instance_id}-ebs-setup",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
             "file_path": "/tmp/docker-manager-setup.status",
             "log_group_name": "/aws/ec2/${app_name}-docker-manager",
             "log_stream_name": "{instance_id}-status",

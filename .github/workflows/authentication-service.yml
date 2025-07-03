@@ -41,5 +41,5 @@ jobs:
         environment: ${{ github.event.inputs.environment || 'staging' }}
       secrets:
         AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        ECR_REPOSITORY_PREFIX: ${{ secrets.ECR_REPOSITORY_PREFIX }}
+        ECR_REPOSITORY_PREFIX: ${{ vars.APP_NAME }}
         DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }} 

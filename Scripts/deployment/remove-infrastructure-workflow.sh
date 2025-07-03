@@ -35,6 +35,7 @@ get_user_input() {
     print_warning "S3 Bucket: CodeDeploy deployment bucket (manual deletion required)"
     print_warning "S3 Bucket: Certificate store bucket (manual deletion required)"
     print_warning "ECR Repository: Certbot repository (manual deletion required)"
+    print_warning "EBS Volume: Let's Encrypt certificates volume (manual deletion required)"
     print_warning "Github Secrets, Variables and Environments: (manual deletion required)"
     
     if ! prompt_confirmation "Are you sure you want to delete these resources?" "y/N"; then
@@ -187,6 +188,13 @@ display_state_bucket_cleanup_instructions() {
     echo -e "${YELLOW}# Delete certbot ECR repository:${NC}"
     echo -e "${GREEN}aws ecr delete-repository --repository-name <app-name>/certbot --force --profile $AWS_PROFILE${NC}"
     print_warning "⚠️  WARNING: This will permanently delete the certbot Docker images!"
+    
+    print_info "To manually delete the EBS volume for Let's Encrypt certificates, run:"
+    echo -e "${YELLOW}# Find and delete EBS volume:${NC}"
+    echo -e "${GREEN}aws ec2 describe-volumes --filters \"Name=tag:Name,Values=<app-name>-letsencrypt-persistent\" --query 'Volumes[0].VolumeId' --output text --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws ec2 delete-volume --volume-id <volume-id> --profile $AWS_PROFILE${NC}"
+    print_warning "⚠️  WARNING: This will permanently delete all Let's Encrypt certificates!"
+    print_warning "⚠️  Make sure to detach the volume from any instances first!"
 }
 
 # Function to display final summary
@@ -203,13 +211,14 @@ display_final_summary() {
     echo "  ℹ️  CodeDeploy bucket: Managed by Terraform"
     echo "  ℹ️  ECR Repository: Manual deletion required (see instructions above)"
     echo "     - Certbot repository"
+    echo "  ℹ️  EBS Volume: Manual deletion required (see instructions above)"
+    echo "     - Let's Encrypt certificates volume"
     
     print_info "Additional cleanup steps:"
     echo "1. Remove GitHub repository secrets:"
-    echo "   AWS_ACCOUNT_ID, TF_STATE_BUCKET, TF_APP_NAME, GITHUB_REPOSITORY,"
-    echo "   ECR_REPOSITORY_PREFIX"
+    echo "   AWS_ACCOUNT_ID, TF_STATE_BUCKET, APP_NAME, GITHUB_REPOSITORY"
     echo "2. Remove GitHub repository variables:"
-    echo "   AWS_DEFAULT_REGION"
+    echo "   AWS_REGION"
     echo "3. Remove GitHub environments:"
     echo "   terraform-staging, terraform-production,"
     echo "   staging, production"

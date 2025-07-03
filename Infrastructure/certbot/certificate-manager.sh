@@ -1,113 +1,104 @@
 #!/usr/bin/env bash
 ###############################################################################
-# certificate-manager.sh
+# certificate-manager.sh – Orchestrates cert‑renewal cycles
 #
-# Fires `trigger-certificate-renewal.sh` either once or at a fixed interval
-# (daemon mode).  Logs go to STDERR *and* the configured log file (default: /var/log/certificate-manager/certificate-manager.log).
+# • Runs `trigger-certificate-renewal.sh` either once or on a fixed cadence.
+# • Logs to STDERR *and* $LOG_FILE (default: /var/log/certificate-manager/…).
+# • Gracefully handles errors, exits, and SIGTERM (for systemd / Swarm tasks).
+# • Idempotent: daemon loop refuses to overlap runs via `flock`.
 #
-# ---------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Usage:
-#   certificate-manager.sh           # run once
-#   certificate-manager.sh --daemon  # run forever (default interval 24 h)
-#   certificate-manager.sh --help
+#   certificate-manager.sh            # run once
+#   certificate-manager.sh -d         # run forever (24 h default)
+#   certificate-manager.sh -d -i 3600 # run hourly
 #
 # Environment overrides:
-#   CHECK_INTERVAL  Seconds between runs in daemon mode   (default: 86400 s)
-#   LOG_FILE        Log file path                         (default: see below)
-#   TRIGGER_SCRIPT  Path to renewal script                (default: sibling)
+#   CHECK_INTERVAL   Seconds between runs in daemon mode   (default: 86400)
+#   LOG_DIR          Directory for log files               (default: /var/log/certificate-manager)
+#   LOG_FILE         Full log file path                    (default: $LOG_DIR/certificate-manager.log)
+#   TRIGGER_SCRIPT   Path to renewal script                (default: sibling script)
 ###############################################################################
-
 set -Eeuo pipefail
+shopt -s inherit_errexit nullglob
 
-# ── Defaults ────────────────────────────────────────────────────────────────
-readonly LOG_FILE="${LOG_FILE:-/var/log/certificate-manager/certificate-manager.log}"
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly TRIGGER_SCRIPT="${TRIGGER_SCRIPT:-${SCRIPT_DIR}/trigger-certificate-renewal.sh}"
-readonly CHECK_INTERVAL="${CHECK_INTERVAL:-86400}"   # 24 h
-readonly REQUIRED_BINS=(docker)
+# ── Defaults ------------------------------------------------------------------
+LOG_DIR="${LOG_DIR:-/var/log/certificate-manager}"
+LOG_FILE="${LOG_FILE:-$LOG_DIR/certificate-manager.log}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+TRIGGER_SCRIPT="${TRIGGER_SCRIPT:-$SCRIPT_DIR/trigger-certificate-renewal.sh}"
+CHECK_INTERVAL="${CHECK_INTERVAL:-86400}"   # 24 h
+LOCK_FILE="/tmp/certificate-manager.lock"
 
-# ── Logging helpers ─────────────────────────────────────────────────────────
-timestamp() { date "+%Y-%m-%d %H:%M:%S"; }
+REQUIRED_BINS=(docker flock)
 
-log() { printf '[ %s ] %s\n' "$(timestamp)" "$*" | tee -a "$LOG_FILE" >&2; }
+# ── Logging -------------------------------------------------------------------
+_ts() { date '+%Y-%m-%d %H:%M:%S'; }
+log()   { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
+error() { log "\e[31mERROR:\e[0m $*"; }
 
-die() { log "ERROR: $*"; exit 1; }
-
-# Error trap that can be customized based on mode
-error_trap() { 
-  log "ERROR: Line $LINENO exited with status $?"
-  if [[ "${DAEMON_MODE:-false}" == "true" ]]; then
-    log "Daemon mode: continuing despite error"
-  else
-    exit 1
-  fi
-}
-
-trap error_trap ERR
-
-# ── CLI parsing ─────────────────────────────────────────────────────────────
-show_help() {
-  printf 'Usage: %s [--daemon] [--help]\n\n' "${0##*/}"
-  printf '  --daemon, -d   Run continuously every %s seconds\n' "$CHECK_INTERVAL"
-  printf '  --help,   -h   Show this help\n'
-}
-
+# ── Error & signal traps ------------------------------------------------------
 DAEMON_MODE=false
+cleanup() { log "Shutdown requested – cleaning up"; rm -f "$LOCK_FILE"; }
+trap cleanup EXIT
+trap 'error "line $LINENO exited with code $?"; [[ $DAEMON_MODE == true ]] || exit 1' ERR
+trap 'log "SIGTERM received"; exit 0' TERM INT
+
+# ── CLI parsing ----------------------------------------------------------------
+usage(){ cat <<EOF
+Usage: ${0##*/} [-d] [-i seconds] [-h]
+  -d, --daemon      Run continuously every \$CHECK_INTERVAL seconds
+  -i, --interval    Override interval in seconds (daemon mode only)
+  -h, --help        Show this help
+EOF
+}
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -d|--daemon) DAEMON_MODE=true ;;
-    -h|--help)   show_help; exit 0 ;;
-    *)           die "Unknown argument: $1" ;;
+  case $1 in
+    -d|--daemon)   DAEMON_MODE=true ; shift ;;
+    -i|--interval) CHECK_INTERVAL="$2"; shift 2 ;;
+    -h|--help)     usage; exit 0 ;;
+    *)             usage; exit 1 ;;
   esac
-  shift
 done
 
-# ── Validation ──────────────────────────────────────────────────────────────
-validate() {
-  log "Validating prerequisites"
-
-  [[ -x "$TRIGGER_SCRIPT" ]] \
-    || die "Trigger script not found or not executable: $TRIGGER_SCRIPT"
-
-  for bin in "${REQUIRED_BINS[@]}"; do
-    command -v "$bin" &>/dev/null || die "Required binary not found: $bin"
-  done
-
-  [[ "$CHECK_INTERVAL" =~ ^[0-9]+$ ]] \
-    || die "CHECK_INTERVAL must be an integer (seconds)"
-
-  log "Prerequisites OK"
+# ── Validation ----------------------------------------------------------------
+validate(){
+  mkdir -p "$LOG_DIR"
+  [[ -x $TRIGGER_SCRIPT ]] || { error "Trigger script not executable: $TRIGGER_SCRIPT"; exit 1; }
+  [[ $CHECK_INTERVAL =~ ^[0-9]+$ ]] || { error "CHECK_INTERVAL must be integer"; exit 1; }
+  for b in "${REQUIRED_BINS[@]}"; do command -v "$b" &>/dev/null || { error "$b missing"; exit 1; }; done
+  log "Prerequisites OK (interval: ${CHECK_INTERVAL}s)"
 }
 
-# ── Core actions ────────────────────────────────────────────────────────────
-run_trigger() {
-  log "Running certificate renewal trigger"
+# ── Core ----------------------------------------------------------------------
+run_trigger(){
+  log "▶  Launching renewal trigger"
   if "$TRIGGER_SCRIPT"; then
-    log "Trigger completed successfully"
+    log "✅ Trigger finished successfully"
     return 0
   else
-    log "Trigger failed"
+    error "Trigger failed"
     return 1
   fi
 }
 
-daemon_loop() {
-  log "Daemon mode; interval: ${CHECK_INTERVAL}s (~$((CHECK_INTERVAL/3600)) h)"
+daemon_loop(){
+  log "Daemon mode started – running every ${CHECK_INTERVAL}s"
   while true; do
-    log "===== Renewal cycle start ====="
-    if (run_trigger); then
-      log "Renewal cycle OK"
-    else
-      log "Renewal cycle failed; will retry"
-    fi
-    log "Sleeping ${CHECK_INTERVAL}s"
+    {
+      # Ensure only one cycle at a time even if overlapping containers start
+      flock -n 200 || { log "Another cycle is already running"; sleep "$CHECK_INTERVAL"; continue; }
+      log "===== Renewal cycle start ====="
+      run_trigger || true
+      log "===== Cycle end – sleeping ${CHECK_INTERVAL}s ====="
+    } 200>"$LOCK_FILE"
     sleep "$CHECK_INTERVAL"
   done
 }
 
-# ── Main ────────────────────────────────────────────────────────────────────
-main() {
-  log "Certificate manager started (PID $$)"
+# ── Main ----------------------------------------------------------------------
+main(){
+  log "Certificate‑manager PID $$ started"
   validate
   if $DAEMON_MODE; then
     daemon_loop
@@ -116,5 +107,4 @@ main() {
   fi
 }
 
-main
-
+main "$@"
