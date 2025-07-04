@@ -495,6 +495,31 @@ resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
   policy_arn = aws_iam_policy.manager_ecr_pull.arn
 }
 
+# Policy for manager instance to describe EC2 instances
+resource "aws_iam_policy" "manager_ec2_describe" {
+  name        = "${var.app_name}-manager-ec2-describe"
+  description = "Allow manager instance to describe EC2 instances for ECR authentication"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceStatus"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach EC2 describe policy to private instance role (manager)
+resource "aws_iam_role_policy_attachment" "private_manager_ec2_describe" {
+  role       = aws_iam_role.private_instance_role.name
+  policy_arn = aws_iam_policy.manager_ec2_describe.arn
+}
+
 
 
 # Instance Profiles

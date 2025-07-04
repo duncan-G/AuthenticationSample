@@ -53,7 +53,7 @@ SECRETS_TO_CLEANUP=()
 ###############################################################################
 _ts()      { date '+%Y-%m-%d %H:%M:%S'; }
 log()      { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
-fatal()    { log "\e[31mERROR:\e[0m $*"; exit 1; }
+fatal()    { log "ERROR: $*"; exit 1; }
 
 ###############################################################################
 # Cleanup – always runs (EXIT trap)
@@ -94,6 +94,7 @@ SUBDOMAIN_NAMES="$(
   | awk '{$1=$1};1' | paste -sd, -
 )"
 ACME_EMAIL="${ACME_EMAIL:-$(jq -r '.ACME_EMAIL' <<<"$secret_json")}"
+AWS_REGION="${AWS_REGION:-$(jq -r '.AWS_REGION' <<<"$secret_json")}"
 
 for v in APP_NAME CERTIFICATE_STORE ACME_EMAIL; do
   [[ -z "${!v}" || ${!v} == "null" ]] && fatal "\"$v\" missing in secret or env"
