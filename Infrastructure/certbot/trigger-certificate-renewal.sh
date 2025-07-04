@@ -88,7 +88,6 @@ secret_json="$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME
 
 APP_NAME="${APP_NAME:-$(jq -r '.APP_NAME' <<<"$secret_json")}"
 CERTIFICATE_STORE="${CERTIFICATE_STORE:-$(jq -r '.CERTIFICATE_STORE' <<<"$secret_json")}"
-DOMAIN_NAME="${DOMAIN_NAME:-$(jq -r '.DOMAIN_NAME' <<<"$secret_json")}"
 # Extract subdomain names from SUBDOMAIN_NAME_1, SUBDOMAIN_NAME_2, etc.
 SUBDOMAIN_NAMES="$(
   jq -r 'to_entries | map(select(.key | startswith("SUBDOMAIN_NAME_"))) | sort_by(.key) | .[].value' <<<"$secret_json" \
@@ -96,7 +95,7 @@ SUBDOMAIN_NAMES="$(
 )"
 ACME_EMAIL="${ACME_EMAIL:-$(jq -r '.ACME_EMAIL' <<<"$secret_json")}"
 
-for v in APP_NAME CERTIFICATE_STORE DOMAIN_NAME ACME_EMAIL; do
+for v in APP_NAME CERTIFICATE_STORE ACME_EMAIL; do
   [[ -z "${!v}" || ${!v} == "null" ]] && fatal "\"$v\" missing in secret or env"
   readonly "$v"
 done
@@ -140,11 +139,10 @@ create_secret() {
   printf '%s' "$id"
 }
 
-create_secret aws_role_name_${RUN_ID}   "$AWS_ROLE_NAME"
-create_secret certificate_store_${RUN_ID}       "$CERTIFICATE_STORE"
-create_secret acme_email_${RUN_ID}      "$ACME_EMAIL"
-create_secret domain_name_${RUN_ID}     "$DOMAIN_NAME"
-create_secret subdomain_names_${RUN_ID} "$SUBDOMAIN_NAMES"
+create_secret aws_role_name_${RUN_ID}     "$AWS_ROLE_NAME"
+create_secret certificate_store_${RUN_ID} "$CERTIFICATE_STORE"
+create_secret acme_email_${RUN_ID}        "$ACME_EMAIL"
+create_secret domain_names_${RUN_ID}      "$SUBDOMAIN_NAMES"
 log "✅ Runtime secrets ready"
 
 ###############################################################################

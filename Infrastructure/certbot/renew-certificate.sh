@@ -21,7 +21,6 @@ shopt -s inherit_errexit nullglob
 ################################################################################
 readonly SCRIPT_NAME=${0##*/}
 readonly DEFAULT_RENEWAL_THRESHOLD_DAYS=10
-readonly STATUS_FILE=/tmp/certificate-manager.status
 readonly LETSENCRYPT_DIR=/etc/letsencrypt
 
 # Exit code tracking
@@ -94,6 +93,7 @@ CERT_PREFIX=${CERT_PREFIX:-certificates}
 RUN_ID=${RUN_ID:-$(date +%Y%m%d%H%M%S)}
 LOG_DIR="/var/log/certificate-manager"
 LOG_FILE="${LOG_DIR}/certificate-renewal.log"
+STATUS_FILE="${LOG_DIR}/renew-certificate.status"
 CERT_OUTPUT_DIR="/app/certs"
 
 IFS=',' read -r -a DOMAIN_ARRAY <<< "$DOMAINS_NAMES"
