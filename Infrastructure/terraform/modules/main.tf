@@ -456,9 +456,7 @@ resource "aws_iam_policy" "worker_ecr_pull" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage"
         ]
-        Resource = [
-          data.aws_ecr_repository.certbot.arn
-        ]
+        Resource = "*"
       }
     ]
   })
@@ -479,9 +477,7 @@ resource "aws_iam_policy" "manager_ecr_pull" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage"
         ]
-        Resource = [
-          data.aws_ecr_repository.certbot.arn,
-        ]
+        Resource = "*"
       }
     ]
   })

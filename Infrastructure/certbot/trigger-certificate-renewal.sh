@@ -88,24 +88,28 @@ secret_json="$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME
 
 APP_NAME="${APP_NAME:-$(jq -r '.APP_NAME' <<<"$secret_json")}"
 CERTIFICATE_STORE="${CERTIFICATE_STORE:-$(jq -r '.CERTIFICATE_STORE' <<<"$secret_json")}"
-DOMAIN_NAME="${DOMAIN_NAME:-$(jq -r '.DOMAIN_NAME' <<<"$secret_json")}"
 # Extract subdomain names from SUBDOMAIN_NAME_1, SUBDOMAIN_NAME_2, etc.
 SUBDOMAIN_NAMES="$(
   jq -r 'to_entries | map(select(.key | startswith("SUBDOMAIN_NAME_"))) | sort_by(.key) | .[].value' <<<"$secret_json" \
   | awk '{$1=$1};1' | paste -sd, -
 )"
-EMAIL="${EMAIL:-$(jq -r '.EMAIL' <<<"$secret_json")}"
+ACME_EMAIL="${ACME_EMAIL:-$(jq -r '.ACME_EMAIL' <<<"$secret_json")}"
 
-for v in APP_NAME CERTIFICATE_STORE DOMAIN_NAME EMAIL; do
+for v in APP_NAME CERTIFICATE_STORE ACME_EMAIL; do
   [[ -z "${!v}" || ${!v} == "null" ]] && fatal "\"$v\" missing in secret or env"
   readonly "$v"
 done
 
 readonly SUBDOMAIN_NAMES
 
+# Create domain array from comma-separated subdomain names
+IFS=',' read -r -a DOMAIN_ARRAY <<< "$SUBDOMAIN_NAMES"
+readonly DOMAIN_ARRAY
+
+AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
 RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-10}"
 AWS_ROLE_NAME="${AWS_ROLE_NAME:-${APP_NAME}-public-instance-role}"
-RENEWAL_IMAGE="${RENEWAL_IMAGE:-${APP_NAME}/certbot:latest}"
+RENEWAL_IMAGE="${RENEWAL_IMAGE:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/auth-sample/certbot:latest}"
 
 # Services by domain mapping (JSON format: {"domain1": ["service1", "service2"], "domain2": ["service3"]})
 SERVICES_BY_DOMAIN_JSON="${SERVICES_BY_DOMAIN:-}"
@@ -140,12 +144,91 @@ create_secret() {
   printf '%s' "$id"
 }
 
-create_secret aws_role_name_${RUN_ID}   "$AWS_ROLE_NAME"
-create_secret certificate_store_${RUN_ID}       "$CERTIFICATE_STORE"
-create_secret acme_email_${RUN_ID}      "$EMAIL"
-create_secret domain_name_${RUN_ID}     "$DOMAIN_NAME"
-create_secret subdomain_names_${RUN_ID} "$SUBDOMAIN_NAMES"
+create_secret aws_role_name_${RUN_ID}     "$AWS_ROLE_NAME"
+create_secret certificate_store_${RUN_ID} "$CERTIFICATE_STORE"
+create_secret acme_email_${RUN_ID}        "$ACME_EMAIL"
+create_secret domain_names_${RUN_ID}      "$SUBDOMAIN_NAMES"
 log "✅ Runtime secrets ready"
+
+###############################################################################
+# Authenticate to ECR on worker and manager nodes
+###############################################################################
+log "🔐 Authenticating to ECR repository on worker and manager nodes"
+
+# Get worker instance IDs (public instances)
+log "📋 Getting worker instance IDs"
+WORKER_INSTANCE_IDS=($(aws ec2 describe-instances \
+  --region "$AWS_REGION" \
+  --filters "Name=tag:Name,Values=${APP_NAME}-public-instance-worker" "Name=instance-state-name,Values=running" \
+  --query 'Reservations[].Instances[].InstanceId' \
+  --output text)) || fatal "Failed to get worker instance IDs"
+
+# Get manager instance IDs (private instances)
+log "📋 Getting manager instance IDs"
+MANAGER_INSTANCE_IDS=($(aws ec2 describe-instances \
+  --region "$AWS_REGION" \
+  --filters "Name=tag:Name,Values=${APP_NAME}-private-instance-manager" "Name=instance-state-name,Values=running" \
+  --query 'Reservations[].Instances[].InstanceId' \
+  --output text)) || fatal "Failed to get manager instance IDs"
+
+# Combine all instance IDs
+ALL_INSTANCE_IDS=("${WORKER_INSTANCE_IDS[@]}" "${MANAGER_INSTANCE_IDS[@]}")
+
+if ((${#ALL_INSTANCE_IDS[@]} == 0)); then
+  fatal "No worker or manager instances found for ECR authentication"
+fi
+
+log "🔍 Found ${#WORKER_INSTANCE_IDS[@]} worker instance(s): ${WORKER_INSTANCE_IDS[*]}"
+log "🔍 Found ${#MANAGER_INSTANCE_IDS[@]} manager instance(s): ${MANAGER_INSTANCE_IDS[*]}"
+
+# Authenticate to ECR on each instance (both worker and manager)
+for instance_id in "${ALL_INSTANCE_IDS[@]}"; do
+  log "🔐 Authenticating ECR on instance: $instance_id"
+  
+  # Create SSM command to authenticate to ECR
+  ssm_command="aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+  
+  # Send command via SSM
+  command_id=$(aws ssm send-command \
+    --region "$AWS_REGION" \
+    --instance-ids "$instance_id" \
+    --document-name "AWS-RunShellScript" \
+    --parameters "commands=[\"$ssm_command\"]" \
+    --query 'Command.CommandId' \
+    --output text) || fatal "Failed to send SSM command to instance $instance_id"
+  
+  log "⏳ Waiting for SSM command completion on $instance_id"
+  
+  # Wait for command completion
+  while true; do
+    status=$(aws ssm get-command-invocation \
+      --region "$AWS_REGION" \
+      --command-id "$command_id" \
+      --instance-id "$instance_id" \
+      --query 'Status' \
+      --output text) || fatal "Failed to get command status for $instance_id"
+    
+    case "$status" in
+      "Success")
+        log "✅ ECR authentication successful on $instance_id"
+        break
+        ;;
+      "Failed"|"Cancelled"|"TimedOut")
+        aws ssm get-command-invocation \
+          --region "$AWS_REGION" \
+          --command-id "$command_id" \
+          --instance-id "$instance_id" || true
+        fatal "ECR authentication failed on $instance_id with status: $status"
+        ;;
+      *)
+        log "⏳ Command still running on $instance_id (status: $status)"
+        sleep 5
+        ;;
+    esac
+  done
+done
+
+log "✅ ECR authentication completed on all worker and manager nodes"
 
 ###############################################################################
 # Launch renewal task

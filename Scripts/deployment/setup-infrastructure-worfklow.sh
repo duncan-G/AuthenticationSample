@@ -261,12 +261,14 @@ create_application_secrets() {
   # ----------------------------------------------------------------
   secret_json=$(jq -n \
       --arg APP_NAME "$APP_NAME" \
+      --arg AWS_REGION "$AWS_REGION" \
       --arg CERTIFICATE_STORE "${APP_NAME}-certificate-store-${BUCKET_SUFFIX}" \
       --arg ACME_EMAIL "$ACME_EMAIL" \
       --arg DOMAIN_NAME "$DOMAIN_NAME" \
       --argjson SUBDOMAIN_PAIRS "$subdomain_json" \
       '{
          APP_NAME:         $APP_NAME,
+         AWS_REGION:       $AWS_REGION,
          CERTIFICATE_STORE:$CERTIFICATE_STORE,
          DOMAIN_NAME:      $DOMAIN_NAME,
          ACME_EMAIL:       $ACME_EMAIL
