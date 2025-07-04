@@ -520,6 +520,33 @@ resource "aws_iam_role_policy_attachment" "private_manager_ec2_describe" {
   policy_arn = aws_iam_policy.manager_ec2_describe.arn
 }
 
+# Policy for manager instance to send SSM commands to worker instances
+resource "aws_iam_policy" "manager_ssm_send_command" {
+  name        = "${var.app_name}-manager-ssm-send-command"
+  description = "Allow manager instance to send SSM commands to worker instances for ECR authentication"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:SendCommand",
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommands",
+          "ssm:ListCommandInvocations"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach SSM send command policy to private instance role (manager)
+resource "aws_iam_role_policy_attachment" "private_manager_ssm_send_command" {
+  role       = aws_iam_role.private_instance_role.name
+  policy_arn = aws_iam_policy.manager_ssm_send_command.arn
+}
+
 
 
 # Instance Profiles
