@@ -45,12 +45,11 @@ trap 'error "line $LINENO exited with code $?"; [[ $DAEMON_MODE == true ]] || ex
 trap 'log "SIGTERM received"; exit 0' TERM INT
 
 # ── CLI parsing ----------------------------------------------------------------
-usage(){ cat <<EOF
-Usage: ${0##*/} [-d] [-i seconds] [-h]
-  -d, --daemon      Run continuously every \$CHECK_INTERVAL seconds
-  -i, --interval    Override interval in seconds (daemon mode only)
-  -h, --help        Show this help
-EOF
+usage() {
+  echo "Usage: ${0##*/} [-d] [-i seconds] [-h]"
+  echo "  -d, --daemon      Run continuously every \$CHECK_INTERVAL seconds" 
+  echo "  -i, --interval    Override interval in seconds (daemon mode only)"
+  echo "  -h, --help        Show this help"
 }
 while [[ $# -gt 0 ]]; do
   case $1 in

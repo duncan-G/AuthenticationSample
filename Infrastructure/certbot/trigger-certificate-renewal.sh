@@ -94,9 +94,9 @@ SUBDOMAIN_NAMES="$(
   jq -r 'to_entries | map(select(.key | startswith("SUBDOMAIN_NAME_"))) | sort_by(.key) | .[].value' <<<"$secret_json" \
   | awk '{$1=$1};1' | paste -sd, -
 )"
-EMAIL="${EMAIL:-$(jq -r '.EMAIL' <<<"$secret_json")}"
+ACME_EMAIL="${ACME_EMAIL:-$(jq -r '.ACME_EMAIL' <<<"$secret_json")}"
 
-for v in APP_NAME CERTIFICATE_STORE DOMAIN_NAME EMAIL; do
+for v in APP_NAME CERTIFICATE_STORE DOMAIN_NAME ACME_EMAIL; do
   [[ -z "${!v}" || ${!v} == "null" ]] && fatal "\"$v\" missing in secret or env"
   readonly "$v"
 done
@@ -142,7 +142,7 @@ create_secret() {
 
 create_secret aws_role_name_${RUN_ID}   "$AWS_ROLE_NAME"
 create_secret certificate_store_${RUN_ID}       "$CERTIFICATE_STORE"
-create_secret acme_email_${RUN_ID}      "$EMAIL"
+create_secret acme_email_${RUN_ID}      "$ACME_EMAIL"
 create_secret domain_name_${RUN_ID}     "$DOMAIN_NAME"
 create_secret subdomain_names_${RUN_ID} "$SUBDOMAIN_NAMES"
 log "✅ Runtime secrets ready"
