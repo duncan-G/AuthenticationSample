@@ -152,84 +152,94 @@ create_secret domain_names_${RUN_ID}      "$SUBDOMAIN_NAMES"
 log "✅ Runtime secrets ready"
 
 ###############################################################################
-# Authenticate to ECR on worker and manager nodes
+# Authenticate to ECR on all active instances
 ###############################################################################
-log "🔐 Authenticating to ECR repository on worker and manager nodes"
+log "🔐 Authenticating to ECR repository on all active instances"
 
-# Get worker instance IDs (public instances)
-log "📋 Getting worker instance IDs"
-WORKER_INSTANCE_IDS=($(aws ec2 describe-instances \
-  --region "$AWS_REGION" \
-  --filters "Name=tag:Name,Values=${APP_NAME}-public-instance-worker" "Name=instance-state-name,Values=running" \
-  --query 'Reservations[].Instances[].InstanceId' \
-  --output text)) || fatal "Failed to get worker instance IDs"
-
-# Get manager instance IDs (private instances)
-log "📋 Getting manager instance IDs"
-MANAGER_INSTANCE_IDS=($(aws ec2 describe-instances \
-  --region "$AWS_REGION" \
-  --filters "Name=tag:Name,Values=${APP_NAME}-private-instance-manager" "Name=instance-state-name,Values=running" \
-  --query 'Reservations[].Instances[].InstanceId' \
-  --output text)) || fatal "Failed to get manager instance IDs"
-
-# Combine all instance IDs
-ALL_INSTANCE_IDS=("${WORKER_INSTANCE_IDS[@]}" "${MANAGER_INSTANCE_IDS[@]}")
-
-if ((${#ALL_INSTANCE_IDS[@]} == 0)); then
-  fatal "No worker or manager instances found for ECR authentication"
+# Get current instance ID
+CURRENT_INSTANCE_ID=""
+if TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null); then
+  CURRENT_INSTANCE_ID="$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo '')"
 fi
 
-log "🔍 Found ${#WORKER_INSTANCE_IDS[@]} worker instance(s): ${WORKER_INSTANCE_IDS[*]}"
-log "🔍 Found ${#MANAGER_INSTANCE_IDS[@]} manager instance(s): ${MANAGER_INSTANCE_IDS[*]}"
+log "🔍 Current instance ID: ${CURRENT_INSTANCE_ID:-'unknown'}"
 
-# Authenticate to ECR on each instance (both worker and manager)
+# Get all active instance IDs
+log "📋 Getting all active instance IDs"
+ALL_INSTANCE_IDS=($(aws ec2 describe-instances \
+  --region "$AWS_REGION" \
+  --filters "Name=instance-state-name,Values=running" \
+  --query 'Reservations[].Instances[].InstanceId' \
+  --output text)) || fatal "Failed to get active instance IDs"
+
+if ((${#ALL_INSTANCE_IDS[@]} == 0)); then
+  fatal "No active instances found for ECR authentication"
+fi
+
+log "🔍 Found ${#ALL_INSTANCE_IDS[@]} active instance(s): ${ALL_INSTANCE_IDS[*]}"
+
+# Authenticate to ECR on each instance
 for instance_id in "${ALL_INSTANCE_IDS[@]}"; do
   log "🔐 Authenticating ECR on instance: $instance_id"
   
-  # Create SSM command to authenticate to ECR
-  ssm_command="aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-  
-  # Send command via SSM
-  command_id=$(aws ssm send-command \
-    --region "$AWS_REGION" \
-    --instance-ids "$instance_id" \
-    --document-name "AWS-RunShellScript" \
-    --parameters "commands=[\"$ssm_command\"]" \
-    --query 'Command.CommandId' \
-    --output text) || fatal "Failed to send SSM command to instance $instance_id"
-  
-  log "⏳ Waiting for SSM command completion on $instance_id"
-  
-  # Wait for command completion
-  while true; do
-    status=$(aws ssm get-command-invocation \
-      --region "$AWS_REGION" \
-      --command-id "$command_id" \
-      --instance-id "$instance_id" \
-      --query 'Status' \
-      --output text) || fatal "Failed to get command status for $instance_id"
+  # Check if this is the current instance
+  if [[ "$instance_id" == "$CURRENT_INSTANCE_ID" ]]; then
+    log "🔄 Running ECR authentication directly on current instance: $instance_id"
     
-    case "$status" in
-      "Success")
-        log "✅ ECR authentication successful on $instance_id"
-        break
-        ;;
-      "Failed"|"Cancelled"|"TimedOut")
-        aws ssm get-command-invocation \
-          --region "$AWS_REGION" \
-          --command-id "$command_id" \
-          --instance-id "$instance_id" || true
-        fatal "ECR authentication failed on $instance_id with status: $status"
-        ;;
-      *)
-        log "⏳ Command still running on $instance_id (status: $status)"
-        sleep 5
-        ;;
-    esac
-  done
+    # Run command directly on current instance
+    if aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"; then
+      log "✅ ECR authentication successful on current instance: $instance_id"
+    else
+      fatal "ECR authentication failed on current instance: $instance_id"
+    fi
+  else
+    log "🔄 Running ECR authentication via SSM on remote instance: $instance_id"
+    
+    # Create SSM command to authenticate to ECR
+    ssm_command="aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    
+    # Send command via SSM
+    command_id=$(aws ssm send-command \
+      --region "$AWS_REGION" \
+      --instance-ids "$instance_id" \
+      --document-name "AWS-RunShellScript" \
+      --parameters "commands=[\"$ssm_command\"]" \
+      --query 'Command.CommandId' \
+      --output text) || fatal "Failed to send SSM command to instance $instance_id"
+    
+    log "⏳ Waiting for SSM command completion on $instance_id"
+    
+    # Wait for command completion
+    while true; do
+      status=$(aws ssm get-command-invocation \
+        --region "$AWS_REGION" \
+        --command-id "$command_id" \
+        --instance-id "$instance_id" \
+        --query 'Status' \
+        --output text) || fatal "Failed to get command status for $instance_id"
+      
+      case "$status" in
+        "Success")
+          log "✅ ECR authentication successful on $instance_id"
+          break
+          ;;
+        "Failed"|"Cancelled"|"TimedOut")
+          aws ssm get-command-invocation \
+            --region "$AWS_REGION" \
+            --command-id "$command_id" \
+            --instance-id "$instance_id" || true
+          fatal "ECR authentication failed on $instance_id with status: $status"
+          ;;
+        *)
+          log "⏳ Command still running on $instance_id (status: $status)"
+          sleep 5
+          ;;
+      esac
+    done
+  fi
 done
 
-log "✅ ECR authentication completed on all worker and manager nodes"
+log "✅ ECR authentication completed on all active instances"
 
 ###############################################################################
 # Launch renewal task
@@ -250,7 +260,7 @@ service_id="$(docker service create \
   --secret source=aws_role_name_${RUN_ID},target=AWS_ROLE_NAME \
   --secret source=certificate_store_${RUN_ID},target=CERTIFICATE_STORE \
   --secret source=acme_email_${RUN_ID},target=ACME_EMAIL \
-  --secret source=subdomain_names_${RUN_ID},target=DOMAINS_NAMES \
+  --secret source=domain_names_${RUN_ID},target=DOMAINS_NAMES \
   --env AWS_SECRET_NAME="$AWS_SECRET_NAME" \
   "$RENEWAL_IMAGE")" || fatal "Unable to create service"
 
