@@ -119,11 +119,6 @@ resource "aws_ssm_document" "ebs_volume_setup" {
           "mkdir -p /var/log/certificate-manager",
           "chown ec2-user:ec2-user /var/log/certificate-manager",
           "chmod 755 /var/log/certificate-manager",
-          # Create log files with proper permissions
-          "touch /var/log/certificate-manager/certificate-manager.log",
-          "touch /var/log/certificate-manager/ebs-volume-setup.log",
-          "chown ec2-user:ec2-user /var/log/certificate-manager/*.log",
-          "chmod 644 /var/log/certificate-manager/*.log",
           # Create certbot directories (required by renew-certificate.sh)
           "mkdir -p /var/lib/letsencrypt",
           "mkdir -p /var/log/letsencrypt",

@@ -27,6 +27,24 @@ readonly LETSENCRYPT_DIR=/etc/letsencrypt
 EXIT_CODE=0
 
 ################################################################################
+# Logging setup ---------------------------------------------------------------
+################################################################################
+LOG_DIR="/var/log/certificate-manager"
+LOG_FILE="${LOG_DIR}/certificate-renewal.log"
+STATUS_FILE="${LOG_DIR}/certificate-renewal.status"
+
+mkdir -p "$LOG_DIR"
+
+_ts() { date '+%Y-%m-%d %H:%M:%S'; }
+log() { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
+status() {
+  printf '%s: %s at %s\n' "$1" "$2" "$(_ts)" >"$STATUS_FILE"
+  log "STATUS ➜ $1 – $2"
+}
+
+log "🚀 Starting certificate renewal script: $SCRIPT_NAME"
+
+################################################################################
 # Usage -----------------------------------------------------------------------
 ################################################################################
 usage() {
@@ -43,72 +61,90 @@ EOF
 ################################################################################
 # CLI arguments ----------------------------------------------------------------
 ################################################################################
+log "🔧 Parsing command line arguments..."
 FORCE=false
 DRY_RUN=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --force)   FORCE=true ; shift ;;
-    --dry-run) DRY_RUN=true ; shift ;;
+    --force)   FORCE=true ; log "  ➜ Force renewal enabled" ; shift ;;
+    --dry-run) DRY_RUN=true ; log "  ➜ Dry run mode enabled" ; shift ;;
     -h|--help) usage ; exit 0 ;;
     *) echo "Unknown option: $1" >&2 ; usage ; exit 1 ;;
   esac
 done
 
+log "  ➜ Force mode: $FORCE"
+log "  ➜ Dry run mode: $DRY_RUN"
+
 ################################################################################
 # Helper: import a Swarm secret if env‑var is empty ----------------------------
 ################################################################################
 import_secret() {
-  local var=$1 path="/run/secrets/$var"
-  [[ -z ${!var:-} && -f $path ]] && export "$var"="$(<"$path")"
+    local var=$1
+    local path="/run/secrets/$1"
+
+    if [[ -z ${!var-} && -f $path ]]; then
+      export "$var"="$(<"$path")"
+      log "  ➜ Imported secret: $var (from $path)"
+    fi
 }
 
 # Mandatory/optional secrets
-for s in AWS_ROLE_NAME CERTIFICATE_STORE ACME_EMAIL DOMAINS_NAMES AWS_SECRET_NAME; do
+log "🔐 Loading secrets..."
+for s in AWS_ROLE_NAME CERTIFICATE_STORE ACME_EMAIL DOMAINS_NAMES; do
   import_secret "$s"
 done
 
 ################################################################################
 # Verify mandatory dependencies & variables -----------------------------------
 ################################################################################
+log "🔍 Checking required dependencies..."
 need_cmd() { 
-  command -v "$1" &>/dev/null || { 
+  if command -v "$1" &>/dev/null; then
+    log "  ✅ Found: $1"
+    return 0
+  else
+    log "  ❌ Missing: $1"
     echo "ERROR: '$1' not found in PATH" >&2 
     EXIT_CODE=2
     return 1
-  }; 
+  fi
 }
 
 for bin in jq aws openssl certbot curl; do 
   need_cmd "$bin" || exit $EXIT_CODE
 done
 
-[[ -n ${CERTIFICATE_STORE:-}       ]] || { echo "CERTIFICATE_STORE is required (secret or env)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
-[[ -n ${ACME_EMAIL:-}           ]] || { echo "ACME_EMAIL is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
-[[ -n ${AWS_ROLE_NAME:-}   ]] || { echo "AWS_ROLE_NAME is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
-[[ -n ${DOMAINS_NAMES:-}         ]] || { echo "DOMAINS_NAMES is required (comma‑separated)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
-[[ -n ${AWS_SECRET_NAME:-} ]] || { echo "AWS_SECRET_NAME is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+log "📋 Validating required environment variables..."
+[[ -n ${CERTIFICATE_STORE:-}       ]] || { log "  ❌ Missing: CERTIFICATE_STORE" ; echo "CERTIFICATE_STORE is required (secret or env)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${ACME_EMAIL:-}           ]] || { log "  ❌ Missing: ACME_EMAIL" ; echo "ACME_EMAIL is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${AWS_ROLE_NAME:-}   ]] || { log "  ❌ Missing: AWS_ROLE_NAME" ; echo "AWS_ROLE_NAME is required" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${DOMAINS_NAMES:-}         ]] || { log "  ❌ Missing: DOMAINS_NAMES" ; echo "DOMAINS_NAMES is required (comma‑separated)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
+[[ -n ${AWS_SECRET_NAME:-} ]] || { log "  ❌ Missing: AWS_SECRET_NAME" ; echo "AWS_SECRET_NAME is required (environment variable)" >&2 ; EXIT_CODE=1; exit $EXIT_CODE; }
 
+log "  ✅ All required environment variables present"
+
+log "⚙️  Setting up configuration variables..."
 RENEWAL_THRESHOLD_DAYS=${RENEWAL_THRESHOLD_DAYS:-$DEFAULT_RENEWAL_THRESHOLD_DAYS}
 CERT_PREFIX=${CERT_PREFIX:-certificates}
 RUN_ID=${RUN_ID:-$(date +%Y%m%d%H%M%S)}
-LOG_DIR="/var/log/certificate-manager"
-LOG_FILE="${LOG_DIR}/certificate-renewal.log"
-STATUS_FILE="${LOG_DIR}/renew-certificate.status"
 CERT_OUTPUT_DIR="/app/certs"
 
+log "  ➜ Renewal threshold: ${RENEWAL_THRESHOLD_DAYS} days"
+log "  ➜ Certificate prefix: $CERT_PREFIX"
+log "  ➜ Run ID: $RUN_ID"
+log "  ➜ Certificate output directory: $CERT_OUTPUT_DIR"
+
 IFS=',' read -r -a DOMAIN_ARRAY <<< "$DOMAINS_NAMES"
+log "  ➜ Domains to process: ${#DOMAIN_ARRAY[@]} (${DOMAIN_ARRAY[*]})"
 
+log "📁 Creating required directories..."
 mkdir -p "$LOG_DIR" /var/{lib,log}/letsencrypt "$CERT_OUTPUT_DIR"
+log "  ✅ Directories created successfully"
 
-################################################################################
-# Logging utilities -----------------------------------------------------------
-################################################################################
-_ts() { date '+%Y-%m-%d %H:%M:%S'; }
-log()  { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
-status() {
-  printf '%s: %s at %s\n' "$1" "$2" "$(_ts)" >"$STATUS_FILE"
-  log "STATUS ➜ $1 – $2"
-}
+log "🎯 Initialization complete - proceeding to main execution"
+
+# Set up error handling
 trap 'status FAILED "line $LINENO exited with code $?"; EXIT_CODE=1' ERR
 
 ################################################################################
@@ -313,6 +349,7 @@ upload_to_s3() {
 # Main ------------------------------------------------------------------------
 ################################################################################
 main() {
+  log "🚀 Starting main certificate renewal process"
   status IN_PROGRESS "Renewal task started (threshold ${RENEWAL_THRESHOLD_DAYS}d)"
   
   if ! fetch_creds; then

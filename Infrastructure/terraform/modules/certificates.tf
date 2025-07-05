@@ -59,6 +59,12 @@ resource "aws_iam_role_policy_attachment" "private_secrets_manager_access" {
   policy_arn = aws_iam_policy.secrets_manager_access_policy.arn
 }
 
+# Attach Secrets Manager access policy to public instance role
+resource "aws_iam_role_policy_attachment" "public_secrets_manager_access" {
+  role       = aws_iam_role.public_instance_role.name
+  policy_arn = aws_iam_policy.secrets_manager_access_policy.arn
+}
+
 ########################
 # SSL Certificate Store (S3)
 ########################

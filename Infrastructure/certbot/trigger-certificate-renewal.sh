@@ -109,7 +109,7 @@ readonly DOMAIN_ARRAY
 
 AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
 RENEWAL_THRESHOLD_DAYS="${RENEWAL_THRESHOLD_DAYS:-10}"
-AWS_ROLE_NAME="${AWS_ROLE_NAME:-${APP_NAME}-public-instance-role}"
+AWS_ROLE_NAME="${AWS_ROLE_NAME:-${APP_NAME}-ec2-public-instance-role}"
 RENEWAL_IMAGE="${RENEWAL_IMAGE:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/auth-sample/certbot:latest}"
 
 # Services by domain mapping (JSON format: {"domain1": ["service1", "service2"], "domain2": ["service3"]})
@@ -186,17 +186,25 @@ for instance_id in "${ALL_INSTANCE_IDS[@]}"; do
   if [[ "$instance_id" == "$CURRENT_INSTANCE_ID" ]]; then
     log "🔄 Running ECR authentication directly on current instance: $instance_id"
     
-    # Run command directly on current instance
-    if aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"; then
-      log "✅ ECR authentication successful on current instance: $instance_id"
-    else
+    # Run command directly on current instance with error capture
+    if ! ecr_output=$(aws ecr get-login-password --region "$AWS_REGION" 2>&1); then
+      log "❌ AWS ECR get-login-password failed on current instance: $instance_id"
+      log "Error output: $ecr_output"
       fatal "ECR authentication failed on current instance: $instance_id"
     fi
+    
+    if ! docker_output=$(echo "$ecr_output" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" 2>&1); then
+      log "❌ Docker login failed on current instance: $instance_id"
+      log "Docker error output: $docker_output"
+      fatal "ECR authentication failed on current instance: $instance_id"
+    fi
+    
+    log "✅ ECR authentication successful on current instance: $instance_id"
   else
     log "🔄 Running ECR authentication via SSM on remote instance: $instance_id"
     
-    # Create SSM command to authenticate to ECR
-    ssm_command="aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    # Create SSM command to authenticate to ECR with better error handling
+    ssm_command="set -e; echo 'Starting ECR authentication on instance $instance_id...'; echo 'AWS Region: $AWS_REGION'; echo 'ECR Repository: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com'; aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com; echo 'ECR authentication completed successfully on instance $instance_id'"
     
     # Send command via SSM
     command_id=$(aws ssm send-command \
@@ -224,10 +232,42 @@ for instance_id in "${ALL_INSTANCE_IDS[@]}"; do
           break
           ;;
         "Failed"|"Cancelled"|"TimedOut")
-          aws ssm get-command-invocation \
+          log "❌ SSM command failed on $instance_id with status: $status"
+          
+          # Get detailed command output for debugging
+          command_details=$(aws ssm get-command-invocation \
             --region "$AWS_REGION" \
             --command-id "$command_id" \
-            --instance-id "$instance_id" || true
+            --instance-id "$instance_id" 2>&1 || echo "Failed to get command details")
+          
+          log "Command details for $instance_id:"
+          log "$command_details"
+          
+          # Extract and log the actual error output
+          if command_output=$(aws ssm get-command-invocation \
+            --region "$AWS_REGION" \
+            --command-id "$command_id" \
+            --instance-id "$instance_id" \
+            --query 'StandardErrorContent' \
+            --output text 2>/dev/null); then
+            if [[ -n "$command_output" ]]; then
+              log "Error output from $instance_id:"
+              log "$command_output"
+            fi
+          fi
+          
+          if command_output=$(aws ssm get-command-invocation \
+            --region "$AWS_REGION" \
+            --command-id "$command_id" \
+            --instance-id "$instance_id" \
+            --query 'StandardOutputContent' \
+            --output text 2>/dev/null); then
+            if [[ -n "$command_output" ]]; then
+              log "Standard output from $instance_id:"
+              log "$command_output"
+            fi
+          fi
+          
           fatal "ECR authentication failed on $instance_id with status: $status"
           ;;
         *)
