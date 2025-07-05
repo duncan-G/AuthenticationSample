@@ -91,6 +91,49 @@ install_docker() {
   log "Docker installed ✅"
 }
 
+install_ecr_credential_helper() {
+  if command -v docker-credential-ecr-login &>/dev/null; then
+    log "ECR credential helper already present — skip"
+    return
+  fi
+
+  log "Installing ECR credential helper…"
+  # Try dnf first (newer systems), fall back to yum
+  if command -v dnf &>/dev/null; then
+    dnf install -y amazon-ecr-credential-helper
+  else
+    yum -y -q install amazon-ecr-credential-helper
+  fi
+  log "ECR credential helper installed ✅"
+}
+
+configure_docker_ecr_auth() {
+  log "Configuring Docker to use ECR credential helper…"
+  
+  # Create Docker config directory if it doesn't exist
+  mkdir -p /root/.docker
+  
+  # Create or update Docker config.json to use ECR credential helper
+  cat > /root/.docker/config.json << 'EOF'
+{
+  "credsStore": "ecr-login"
+}
+EOF
+
+  # Also configure for ec2-user if it exists
+  if id ec2-user &>/dev/null; then
+    mkdir -p ~/.docker
+    cat > ~/.docker/config.json << 'EOF'
+{
+  "credsStore": "ecr-login"
+}
+EOF
+    chown -R ec2-user:ec2-user ~/.docker
+  fi
+  
+  log "Docker ECR authentication configured ✅"
+}
+
 already_in_swarm() {
   local state
   state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "none")
@@ -186,6 +229,8 @@ log "Worker bootstrap initiated"
 status "IN_PROGRESS" "Docker Swarm worker setup started"
 
 install_docker
+install_ecr_credential_helper
+configure_docker_ecr_auth
 join_swarm
 
 log "Setup complete. Node is operational as a Swarm worker."

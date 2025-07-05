@@ -49,11 +49,12 @@ log "🚀 Starting certificate renewal script: $SCRIPT_NAME"
 ################################################################################
 usage() {
   cat <<EOF
-Usage: $SCRIPT_NAME [--force] [--dry-run]
+Usage: $SCRIPT_NAME [--force] [--dry-run] [--staging]
 
 Options:
   --force        Renew certificates regardless of remaining validity.
   --dry-run      Execute everything except the final Certbot/S3/AWS writes.
+  --staging      Use Let's Encrypt staging environment (implies --test-cert).
   -h, --help     Show this help.
 EOF
 }
@@ -64,10 +65,12 @@ EOF
 log "🔧 Parsing command line arguments..."
 FORCE=false
 DRY_RUN=false
+STAGING=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force)   FORCE=true ; log "  ➜ Force renewal enabled" ; shift ;;
     --dry-run) DRY_RUN=true ; log "  ➜ Dry run mode enabled" ; shift ;;
+    --staging) STAGING=true ; log "  ➜ Staging environment enabled" ; shift ;;
     -h|--help) usage ; exit 0 ;;
     *) echo "Unknown option: $1" >&2 ; usage ; exit 1 ;;
   esac
@@ -75,6 +78,7 @@ done
 
 log "  ➜ Force mode: $FORCE"
 log "  ➜ Dry run mode: $DRY_RUN"
+log "  ➜ Staging mode: $STAGING"
 
 ################################################################################
 # Helper: import a Swarm secret if env‑var is empty ----------------------------
@@ -200,37 +204,92 @@ trap cleanup_creds EXIT
 # Certbot helpers -------------------------------------------------------------
 ################################################################################
 certbot_action() {
-  # Build domain flags – certbot supports comma separation only for --renew-by-default
-  local flags=()
-  for d in "${DOMAIN_ARRAY[@]}"; do flags+=( -d "$d" ); done
+  local overall_success=true
+  local missing_certificates=()
+  local existing_certificates=()
 
-  if $FORCE; then
-    flags+=( --force-renewal )
-  fi
+  log "🔍 Checking certificate status for ${#DOMAIN_ARRAY[@]} domain(s)"
 
-  if $DRY_RUN; then
-    flags+=( --dry-run )
-  fi
-
-  if [[ -d "$LETSENCRYPT_DIR/live/${DOMAIN_ARRAY[0]}" ]]; then
-    log "🔄 Running certbot renew for ${#DOMAIN_ARRAY[@]} domain(s)"
-    if certbot renew --deploy-hook "true" --quiet "${flags[@]}"; then
-      log "✅ Certbot renew completed successfully"
+  # First, check which certificates exist and which need to be created
+  for domain in "${DOMAIN_ARRAY[@]}"; do
+    if [[ -d "$LETSENCRYPT_DIR/live/$domain" ]]; then
+      log "✅ Certificate exists for: $domain"
+      existing_certificates+=("$domain")
     else
-      log "❌ Certbot renew failed"
-      EXIT_CODE=4
-      return 1
+      log "🆕 Certificate missing for: $domain"
+      missing_certificates+=("$domain")
     fi
+  done
+
+  # Create missing certificates first
+  if [[ ${#missing_certificates[@]} -gt 0 ]]; then
+    log "🆕 Creating ${#missing_certificates[@]} missing certificate(s)"
+    
+    # Build flags for certonly
+    local certonly_flags=( --dns-route53 -m "$ACME_EMAIL" --agree-tos --non-interactive --quiet )
+    
+    # Add all missing domains to a single certonly command
+    for domain in "${missing_certificates[@]}"; do
+      certonly_flags+=( -d "$domain" )
+    done
+
+    # Staging mode overrides dry-run and adds test-cert flag
+    if $STAGING; then
+      certonly_flags+=( --test-cert )
+      log "  ➜ Using Let's Encrypt staging environment (--test-cert)"
+    elif $DRY_RUN; then
+      certonly_flags+=( --dry-run )
+    fi
+
+    if certbot certonly "${certonly_flags[@]}"; then
+      log "✅ Successfully created certificates for: ${missing_certificates[*]}"
+      # Add newly created certificates to existing list for renewal
+      existing_certificates+=("${missing_certificates[@]}")
+    else
+      log "❌ Failed to create certificates for: ${missing_certificates[*]}"
+      overall_success=false
+    fi
+  fi
+
+  # Now renew all existing certificates (including newly created ones)
+  if [[ ${#existing_certificates[@]} -gt 0 ]]; then
+    log "🔄 Renewing ${#existing_certificates[@]} existing certificate(s)"
+    
+    # Build flags for renew
+    local renew_flags=( --quiet )
+    
+    if $FORCE; then
+      renew_flags+=( --force-renewal )
+    fi
+
+    # Staging mode overrides dry-run and adds test-cert flag
+    if $STAGING; then
+      renew_flags+=( --test-cert )
+      log "  ➜ Using Let's Encrypt staging environment (--test-cert)"
+    elif $DRY_RUN; then
+      renew_flags+=( --dry-run )
+    fi
+
+    if certbot renew "${renew_flags[@]}"; then
+      log "✅ Successfully renewed certificates for: ${existing_certificates[*]}"
+    else
+      log "❌ Failed to renew certificates for: ${existing_certificates[*]}"
+      overall_success=false
+    fi
+  fi
+
+  log "📊 Certificate processing summary:"
+  log "  ✅ Existing certificates: ${#existing_certificates[@]}"
+  log "  🆕 New certificates created: ${#missing_certificates[@]}"
+  log "  📋 Total domains processed: ${#DOMAIN_ARRAY[@]}"
+
+  if [[ $overall_success == true ]]; then
+    log "✅ All domains processed successfully"
+    return 0
   else
-    log "🆕 Initial certificate request for ${#DOMAIN_ARRAY[@]} domain(s)"
-    if certbot certonly --dns-route53 -m "$ACME_EMAIL" --agree-tos --non-interactive \
-                       --quiet "${flags[@]}"; then
-      log "✅ Certbot certonly completed successfully"
-    else
-      log "❌ Certbot certonly failed"
-      EXIT_CODE=4
-      return 1
-    fi
+    log "⚠️  Some domains failed to process"
+    EXIT_CODE=4
+    return 1
   fi
 }
 
@@ -257,9 +316,12 @@ needs_renewal() {
 ################################################################################
 create_pfx() {
   local domain=$1 password=$2 src="$LETSENCRYPT_DIR/live/$domain" tgt="$CERT_OUTPUT_DIR/$domain/cert.pfx"
-  local pass_arg=[[ -n $password ]] && pass_arg="pass:$password" || pass_arg="pass:"
+  if [[ -z $password ]]; then
+    log "ERROR: Password is required for PFX creation"
+    return 1
+  fi
   if openssl pkcs12 -export -in "$src/cert.pem" -inkey "$src/privkey.pem" \
-                   -out "$tgt" -passout "$pass_arg" -passin pass: -quiet; then
+                   -out "$tgt" -passout "pass:$password" -passin pass: 2>/dev/null; then
     chmod 400 "$tgt"
   else
     log "WARNING: Failed to create PFX for $domain"
@@ -313,7 +375,10 @@ update_secret_password() {
 # S3 distribution -------------------------------------------------------------
 ################################################################################
 upload_to_s3() {
-  $DRY_RUN && { log "☁️  Dry‑run: skip S3 upload"; return; }
+  if $DRY_RUN; then
+    log "☁️  Dry‑run: skip S3 upload"
+    return
+  fi
   log "☁️  Uploading artefacts to s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID/"
   
   local upload_failed=false
@@ -369,10 +434,18 @@ main() {
     log "🔧 Renewal required"
     local new_pass=$(random_secret)
     
-    if ! update_secret_password "$new_pass"; then
-      log "❌ Failed to update certificate password"
-      status FAILED "Password update error"
-      exit $EXIT_CODE
+    if ! $STAGING && ! $DRY_RUN; then
+      if ! update_secret_password "$new_pass"; then
+        log "❌ Failed to update certificate password"
+        status FAILED "Password update error"
+        exit $EXIT_CODE
+      fi
+    else
+      if $STAGING; then
+        log "🔐 Staging mode: skipping password update in AWS Secrets Manager"
+      elif $DRY_RUN; then
+        log "🔐 Dry-run mode: skipping password update in AWS Secrets Manager"
+      fi
     fi
     
     if ! certbot_action; then
