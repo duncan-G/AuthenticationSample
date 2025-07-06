@@ -75,9 +75,7 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           # Reload systemd and enable the service
           "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",
-          "systemctl start certificate-manager.service",
-          # Restart CloudWatch agent to pick up new journalctl configuration
-          "systemctl restart amazon-cloudwatch-agent"
+          "systemctl start certificate-manager.service"
         ]
         timeoutSeconds = "600" # 10 minutes timeout
       }
