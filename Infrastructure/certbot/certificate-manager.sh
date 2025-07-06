@@ -67,11 +67,23 @@ validate(){
 # ── Core ----------------------------------------------------------------------
 run_trigger(){
   log "▶  Launching renewal trigger"
-  if "$TRIGGER_SCRIPT"; then
+  # Run trigger script and capture its output
+  local trigger_output
+  local trigger_exit_code
+  
+  trigger_output="$("$TRIGGER_SCRIPT" 2>&1)"
+  trigger_exit_code=$?
+  
+  # Log the trigger script output
+  while IFS= read -r line; do
+    log "TRIGGER: $line"
+  done <<< "$trigger_output"
+  
+  if [[ $trigger_exit_code -eq 0 ]]; then
     log "✅ Trigger finished successfully"
     return 0
   else
-    error "Trigger failed"
+    error "Trigger failed (exit code: $trigger_exit_code)"
     return 1
   fi
 }
