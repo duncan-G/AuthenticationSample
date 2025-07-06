@@ -72,23 +72,12 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           # Set proper ownership for systemd directories
           "chown ec2-user:ec2-user /var/lib/certificate-manager",
           "chown ec2-user:ec2-user /run/certificate-manager",
-          # Ensure the log file directory exists and has proper permissions
-          "mkdir -p /var/log/certificate-manager",
-          "touch /var/log/certificate-manager/certificate-manager.log",
-          "chown ec2-user:ec2-user /var/log/certificate-manager/certificate-manager.log",
-          "chmod 644 /var/log/certificate-manager/certificate-manager.log",
-          # Create trigger renewal log file with proper permissions
-          "touch /var/log/certificate-manager/trigger-renewal.log",
-          "chown ec2-user:ec2-user /var/log/certificate-manager/trigger-renewal.log",
-          "chmod 644 /var/log/certificate-manager/trigger-renewal.log",
-          # Create certificate renewal log file with proper permissions
-          "touch /var/log/certificate-manager/certificate-renewal.log",
-          "chown ec2-user:ec2-user /var/log/certificate-manager/certificate-renewal.log",
-          "chmod 644 /var/log/certificate-manager/certificate-renewal.log",
           # Reload systemd and enable the service
           "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",
-          "systemctl start certificate-manager.service"
+          "systemctl start certificate-manager.service",
+          # Restart CloudWatch agent to pick up new journalctl configuration
+          "systemctl restart amazon-cloudwatch-agent"
         ]
         timeoutSeconds = "600" # 10 minutes timeout
       }
@@ -115,7 +104,7 @@ resource "aws_ssm_document" "ebs_volume_setup" {
       action = "aws:runShellScript"
       inputs = {
         runCommand = [
-          # Setup certbot directories first
+          # Setup certificate manager log directory for EBS volume setup logs
           "mkdir -p /var/log/certificate-manager",
           "chown ec2-user:ec2-user /var/log/certificate-manager",
           "chmod 755 /var/log/certificate-manager",

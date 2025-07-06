@@ -18,27 +18,6 @@
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
-            "file_path": "/var/log/certificate-manager/certificate-manager.log",
-            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
-            "log_stream_name": "{instance_id}-manager",
-            "timezone": "UTC",
-            "timestamp_format": "%Y-%m-%d %H:%M:%S"
-          },
-          {
-            "file_path": "/var/log/certificate-manager/certificate-renewal.log",
-            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
-            "log_stream_name": "{instance_id}-renewal",
-            "timezone": "UTC",
-            "timestamp_format": "%Y-%m-%d %H:%M:%S"
-          },
-          {
-            "file_path": "/var/log/certificate-manager/trigger-renewal.log",
-            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
-            "log_stream_name": "{instance_id}-trigger",
-            "timezone": "UTC",
-            "timestamp_format": "%Y-%m-%d %H:%M:%S"
-          },
-          {
             "file_path": "/var/log/certificate-manager/ebs-volume-setup.log",
             "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
             "log_stream_name": "{instance_id}-ebs-setup",
@@ -62,6 +41,16 @@
             "file_path": "/tmp/docker-worker-setup.status",
             "log_group_name": "/aws/ec2/${app_name}-docker-worker",
             "log_stream_name": "{instance_id}-status",
+            "timezone": "UTC"
+          }
+        ]
+      },
+      "systemd": {
+        "collect_list": [
+          {
+            "unit_name": "certificate-manager.service",
+            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
+            "log_stream_name": "{instance_id}-journalctl",
             "timezone": "UTC"
           }
         ]
