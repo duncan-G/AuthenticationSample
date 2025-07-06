@@ -134,6 +134,12 @@ configure_docker_ecr_auth() {
     chown -R ec2-user:ec2-user ~ec2-user/.docker
   fi
   
+  # Configure system-wide Docker config for ECR authentication
+  mkdir -p /etc/docker
+  echo '{
+  "credsStore": "ecr-login"
+}' > /etc/docker/config.json
+  
   log "Docker ECR authentication configured ✅"
 }
 
