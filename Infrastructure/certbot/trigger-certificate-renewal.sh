@@ -78,6 +78,33 @@ for bin in docker aws jq; do
 done
 
 ###############################################################################
+# Wait for Docker Swarm to be initialized
+###############################################################################
+log "🔍 Checking Docker Swarm initialization..."
+
+# Default timeout for swarm initialization (5 minutes)
+readonly SWARM_INIT_TIMEOUT="${SWARM_INIT_TIMEOUT:-300}"
+readonly SWARM_CHECK_INTERVAL="${SWARM_CHECK_INTERVAL:-10}"
+
+swarm_init_timeout=$((SECONDS + SWARM_INIT_TIMEOUT))
+
+while ((SECONDS < swarm_init_timeout)); do
+  # Check if Docker is running and swarm is initialized
+  if docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -q "active\|pending"; then
+    log "✅ Docker Swarm is initialized and ready"
+    break
+  else
+    log "⏳ Waiting for Docker Swarm initialization... (${SWARM_INIT_TIMEOUT}s timeout)"
+    sleep "$SWARM_CHECK_INTERVAL"
+  fi
+done
+
+# Final check after timeout
+if ! docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -q "active\|pending"; then
+  fatal "Docker Swarm initialization timeout after ${SWARM_INIT_TIMEOUT}s. Swarm must be initialized before certificate renewal can proceed."
+fi
+
+###############################################################################
 # Configuration – pulled from AWS Secrets Manager
 ###############################################################################
 log "🔐 Fetching secret \"$AWS_SECRET_NAME\" from AWS Secrets Manager"
