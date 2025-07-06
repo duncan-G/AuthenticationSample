@@ -15,8 +15,6 @@
 #
 # Environment overrides:
 #   CHECK_INTERVAL   Seconds between runs in daemon mode   (default: 86400)
-#   LOG_DIR          Directory for log files               (default: /var/log/certificate-manager)
-#   LOG_FILE         Full log file path                    (default: $LOG_DIR/certificate-manager.log)
 #   TRIGGER_SCRIPT   Path to renewal script                (default: sibling script)
 ###############################################################################
 set -Eeuo pipefail
@@ -33,7 +31,7 @@ REQUIRED_BINS=(docker flock)
 # ── Logging -------------------------------------------------------------------
 _ts() { date '+%Y-%m-%d %H:%M:%S'; }
 log()   { printf '[ %s ] %s\n' "$(_ts)" "$*" >&2; }
-error() { log "\e[31mERROR:\e[0m $*"; }
+error() { log "ERROR: $*"; }
 
 # ── Error & signal traps ------------------------------------------------------
 DAEMON_MODE=false

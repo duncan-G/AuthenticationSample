@@ -214,9 +214,9 @@ service_id="$(docker service create \
   --log-driver awslogs \
   --log-opt awslogs-region="$AWS_REGION" \
   --log-opt awslogs-group="/aws/ec2/$APP_NAME-certificate-manager" \
-  --log-opt awslogs-stream='{{.Service.Name}}/{{.Task.ID}}' \
+  --log-opt awslogs-stream="$SERVICE_NAME" \
   --log-opt mode=non-blocking \
-  "$RENEWAL_IMAGE")" || fatal "Unable to create service"
+  "$RENEWAL_IMAGE" --staging)" || fatal "Unable to create service"
 
 ###############################################################################
 # Wait for the task to finish – with timeout

@@ -297,10 +297,59 @@ certbot_action() {
 # Certificate validity helpers ------------------------------------------------
 ################################################################################
 cert_days_left() {
-  local pem=$1 exp exp_ts now
-  exp=$(openssl x509 -noout -enddate -in "$pem" | cut -d= -f2)
-  exp_ts=$(date -d "$exp" +%s)
-  now=$(date +%s)
+  local pem=$1
+  
+  # Use OpenSSL to get expiration in a more portable way
+  local exp_date
+  exp_date=$(openssl x509 -noout -enddate -in "$pem" 2>/dev/null | cut -d= -f2)
+  
+  if [[ -z "$exp_date" ]]; then
+    log "⚠️  Could not read certificate expiration date from $pem"
+    return 0  # Assume renewal needed
+  fi
+  
+  # Convert to epoch using a more portable approach
+  local exp_ts
+  if command -v gdate >/dev/null 2>&1; then
+    # Use GNU date if available (more reliable)
+    exp_ts=$(gdate -d "$exp_date" +%s 2>/dev/null || echo 0)
+  elif date --version >/dev/null 2>&1; then
+    # Try GNU date
+    exp_ts=$(date -d "$exp_date" +%s 2>/dev/null || echo 0)
+  else
+    # Fallback: use a simple approach that works on most systems
+    # Parse "Oct  3 18:07:43 2025 GMT" format
+    local month day time year
+    if [[ $exp_date =~ ^([A-Za-z]+)\ +([0-9]+)\ +([0-9:]+)\ +([0-9]+)\ +([A-Z]+)$ ]]; then
+      month="${BASH_REMATCH[1]}"
+      day="${BASH_REMATCH[2]}"
+      time="${BASH_REMATCH[3]}"
+      year="${BASH_REMATCH[4]}"
+      
+      # Convert month name to number
+      case $month in
+        Jan) month=01 ;; Feb) month=02 ;; Mar) month=03 ;; Apr) month=04 ;;
+        May) month=05 ;; Jun) month=06 ;; Jul) month=07 ;; Aug) month=08 ;;
+        Sep) month=09 ;; Oct) month=10 ;; Nov) month=11 ;; Dec) month=12 ;;
+        *) month=01 ;; # Default to January if unknown
+      esac
+      
+      # Pad day with leading zero if needed
+      day=$(printf "%02d" "$day")
+      
+      # Try to parse with ISO format
+      exp_ts=$(date -d "$year-$month-$day $time" +%s 2>/dev/null || echo 0)
+    fi
+  fi
+  
+  local now=$(date +%s)
+  
+  # If we still can't parse, assume renewal is needed
+  if [[ $exp_ts -eq 0 ]]; then
+    log "⚠️  Could not parse certificate expiration date: $exp_date"
+    return 0  # Assume renewal needed
+  fi
+  
   echo $(((exp_ts-now)/86400))
 }
 needs_renewal() {

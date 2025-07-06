@@ -21,4 +21,4 @@ RUN chmod +x renew-certificate.sh && \
     mkdir -p /var/log && \
     chmod 755 /var/log
 
-ENTRYPOINT ["/app/renew-certificate.sh", "--dry-run"]
+ENTRYPOINT ["/app/renew-certificate.sh"]
