@@ -69,9 +69,15 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           # The other directories required by the service need to be created manually.
           "mkdir -p /var/lib/certificate-manager",
           "mkdir -p /run/certificate-manager",
+          "mkdir -p /var/log/certificate-manager",
           # Set proper ownership for systemd directories
           "chown ec2-user:ec2-user /var/lib/certificate-manager",
           "chown ec2-user:ec2-user /run/certificate-manager",
+          "chown ec2-user:ec2-user /var/log/certificate-manager",
+          # Create and set permissions for the log file
+          "touch /var/log/certificate-manager/certificate-manager.log",
+          "chown ec2-user:ec2-user /var/log/certificate-manager/certificate-manager.log",
+          "chmod 644 /var/log/certificate-manager/certificate-manager.log",
           # Reload systemd and enable the service
           "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",

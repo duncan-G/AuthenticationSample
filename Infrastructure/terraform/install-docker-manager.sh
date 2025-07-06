@@ -140,14 +140,13 @@ configure_docker_ecr_auth() {
   "credsStore": "ecr-login"
 }' > /etc/docker/config.json
   
-  # Create ECR cache directory for the ec2-user with correct permissions
-  # This allows the ECR credential helper to work with ProtectHome=read-only
-  if id ec2-user &>/dev/null; then
-    mkdir -p /home/ec2-user/.ecr
-    chown ec2-user:ec2-user /home/ec2-user/.ecr
-    chmod 0700 /home/ec2-user/.ecr
-  fi
-   log "Docker ECR authentication configured ✅"
+  # Pre-emptively create ECR cache directory for the ec2-user with correct permissions.
+  # This is necessary because a systemd service with readonly home directory permissions will
+  # use the ecr-login credential helper which will attempt to create this directory and fail.
+  mkdir -p /home/ec2-user/.ecr
+  chown ec2-user:ec2-user /home/ec2-user/.ecr
+  chmod 0700 /home/ec2-user/.ecr
+  log "Docker ECR authentication configured ✅"
 }
 
 ############################################

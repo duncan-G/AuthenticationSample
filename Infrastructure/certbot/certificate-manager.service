@@ -26,8 +26,8 @@ Restart=always
 RestartSec=10
 
 SyslogIdentifier=certificate-manager
-StandardOutput=journal
-StandardError=journal
+StandardOutput=append:/var/log/certificate-manager/certificate-manager.log
+StandardError=append:/var/log/certificate-manager/certificate-manager.log
 
 LockPersonality=yes
 NoNewPrivileges=true

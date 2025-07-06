@@ -25,6 +25,13 @@
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
+            "file_path": "/var/log/certificate-manager/certificate-manager.log",
+            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
+            "log_stream_name": "{instance_id}-manager",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
             "file_path": "/var/log/letsencrypt/letsencrypt.log",
             "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
             "log_stream_name": "{instance_id}-letsencrypt",
@@ -47,16 +54,7 @@
       }
     }
   },
-  "systemd": {
-    "collect_list": [
-      {
-        "unit_name": "certificate-manager.service",
-        "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
-        "log_stream_name": "{instance_id}-journalctl",
-        "timezone": "UTC"
-      }
-    ]
-  },
+  
   "metrics": {
     "metrics_collected": {
       "cpu": {
