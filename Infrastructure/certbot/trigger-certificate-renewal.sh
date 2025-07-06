@@ -189,6 +189,7 @@ log "🔐 ECR authentication is handled by the ECR credential helper"
 log "▶️  Launching renewal service: $SERVICE_NAME"
 service_id="$(docker service create \
   --quiet \
+  --with-registry-auth \
   --name "$SERVICE_NAME" \
   --constraint "$WORKER_CONSTRAINT" \
   --restart-condition none \
