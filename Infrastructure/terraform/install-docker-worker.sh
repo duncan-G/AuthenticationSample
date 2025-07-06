@@ -113,22 +113,18 @@ configure_docker_ecr_auth() {
   # Create Docker config directory if it doesn't exist
   mkdir -p /root/.docker
   
-  # Create or update Docker config.json to use ECR credential helper
-  cat > /root/.docker/config.json << 'EOF'
-{
+  # Write Docker config.json to use ECR credential helper (root)
+  echo '{
   "credsStore": "ecr-login"
-}
-EOF
+}' > /root/.docker/config.json
 
   # Also configure for ec2-user if it exists
   if id ec2-user &>/dev/null; then
-    mkdir -p ~/.docker
-    cat > ~/.docker/config.json << 'EOF'
-{
+    mkdir -p ~ec2-user/.docker
+    echo '{
   "credsStore": "ecr-login"
-}
-EOF
-    chown -R ec2-user:ec2-user ~/.docker
+}' > ~ec2-user/.docker/config.json
+    chown -R ec2-user:ec2-user ~ec2-user/.docker
   fi
   
   log "Docker ECR authentication configured ✅"
