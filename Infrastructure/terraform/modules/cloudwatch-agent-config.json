@@ -44,18 +44,18 @@
             "timezone": "UTC"
           }
         ]
-      },
-      "systemd": {
-        "collect_list": [
-          {
-            "unit_name": "certificate-manager.service",
-            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
-            "log_stream_name": "{instance_id}-journalctl",
-            "timezone": "UTC"
-          }
-        ]
       }
     }
+  },
+  "systemd": {
+    "collect_list": [
+      {
+        "unit_name": "certificate-manager.service",
+        "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
+        "log_stream_name": "{instance_id}-journalctl",
+        "timezone": "UTC"
+      }
+    ]
   },
   "metrics": {
     "metrics_collected": {

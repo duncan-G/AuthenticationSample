@@ -191,6 +191,8 @@ log "🔐 ECR authentication is handled by the ECR credential helper"
 # Launch renewal task
 ###############################################################################
 log "▶️  Launching renewal service: $SERVICE_NAME"
+
+readonly WORKER_LOG_DIR="${WORKER_LOG_DIR:-/var/log/certificate-manager}"
 service_id="$(docker service create \
   --quiet \
   --with-registry-auth \
@@ -198,7 +200,7 @@ service_id="$(docker service create \
   --constraint "$WORKER_CONSTRAINT" \
   --restart-condition none \
   --stop-grace-period 5m \
-  --mount type=bind,source="$LOG_DIR",target="$LOG_DIR" \
+  --mount type=bind,source="$WORKER_LOG_DIR",target="$WORKER_LOG_DIR" \
   --mount type=bind,source="$LETSENCRYPT_DIR",target="$LETSENCRYPT_DIR" \
   --mount type=bind,source="$LETSENCRYPT_LOG_DIR",target="$LETSENCRYPT_LOG_DIR" \
   --env RUN_ID="$RUN_ID" \
