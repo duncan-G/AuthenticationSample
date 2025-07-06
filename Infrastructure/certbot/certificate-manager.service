@@ -17,9 +17,6 @@ WorkingDirectory=%S
 RuntimeDirectory=certificate-manager
 RuntimeDirectoryMode=0755
 
-# Set the log file path to match the certificate-manager directory
-Environment=LOG_FILE=/var/log/certificate-manager/certificate-manager.log
-
 ExecStart=/usr/bin/flock -n %t/certificate-manager/instance.lock /usr/local/bin/certificate-manager.sh --daemon
 
 Restart=always
@@ -34,8 +31,6 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-
-LogsDirectory=certificate-manager
 
 [Install]
 WantedBy=multi-user.target

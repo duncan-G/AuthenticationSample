@@ -35,8 +35,6 @@ set -Eeuo pipefail
 shopt -s inherit_errexit
 
 # ── Globals & defaults ───────────────────────────────────────────────────────
-readonly LOG_DIR="${LOG_DIR:-/var/log/certificate-manager}"
-readonly LOG_FILE="${LOG_FILE:-${LOG_DIR}/trigger-renewal.log}"
 readonly LETSENCRYPT_DIR="${LETSENCRYPT_DIR:-/etc/letsencrypt}"
 readonly LETSENCRYPT_LOG_DIR="${LETSENCRYPT_LOG_DIR:-/var/log/letsencrypt}"
 readonly STAGING_DIR="$(mktemp -d -t cert‑renew.XXXXXXXX)"
@@ -52,7 +50,7 @@ SECRETS_TO_CLEANUP=()
 # Logging helpers
 ###############################################################################
 _ts()      { date '+%Y-%m-%d %H:%M:%S'; }
-log()      { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
+log()      { printf '[ %s ] %s\n' "$(_ts)" "$*" >&2; }
 fatal()    { log "ERROR: $*"; exit 1; }
 
 ###############################################################################
@@ -82,6 +80,12 @@ done
 ###############################################################################
 log "🔍 Checking Docker Swarm initialization..."
 
+already_in_swarm() {
+  local state
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "inactive")
+  [[ "$state" == "active" || "$state" == "pending" ]]
+}
+
 # Default timeout for swarm initialization (5 minutes)
 readonly SWARM_INIT_TIMEOUT="${SWARM_INIT_TIMEOUT:-300}"
 readonly SWARM_CHECK_INTERVAL="${SWARM_CHECK_INTERVAL:-10}"
@@ -89,8 +93,8 @@ readonly SWARM_CHECK_INTERVAL="${SWARM_CHECK_INTERVAL:-10}"
 swarm_init_timeout=$((SECONDS + SWARM_INIT_TIMEOUT))
 
 while ((SECONDS < swarm_init_timeout)); do
-  # Check if Docker is running and swarm is initialized
-  if docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | grep -q "active\|pending"; then
+    # Check if Docker is running and swarm is initialized
+    if already_in_swarm; then
     log "✅ Docker Swarm is initialized and ready"
     break
   else
@@ -205,6 +209,11 @@ service_id="$(docker service create \
   --secret source=acme_email_${RUN_ID},target=ACME_EMAIL \
   --secret source=domain_names_${RUN_ID},target=DOMAINS_NAMES \
   --env AWS_SECRET_NAME="$AWS_SECRET_NAME" \
+  --log-driver awslogs \
+  --log-opt awslogs-region="$AWS_REGION" \
+  --log-opt awslogs-group="/aws/ec2/$APP_NAME-certificate-manager" \
+  --log-opt awslogs-stream='{{.Service.Name}}/{{.Task.ID}}' \
+  --log-opt mode=non-blocking \
   "$RENEWAL_IMAGE")" || fatal "Unable to create service"
 
 ###############################################################################

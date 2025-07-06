@@ -23,8 +23,6 @@ set -Eeuo pipefail
 shopt -s inherit_errexit nullglob
 
 # ── Defaults ------------------------------------------------------------------
-LOG_DIR="${LOG_DIR:-/var/log/certificate-manager}"
-LOG_FILE="${LOG_FILE:-$LOG_DIR/certificate-manager.log}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TRIGGER_SCRIPT="${TRIGGER_SCRIPT:-$SCRIPT_DIR/trigger-certificate-renewal.sh}"
 CHECK_INTERVAL="${CHECK_INTERVAL:-86400}"   # 24 h
@@ -34,7 +32,7 @@ REQUIRED_BINS=(docker flock)
 
 # ── Logging -------------------------------------------------------------------
 _ts() { date '+%Y-%m-%d %H:%M:%S'; }
-log()   { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
+log()   { printf '[ %s ] %s\n' "$(_ts)" "$*" >&2; }
 error() { log "\e[31mERROR:\e[0m $*"; }
 
 # ── Error & signal traps ------------------------------------------------------
@@ -62,7 +60,6 @@ done
 
 # ── Validation ----------------------------------------------------------------
 validate(){
-  mkdir -p "$LOG_DIR"
   [[ -x $TRIGGER_SCRIPT ]] || { error "Trigger script not executable: $TRIGGER_SCRIPT"; exit 1; }
   [[ $CHECK_INTERVAL =~ ^[0-9]+$ ]] || { error "CHECK_INTERVAL must be integer"; exit 1; }
   for b in "${REQUIRED_BINS[@]}"; do command -v "$b" &>/dev/null || { error "$b missing"; exit 1; }; done
