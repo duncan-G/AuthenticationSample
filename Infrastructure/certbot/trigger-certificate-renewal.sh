@@ -50,7 +50,7 @@ SECRETS_TO_CLEANUP=()
 # Logging helpers
 ###############################################################################
 _ts()      { date '+%Y-%m-%d %H:%M:%S'; }
-log()      { printf '[ %s ] %s\n' "$(_ts)" "$*" >&2; }
+log()      { printf '[ %s ] TRIGGER: %s\n' "$(_ts)" "$*" >&2; }
 fatal()    { log "ERROR: $*"; exit 1; }
 
 ###############################################################################
@@ -191,6 +191,7 @@ log "🔐 ECR authentication is handled by the ECR credential helper"
 # Launch renewal task
 ###############################################################################
 log "▶️  Launching renewal service: $SERVICE_NAME"
+log "📋 View service logs in CloudWatch: /aws/ec2/$APP_NAME-certificate-manager log group, stream: $SERVICE_NAME"
 
 readonly WORKER_LOG_DIR="${WORKER_LOG_DIR:-/var/log/certificate-manager}"
 service_id="$(docker service create \

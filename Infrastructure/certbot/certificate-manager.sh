@@ -15,6 +15,8 @@
 #
 # Environment overrides:
 #   CHECK_INTERVAL   Seconds between runs in daemon mode   (default: 86400)
+#   LOG_DIR          Directory for log files               (default: /var/log/certificate-manager)
+#   LOG_FILE         Full log file path                    (default: $LOG_DIR/certificate-manager.log)
 #   TRIGGER_SCRIPT   Path to renewal script                (default: sibling script)
 ###############################################################################
 set -Eeuo pipefail
@@ -30,7 +32,7 @@ REQUIRED_BINS=(docker flock)
 
 # ── Logging -------------------------------------------------------------------
 _ts() { date '+%Y-%m-%d %H:%M:%S'; }
-log()   { printf '[ %s ] %s\n' "$(_ts)" "$*" >&2; }
+log()   { printf '[ %s ] MANAGER: %s\n' "$(_ts)" "$*" >&2; }
 error() { log "ERROR: $*"; }
 
 # ── Error & signal traps ------------------------------------------------------
@@ -67,23 +69,11 @@ validate(){
 # ── Core ----------------------------------------------------------------------
 run_trigger(){
   log "▶  Launching renewal trigger"
-  # Run trigger script and capture its output
-  local trigger_output
-  local trigger_exit_code
-  
-  trigger_output="$("$TRIGGER_SCRIPT" 2>&1)"
-  trigger_exit_code=$?
-  
-  # Log the trigger script output
-  while IFS= read -r line; do
-    log "TRIGGER: $line"
-  done <<< "$trigger_output"
-  
-  if [[ $trigger_exit_code -eq 0 ]]; then
+  if "$TRIGGER_SCRIPT"; then
     log "✅ Trigger finished successfully"
     return 0
   else
-    error "Trigger failed (exit code: $trigger_exit_code)"
+    error "Trigger failed"
     return 1
   fi
 }
@@ -105,6 +95,7 @@ daemon_loop(){
 # ── Main ----------------------------------------------------------------------
 main(){
   log "Certificate‑manager PID $$ started"
+  log "📋 Logs should appear in CloudWatch: /aws/ec2/${APP_NAME:-auth-sample}-certificate-manager log group"
   validate
   if $DAEMON_MODE; then
     daemon_loop
