@@ -76,7 +76,7 @@ import_secret() {
   [[ -z ${!name-} && -r $path ]] && export "$name"="$(<"$path")"
 }
 
-for v in AWS_ROLE_NAME CERTIFICATE_STORE ACME_EMAIL DOMAINS_NAMES AWS_SECRET_NAME; do
+for v in AWS_ROLE_NAME CERTIFICATE_STORE ACME_EMAIL DOMAINS_NAMES; do
   import_secret "$v"
   [[ -n ${!v-} ]] || { log "Required variable not set: $v"; exit 1; }
 done
@@ -86,6 +86,7 @@ done
 ###############################################################################
 RENEWAL_THRESHOLD_DAYS=${RENEWAL_THRESHOLD_DAYS:-$DEFAULT_RENEW_THRESHOLD_DAYS}
 CERT_PREFIX=${CERT_PREFIX:-certificates}
+AWS_SECRET_NAME=${AWS_SECRET_NAME:-certificate-secrets}
 RUN_ID=${RUN_ID:-$(date +%Y%m%d%H%M%S)}
 CERT_OUTPUT_DIR=/app/certs
 IFS=',' read -r -a DOMAINS <<<"$DOMAINS_NAMES"
@@ -115,9 +116,18 @@ assume_role() {
 }
 
 days_until_expiry() {
-  local pem=$1 exp
-  exp=$(openssl x509 -enddate -noout -in "$pem" | cut -d= -f2)
-  (( ($(date -d "$exp" +%s) - $(date +%s)) / 86400 ))
+  local pem=$1 exp_ts now_ts
+
+  # Get the raw OpenSSL string and collapse repeated spaces → "Oct 3 …"
+  local exp_str
+  exp_str=$(openssl x509 -enddate -noout -in "$pem" |
+            cut -d= -f2 |
+            tr -s ' ')           # squeeze runs of spaces
+
+  exp_ts=$(date -u -d "$exp_str" +%s)   || return 1
+  now_ts=$(date -u +%s)
+
+  echo $(( (exp_ts - now_ts) / 86400 ))
 }
 
 needs_renewal() {
@@ -135,7 +145,9 @@ certbot_run() {
 }
 
 make_pfx() {
-  local domain=$1 pw=$2 dir=$CERT_OUTPUT_DIR/$domain
+  local domain=$1
+  local pw=$2
+  local dir=$CERT_OUTPUT_DIR/$domain
   install -d -m 700 "$dir"
   cp "$LETSENCRYPT_DIR/live/$domain"/{cert.pem,privkey.pem,fullchain.pem} "$dir"/
   openssl pkcs12 -export \
@@ -145,13 +157,42 @@ make_pfx() {
 }
 
 upload_s3() {
-  $DRY_RUN && { log "Dry-run: skipping upload"; return; }
-  local dest=s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID
-  for d in "${DOMAINS[@]}"; do
-    aws s3 cp --only-show-errors --recursive "$LETSENCRYPT_DIR/live/$d" "$dest/$d/"
-    aws s3 cp --only-show-errors "$CERT_OUTPUT_DIR/$d/cert.pfx" "$dest/$d/"
-  done
-  echo "$RUN_ID" | aws s3 cp - "$dest/../last-renewal-run-id" --only-show-errors
+    local renewal_occurred=${1:-false}
+
+    if [[ ${DRY_RUN:-} == true ]]; then
+        log "Dry-run: skipping upload to S3"
+        return 0
+    fi
+
+    local dest="s3://${CERTIFICATE_STORE}/${CERT_PREFIX}/${RUN_ID}"
+
+    # ── Upload per-domain files ────────────────────────────────────────────────
+    for d in "${DOMAINS[@]}"; do
+        aws s3 cp --only-show-errors                      \
+                  --recursive "${LETSENCRYPT_DIR}/live/${d}" "${dest}/${d}/" \
+        || { log "Failed to upload live/ for ${d}"; exit 5; }
+
+        aws s3 cp --only-show-errors                      \
+                  "${CERT_OUTPUT_DIR}/${d}/cert.pfx" "${dest}/${d}/" \
+        || { log "Failed to upload cert.pfx for ${d}"; exit 5; }
+    done
+
+    # ── Record the run-id so other jobs can find the newest renewal ───────────
+    printf '%s\n' "${RUN_ID}" | \
+        aws s3 cp - "${dest}/../last-renewal-run-id" --only-show-errors \
+    || { log "Failed to write last-renewal-run-id"; exit 5; }
+
+    # ── Build and upload renewal-status.json ──────────────────────────────────
+    local status_json
+    status_json=$(jq -n                         \
+        --argjson renewal "${renewal_occurred}" \
+        --arg       joined "$(IFS=,; echo "${DOMAINS[*]}")" \
+        '{renewal_occurred: $renewal,
+          renewed_domains: ($joined | split(","))}')
+
+    printf '%s' "${status_json}" | \
+        aws s3 cp - "${dest}/renewal-status.json" --only-show-errors \
+    || { log "Failed to upload renewal-status.json"; exit 5; }
 }
 
 update_secret() {
@@ -172,22 +213,50 @@ update_secret() {
 # Main
 ###############################################################################
 main() {
-  status IN_PROGRESS "started"
-  assume_role
+    status IN_PROGRESS "started"
+    assume_role
 
-  if needs_renewal || [[ $FORCE_UPLOAD == true ]]; then
-    [[ $FORCE_UPLOAD == true ]] && log "FORCE_UPLOAD=true — uploading without renewal"
-    [[ $FORCE_UPLOAD == false ]] && certbot_run
+    # ── Decide whether a renewal is required ─────────────────────────────────
+    local renewal_needed=false
+    if needs_renewal; then
+        renewal_needed=true
+    fi
 
-    local pw=$(make_secret)
+    # Skip everything unless something needs doing
+    if [[ $renewal_needed == false && ${FORCE_UPLOAD:-false} != true ]]; then
+        log "Certificates healthy (> ${RENEWAL_THRESHOLD_DAYS} d)"
+        status SUCCESS "no renewal needed"
+        return 0
+    fi
+
+    # If we reach here we will upload, and possibly renew
+    if [[ $renewal_needed == true ]]; then
+        certbot_run                       # renew certificates
+    else
+        log "FORCE_UPLOAD=true — uploading without renewal"
+    fi
+
+    local renewal_occurred=$renewal_needed
+
+    # ── Build .pfx files and update the secret ───────────────────────────────
+    local pw
+    pw=$(random_secret)                   # captures stdout safely
     update_secret "$pw"
-    for d in "${DOMAINS[@]}"; do make_pfx "$d" "$pw"; done
-    upload_s3
-    status SUCCESS "$([[ $FORCE_UPLOAD == true ]] && echo 'forced upload' || echo 'renewed')"
-  else
-    log "certificates healthy (> $THRESHOLD_DAYS d)"
-    status SUCCESS "no renewal needed"
-  fi
+
+    for d in "${DOMAINS[@]}"; do
+        make_pfx "$d" "$pw"
+    done
+
+    # ── Upload artefacts & status file ───────────────────────────────────────
+    upload_s3 "$renewal_occurred"
+
+    # ── Final status ─────────────────────────────────────────────────────────
+    if [[ $renewal_occurred == true ]]; then
+        status SUCCESS "renewed"
+    else
+        status SUCCESS "forced upload"
+    fi
 }
 
 main "$@"
+

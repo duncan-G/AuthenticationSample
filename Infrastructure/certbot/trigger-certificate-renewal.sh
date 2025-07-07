@@ -119,6 +119,8 @@ done
 # Run the renewal task
 ###############################################################################
 log "launching renewal service $SERVICE_NAME"
+log "See service logs at cert-renew-${RUN_ID}"
+
 service_id=$(docker service create --detach --quiet --with-registry-auth \
   --name "$SERVICE_NAME" \
   --constraint "$WORKER_CONSTRAINT" \
