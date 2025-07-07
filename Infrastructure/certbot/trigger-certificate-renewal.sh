@@ -228,10 +228,16 @@ log "Service ID: $service_id"
 end=$((SECONDS+TIMEOUT_SECONDS))
 while true; do
   state="$(docker service ps --no-trunc --filter desired-state=shutdown --format '{{.CurrentState}}' "$service_id" | head -n1)" || true
+  
+  # Log progress every poll (3 seconds)
+  elapsed=$((SECONDS - (end - TIMEOUT_SECONDS)))
+  remaining=$((end - SECONDS))
+  log "⏳ Still waiting... (${elapsed}s elapsed, ${remaining}s remaining) - Service state: $state"
+  
   case "$state" in
     *\ running)   ;; # still working
-    *\ "Complete") break ;;
-    *\ "Failed"*)  docker service logs "$service_id" || true; fatal "Renewal task failed" ;;
+    *\ "Complete"*) log "✅ Service completed successfully"; break ;;
+    *\ "Failed"*)  fatal "Renewal task failed" ;;
     *)             ;; # not started yet
   esac
   (( SECONDS < end )) || fatal "Timeout waiting for renewal task"
