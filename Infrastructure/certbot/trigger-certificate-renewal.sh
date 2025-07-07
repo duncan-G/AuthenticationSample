@@ -245,66 +245,117 @@ while true; do
 done
 
 #------------------------------------------------------------------------------
-# Download artefacts & publish secrets
+# Check renewal status and download artefacts
 #------------------------------------------------------------------------------
-log "📥 Pulling certificates into $STAGING_DIR …"
+log "📋 Checking renewal status from S3..."
 
-# Download per‑domain artefacts
-for domain in "${DOMAIN_ARRAY[@]}"; do
-  s3_prefix="$APP_NAME/$RUN_ID/$domain/"
-  dest="$STAGING_DIR/$domain"
-  mkdir -p "$dest"
-  log "   ↳ $domain"
-  if ! aws s3 cp "s3://$CERTIFICATE_STORE/$s3_prefix" "$dest/" --recursive --only-show-errors; then
-    fatal "Download failed for $domain" 
-  fi
-  [[ -s "$dest/cert.pem" ]] || log "⚠️  No cert.pem found for $domain (may be new sub‑domain?)"
-done
-
-# Flatten file‑tree & create secrets
-log "🔐 Publishing Swarm secrets …"
-declare -A NEW_SECRETS=()
-for domain in "${DOMAIN_ARRAY[@]}"; do
-  src="$STAGING_DIR/$domain"
-  [[ -d "$src" ]] || continue
-  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
-    [[ -f "$src/$f" ]] || continue
-    flat="${domain//./-}-$f"        # dots → dashes (Swarm secret name safe)
-    cp -p "$src/$f" "$STAGING_DIR/$flat"
-    secret_name="$flat-$RUN_ID"
-    docker secret create "$secret_name" "$STAGING_DIR/$flat" >/dev/null || fatal "Cannot create secret $secret_name"
-    NEW_SECRETS["$domain/$f"]="$secret_name"
-    SECRETS_TO_CLEANUP+=("$secret_name")
-  done
-done
-log "   → ${#NEW_SECRETS[@]} new secrets ready."
-
-#------------------------------------------------------------------------------
-# Hot‑swap secrets into services
-#------------------------------------------------------------------------------
-if [[ -n "${SERVICES_BY_DOMAIN:-}" && "$SERVICES_BY_DOMAIN" != "{}" ]]; then
-  log "🔄 Rotating secrets in target services …"
-  jq -e empty <<<"$SERVICES_BY_DOMAIN" || fatal "SERVICES_BY_DOMAIN is not valid JSON."
-  while IFS= read -r domain; do
-    mapfile -t services < <(jq -r --arg d "$domain" '.[$d][]' <<< "$SERVICES_BY_DOMAIN")
-    ((${#services[@]})) || continue
-    for svc in "${services[@]}"; do
-      log "   ↻ $svc ← $domain"
-      args=(docker service update --quiet
-            --secret-rm cert.pem
-            --secret-rm privkey.pem
-            --secret-rm fullchain.pem
-            --secret-rm cert.pfx)
-      for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
-        sec="${NEW_SECRETS[$domain/$f]:-}"
-        [[ -n "$sec" ]] && args+=(--secret-add "source=$sec,target=$f")
-      done
-      args+=("$svc")
-      "${args[@]}" >/dev/null || fatal "Failed to update $svc"
-    done
-  done < <(jq -r 'keys[]' <<< "$SERVICES_BY_DOMAIN")
+# Download the renewal status file
+status_file="$STAGING_DIR/renewal-status.json"
+if ! aws s3 cp "s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/renewal-status.json" "$status_file" --only-show-errors; then
+  log "⚠️  No renewal status file found - assuming no renewal occurred"
+  RENEWAL_OCCURRED=false
+  RENEWED_DOMAINS=()
 else
-  log "ℹ️  No Services found to update — skipping service updates."
+  # Parse the status file
+  if jq -e . "$status_file" >/dev/null 2>&1; then
+    RENEWAL_OCCURRED=$(jq -r '.renewal_occurred' "$status_file")
+    RENEWED_DOMAINS=($(jq -r '.renewed_domains[]?' "$status_file"))
+    log "📊 Renewal status: occurred=$RENEWAL_OCCURRED, domains=${RENEWED_DOMAINS[*]}"
+  else
+    log "⚠️  Invalid renewal status file - assuming no renewal occurred"
+    RENEWAL_OCCURRED=false
+    RENEWED_DOMAINS=()
+  fi
+fi
+
+# Only proceed with certificate processing if renewal occurred
+if [[ "$RENEWAL_OCCURRED" == "true" && ${#RENEWED_DOMAINS[@]} -gt 0 ]]; then
+  log "📥 Pulling renewed certificates into $STAGING_DIR …"
+  
+  # Download per‑domain artefacts for renewed domains only
+  for domain in "${RENEWED_DOMAINS[@]}"; do
+    s3_prefix="$APP_NAME/$RUN_ID/$domain/"
+    dest="$STAGING_DIR/$domain"
+    mkdir -p "$dest"
+    log "   ↳ $domain"
+    if ! aws s3 cp "s3://$CERTIFICATE_STORE/$s3_prefix" "$dest/" --recursive --only-show-errors; then
+      fatal "Download failed for $domain" 
+    fi
+    [[ -s "$dest/cert.pem" ]] || log "⚠️  No cert.pem found for $domain (may be new sub‑domain?)"
+  done
+else
+  log "ℹ️  No certificates were renewed - checking for missing secrets in Swarm"
+  MISSING_SECRETS=()
+  for domain in "${DOMAIN_ARRAY[@]}"; do
+    for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+      secret_name="${domain//./-}-$f-$RUN_ID"
+      if ! docker secret inspect "$secret_name" >/dev/null 2>&1; then
+        log "   ↳ Missing secret: $secret_name"
+        MISSING_SECRETS+=("$domain/$f")
+      fi
+    done
+  done
+  if [[ ${#MISSING_SECRETS[@]} -eq 0 ]]; then
+    log "✅ All required secrets already exist in Swarm - no action needed"
+    log "🎉 Certificate check complete (no renewal needed)"
+    exit 0
+  fi
+  # Download and create missing secrets
+  log "📥 Downloading certs from S3 for missing secrets..."
+  for domain in "${DOMAIN_ARRAY[@]}"; do
+    s3_prefix="$APP_NAME/$RUN_ID/$domain/"
+    dest="$STAGING_DIR/$domain"
+    mkdir -p "$dest"
+    log "   ↳ $domain"
+    if ! aws s3 cp "s3://$CERTIFICATE_STORE/$s3_prefix" "$dest/" --recursive --only-show-errors; then
+      fatal "Download failed for $domain" 
+    fi
+    [[ -s "$dest/cert.pem" ]] || log "⚠️  No cert.pem found for $domain (may be new sub‑domain?)"
+  done
+  log "🔐 Creating missing Swarm secrets ..."
+  declare -A NEW_SECRETS=()
+  for domain in "${DOMAIN_ARRAY[@]}"; do
+    src="$STAGING_DIR/$domain"
+    [[ -d "$src" ]] || continue
+    for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+      flat="${domain//./-}-$f"
+      secret_name="$flat-$RUN_ID"
+      if ! docker secret inspect "$secret_name" >/dev/null 2>&1 && [[ -f "$src/$f" ]]; then
+        cp -p "$src/$f" "$STAGING_DIR/$flat"
+        docker secret create "$secret_name" "$STAGING_DIR/$flat" >/dev/null || fatal "Cannot create secret $secret_name"
+        NEW_SECRETS["$domain/$f"]="$secret_name"
+        SECRETS_TO_CLEANUP+=("$secret_name")
+      fi
+    done
+  done
+  log "   → ${#NEW_SECRETS[@]} new secrets created."
+  # Update services for domains where secrets were added
+  if [[ -n "${SERVICES_BY_DOMAIN:-}" && "$SERVICES_BY_DOMAIN" != "{}" ]]; then
+    log "🔄 Rotating secrets in target services for domains with new secrets …"
+    jq -e empty <<<"$SERVICES_BY_DOMAIN" || fatal "SERVICES_BY_DOMAIN is not valid JSON."
+    for domain in "${DOMAIN_ARRAY[@]}"; do
+      mapfile -t services < <(jq -r --arg d "$domain" '.[$d][]?' <<< "$SERVICES_BY_DOMAIN")
+      ((${#services[@]})) || continue
+      for svc in "${services[@]}"; do
+        log "   ↻ $svc ← $domain"
+        args=(docker service update --quiet
+              --secret-rm cert.pem
+              --secret-rm privkey.pem
+              --secret-rm fullchain.pem
+              --secret-rm cert.pfx)
+        for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+          sec="${NEW_SECRETS[$domain/$f]:-}"
+          [[ -n "$sec" ]] && args+=(--secret-add "source=$sec,target=$f")
+        done
+        args+=("$svc")
+        "${args[@]}" >/dev/null || fatal "Failed to update $svc"
+      done
+    done
+  else
+    log "ℹ️  No Services found to update — skipping service updates."
+  fi
+  log "🎉 Certificate check complete (secrets synced)"
+  exit 0
 fi
 
 #------------------------------------------------------------------------------

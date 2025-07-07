@@ -547,17 +547,34 @@ main() {
       status FAILED "S3 upload error"
       exit $EXIT_CODE
     fi
+
+    # Write renewal-status.json to S3
+    log "☁️  Writing renewal-status.json to S3 (renewal occurred)"
+    status_json="$(jq -n \
+      --argjson occurred true \
+      --argjson domains "$(printf '%s\n' "${DOMAIN_ARRAY[@]}" | jq -R . | jq -s .)" \
+      --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      '{renewal_occurred: $occurred, renewed_domains: $domains, timestamp: $ts}')"
+    "${DRY_RUN}" == "true" || echo "$status_json" | aws s3 cp - "s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID/renewal-status.json" --content-type application/json --only-show-errors && \
+      log "✅ renewal-status.json uploaded"
     # Post‑renew hook placeholder (e.g., send SIGUSR1 to nginx for reload)
   else
     log "✅ Certificates healthy (> ${RENEWAL_THRESHOLD_DAYS}d)"
-    
     # Check if files are already uploaded to S3
     if check_s3_files_exist; then
       log "✅ Certificate files already exist in S3 - no action needed"
+      # Write renewal-status.json to S3 (no renewal)
+      log "☁️  Writing renewal-status.json to S3 (no renewal)"
+      status_json="$(jq -n \
+        --argjson occurred false \
+        --argjson domains '[]' \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{renewal_occurred: $occurred, renewed_domains: $domains, timestamp: $ts}')"
+      "${DRY_RUN}" == "true" || echo "$status_json" | aws s3 cp - "s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID/renewal-status.json" --content-type application/json --only-show-errors && \
+        log "✅ renewal-status.json uploaded"
     else
       log "📤 Certificate files missing in S3 - creating new PFX and uploading"
       local new_pass=$(random_secret)
-      
       if ! $STAGING && ! $DRY_RUN; then
         if ! update_secret_password "$new_pass"; then
           log "❌ Failed to update certificate password"
@@ -571,14 +588,21 @@ main() {
           log "🔐 Dry-run mode: skipping password update in AWS Secrets Manager"
         fi
       fi
-      
       prepare_output "$new_pass"
-      
       if ! upload_to_s3; then
         log "❌ S3 upload failed"
         status FAILED "S3 upload error"
         exit $EXIT_CODE
       fi
+      # Write renewal-status.json to S3 (no renewal, but files uploaded)
+      log "☁️  Writing renewal-status.json to S3 (no renewal, files uploaded)"
+      status_json="$(jq -n \
+        --argjson occurred false \
+        --argjson domains '[]' \
+        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{renewal_occurred: $occurred, renewed_domains: $domains, timestamp: $ts}')"
+      "${DRY_RUN}" == "true" || echo "$status_json" | aws s3 cp - "s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID/renewal-status.json" --content-type application/json --only-show-errors && \
+        log "✅ renewal-status.json uploaded"
     fi
   fi
 
