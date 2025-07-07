@@ -15,7 +15,7 @@ shopt -s inherit_errexit
 ###############################################################################
 readonly RUN_ID=$(date +%Y%m%d%H%M%S)
 readonly SERVICE_NAME="cert-renew-${RUN_ID}"
-readonly STAGING_DIR=$(mktemp -d -t cert-renew.XXXXXXXX)
+readonly STAGING_DIR=$(mktemp -d -p /var/lib/certificate-manager cert-renew.XXXXXXXX)
 readonly LETSENCRYPT_DIR=${LETSENCRYPT_DIR:-/etc/letsencrypt}
 readonly LETSENCRYPT_LOG_DIR=${LETSENCRYPT_LOG_DIR:-/var/log/letsencrypt}
 readonly WORKER_LOG_DIR=${WORKER_LOG_DIR:-/var/log/certificate-manager}
@@ -147,7 +147,7 @@ service_id=$(docker service create --detach --quiet --with-registry-auth \
 ###############################################################################
 # Wait for completion (timeout $TIMEOUT s)
 ###############################################################################
-log "waiting for renewal task to complete…"
+log "Waiting for renewal task to complete…"
 end=$((SECONDS+TIMEOUT))
 while (( SECONDS < end )); do
   state=$(docker service ps --filter desired-state=shutdown \
