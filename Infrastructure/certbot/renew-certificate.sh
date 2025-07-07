@@ -151,7 +151,7 @@ upload_s3() {
     aws s3 cp --only-show-errors --recursive "$LETSENCRYPT_DIR/live/$d" "$dest/$d/"
     aws s3 cp --only-show-errors "$CERT_OUTPUT_DIR/$d/cert.pfx" "$dest/$d/"
   done
-  echo "$RUN_ID" | aws s3 cp - "$dest/../last-run-id" --only-show-errors
+  echo "$RUN_ID" | aws s3 cp - "$dest/../last-renewal-run-id" --only-show-errors
 }
 
 update_secret() {
