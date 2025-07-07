@@ -224,6 +224,7 @@ service_id="$(docker service create \
 # Wait for the task to finish – with timeout
 ###############################################################################
 log "⏳ Waiting for completion (timeout ${TIMEOUT_SECONDS}s)"
+log "Service ID: $service_id"
 end=$((SECONDS+TIMEOUT_SECONDS))
 while true; do
   state="$(docker service ps --no-trunc --filter desired-state=shutdown --format '{{.CurrentState}}' "$service_id" | head -n1)" || true
