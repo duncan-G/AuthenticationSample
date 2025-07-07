@@ -178,8 +178,9 @@ upload_s3() {
     done
 
     # ── Record the run-id so other jobs can find the newest renewal ───────────
+    local base_dest="s3://${CERTIFICATE_STORE}/${CERT_PREFIX}"
     printf '%s\n' "${RUN_ID}" | \
-        aws s3 cp - "${dest}/../last-renewal-run-id" --only-show-errors \
+        aws s3 cp - "${base_dest}/last-renewal-run-id" --only-show-errors \
     || { log "Failed to write last-renewal-run-id"; exit 5; }
 
     # ── Build and upload renewal-status.json ──────────────────────────────────
