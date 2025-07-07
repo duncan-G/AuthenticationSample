@@ -95,7 +95,6 @@ daemon_loop(){
 # ── Main ----------------------------------------------------------------------
 main(){
   log "Certificate‑manager PID $$ started"
-  log "📋 Logs should appear in CloudWatch: /aws/ec2/${APP_NAME:-auth-sample}-certificate-manager log group"
   validate
   if $DAEMON_MODE; then
     daemon_loop

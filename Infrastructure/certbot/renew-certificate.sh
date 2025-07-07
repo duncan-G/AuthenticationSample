@@ -391,7 +391,6 @@ prepare_output() {
   ln -sf "${DOMAIN_ARRAY[0]}"/privkey.pem   "$CERT_OUTPUT_DIR/cert.key"
   ln -sf "${DOMAIN_ARRAY[0]}"/fullchain.pem "$CERT_OUTPUT_DIR/fullchain.pem"
   ln -sf "${DOMAIN_ARRAY[0]}"/cert.pfx      "$CERT_OUTPUT_DIR/cert.pfx"
-  date -u +%Y-%m-%dT%H:%M:%SZ > "$CERT_OUTPUT_DIR/last-updated.txt"
 }
 
 ################################################################################
@@ -423,6 +422,45 @@ update_secret_password() {
 ################################################################################
 # S3 distribution -------------------------------------------------------------
 ################################################################################
+check_s3_files_exist() {
+  if $DRY_RUN; then
+    log "☁️  Dry‑run: assuming S3 files don't exist"
+    return 1
+  fi
+  
+  log "🔍 Checking if certificate files already exist in S3..."
+  local all_exist=true
+  
+  for d in "${DOMAIN_ARRAY[@]}"; do
+    local s3_path="s3://$CERTIFICATE_STORE/$CERT_PREFIX/$RUN_ID/$d/"
+    
+    # Check if key certificate files exist in S3
+    if ! aws s3 ls "$s3_path/cert.pem" &>/dev/null; then
+      log "  ❌ Missing: $s3_path/cert.pem"
+      all_exist=false
+    elif ! aws s3 ls "$s3_path/privkey.pem" &>/dev/null; then
+      log "  ❌ Missing: $s3_path/privkey.pem"
+      all_exist=false
+    elif ! aws s3 ls "$s3_path/fullchain.pem" &>/dev/null; then
+      log "  ❌ Missing: $s3_path/fullchain.pem"
+      all_exist=false
+    elif ! aws s3 ls "$s3_path/cert.pfx" &>/dev/null; then
+      log "  ❌ Missing: $s3_path/cert.pfx"
+      all_exist=false
+    else
+      log "  ✅ All files exist for: $d"
+    fi
+  done
+  
+  if [[ "$all_exist" == "true" ]]; then
+    log "✅ All certificate files already exist in S3"
+    return 0
+  else
+    log "❌ Some certificate files missing in S3"
+    return 1
+  fi
+}
+
 upload_to_s3() {
   if $DRY_RUN; then
     log "☁️  Dry‑run: skip S3 upload"
@@ -513,7 +551,36 @@ main() {
     # Post‑renew hook placeholder (e.g., send SIGUSR1 to nginx for reload)
   else
     log "✅ Certificates healthy (> ${RENEWAL_THRESHOLD_DAYS}d)"
-    prepare_output  # still refresh timestamps/hashes
+    
+    # Check if files are already uploaded to S3
+    if check_s3_files_exist; then
+      log "✅ Certificate files already exist in S3 - no action needed"
+    else
+      log "📤 Certificate files missing in S3 - creating new PFX and uploading"
+      local new_pass=$(random_secret)
+      
+      if ! $STAGING && ! $DRY_RUN; then
+        if ! update_secret_password "$new_pass"; then
+          log "❌ Failed to update certificate password"
+          status FAILED "Password update error"
+          exit $EXIT_CODE
+        fi
+      else
+        if $STAGING; then
+          log "🔐 Staging mode: skipping password update in AWS Secrets Manager"
+        elif $DRY_RUN; then
+          log "🔐 Dry-run mode: skipping password update in AWS Secrets Manager"
+        fi
+      fi
+      
+      prepare_output "$new_pass"
+      
+      if ! upload_to_s3; then
+        log "❌ S3 upload failed"
+        status FAILED "S3 upload error"
+        exit $EXIT_CODE
+      fi
+    fi
   fi
 
   status SUCCESS "Certificate process complete"

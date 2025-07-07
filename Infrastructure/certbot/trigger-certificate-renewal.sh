@@ -191,10 +191,11 @@ log "🔐 ECR authentication is handled by the ECR credential helper"
 # Launch renewal task
 ###############################################################################
 log "▶️  Launching renewal service: $SERVICE_NAME"
-log "📋 View service logs in CloudWatch: /aws/ec2/$APP_NAME-certificate-manager log group, stream: $SERVICE_NAME"
+log "📋 View service logs in CloudWatch: stream: $SERVICE_NAME. Log group: /aws/ec2/$APP_NAME-certificate-manager"
 
 readonly WORKER_LOG_DIR="${WORKER_LOG_DIR:-/var/log/certificate-manager}"
 service_id="$(docker service create \
+  --detach \
   --quiet \
   --with-registry-auth \
   --name "$SERVICE_NAME" \
@@ -296,7 +297,7 @@ if [[ -n "${SERVICES_BY_DOMAIN:-}" && "$SERVICES_BY_DOMAIN" != "{}" ]]; then
     done
   done < <(jq -r 'keys[]' <<< "$SERVICES_BY_DOMAIN")
 else
-  log "ℹ️  No SERVICES_BY_DOMAIN mapping provided — skipping service updates."
+  log "ℹ️  No Services found to update — skipping service updates."
 fi
 
 #------------------------------------------------------------------------------
