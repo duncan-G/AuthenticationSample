@@ -147,6 +147,7 @@ service_id=$(docker service create --detach --quiet --with-registry-auth \
 ###############################################################################
 # Wait for completion (timeout $TIMEOUT s)
 ###############################################################################
+log "waiting for renewal task to complete…"
 end=$((SECONDS+TIMEOUT))
 while (( SECONDS < end )); do
   state=$(docker service ps --filter desired-state=shutdown \
@@ -156,6 +157,7 @@ while (( SECONDS < end )); do
     *Complete*) log "service completed OK"; break ;;
     *Failed*)  fatal "renewal task failed" ;;
   esac
+  log "current state: $state"
   sleep 3
 done
 (( SECONDS < end )) || fatal "renewal task timed out"
