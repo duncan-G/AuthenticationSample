@@ -51,7 +51,7 @@
             "timezone": "UTC"
           },
           {
-            "file_path": "/home/ec2-user/.ecr/logs/*.log",
+            "file_path": "/home/ec2-user/.ecr/log/*.log",
             "log_group_name": "/aws/ec2/${app_name}-ecr-cred-helper",
             "log_stream_name": "{instance_id}-cred-helper",
             "timezone": "UTC"
