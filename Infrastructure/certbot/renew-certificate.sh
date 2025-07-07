@@ -161,7 +161,6 @@ random_secret() {
   else
     LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*()_+=-[]{}<>?.,' </dev/urandom | head -c 36
   fi
-  echo
 }
 
 ################################################################################
@@ -379,12 +378,12 @@ create_pfx() {
 prepare_output() {
   log "📦 Preparing output directory => $CERT_OUTPUT_DIR"
   local password="$1"
-  for d in "${DOMAIN_ARRAY[@]}"; do
-    local src="$LETSENCRYPT_DIR/live/$d" tgt="$CERT_OUTPUT_DIR/$d"
+  for domain in "${DOMAIN_ARRAY[@]}"; do
+    local src="$LETSENCRYPT_DIR/live/$domain" tgt="$CERT_OUTPUT_DIR/$domain"
     [[ -d $src ]] || { log "WARNING: missing $src"; continue; }
     install -d -m700 "$tgt"
     cp "$src"/{cert.pem,privkey.pem,fullchain.pem} "$tgt/" 2>/dev/null || true
-    create_pfx "$d" "$password"
+    create_pfx "$domain" "$password"
   done
   # Canonical symlinks for consumers (pick first domain)
   ln -sf "${DOMAIN_ARRAY[0]}"/cert.pem      "$CERT_OUTPUT_DIR/cert.pem"
