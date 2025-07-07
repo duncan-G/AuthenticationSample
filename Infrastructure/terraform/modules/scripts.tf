@@ -16,6 +16,12 @@ resource "aws_ssm_document" "docker_manager_setup" {
         runCommand = [
           # Write the existing manager setup script to disk
           "cat <<'EOF' > /tmp/install-docker-manager.sh",
+          # Pre-emptively create ECR cache directory for the ec2-user with correct permissions.
+          # This is necessary because a systemd service with readonly home directory permissions will
+          # use the ecr-login credential helper which will attempt to create this directory and fail.
+          "mkdir -p /home/ec2-user/.ecr",
+          "chown ec2-user:ec2-user /home/ec2-user/.ecr",
+          "chmod 0700 /home/ec2-user/.ecr",
           "${indent(2, file("${path.module}/../install-docker-manager.sh"))}",
           "EOF",
           "chmod +x /tmp/install-docker-manager.sh",
@@ -154,6 +160,12 @@ resource "aws_ssm_document" "docker_worker_setup" {
         runCommand = [
           # Write the existing worker setup script to disk
           "cat <<'EOF' > /tmp/install-docker-worker.sh",
+          # Pre-emptively create ECR cache directory for the ec2-user with correct permissions.
+          # This is necessary because a systemd service with readonly home directory permissions will
+          # use the ecr-login credential helper which will attempt to create this directory and fail.
+          "mkdir -p /home/ec2-user/.ecr",
+          "chown ec2-user:ec2-user /home/ec2-user/.ecr",
+          "chmod 0700 /home/ec2-user/.ecr",
           "${indent(2, file("${path.module}/../install-docker-worker.sh"))}",
           "EOF",
           "chmod +x /tmp/install-docker-worker.sh",
