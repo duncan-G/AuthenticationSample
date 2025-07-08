@@ -54,8 +54,8 @@ for cmd in docker aws jq; do command -v "$cmd" &>/dev/null || fatal "$cmd missin
 ###############################################################################
 # Swarm must be initialised
 ###############################################################################
-until docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null | \
-      grep -Eq 'active|pending'; do
+while ! docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null \
+          | grep -Eq '^(active|pending)$'; do
   log "waiting for Docker Swarm…"
   sleep 5
 done
