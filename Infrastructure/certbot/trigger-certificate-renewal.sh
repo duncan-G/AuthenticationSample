@@ -188,13 +188,6 @@ fi
 
 log "renewal status: $status_data"
 
-# Debug: Check if jq can parse the file
-if ! jq -e . "$status_json" >/dev/null 2>&1; then
-  log "ERROR: Cannot parse JSON file: $status_json"
-  cat "$status_json"
-  exit 1
-fi
-
 # Get renewal status with error handling
 if ! renewed=$(jq -r '.renewal_occurred' "$status_json" 2>&1); then
   log "ERROR: Failed to extract renewal_occurred from JSON: $renewed"
@@ -215,8 +208,14 @@ done <<< "$renew_domains_output"
 
 log "Extracted renewed domains: ${renew_domains[*]}"
 
-[[ $renewed == true && ${#renew_domains[@]} -gt 0 && $FORCE_UPLOAD == false ]] || {
-  log "no domains renewed or force upload enabled – exit"; exit 0; }
+if [[ $renewed == true && ${#renew_domains[@]} -gt 0 ]]; then
+  log "renewal occurred with ${#renew_domains[@]} domains - continuing"
+elif [[ $FORCE_UPLOAD == true ]]; then
+  log "force upload enabled - continuing despite no renewal"
+else
+  log "no domains renewed and force upload disabled - exit"
+  exit 0
+fi
 
 ###############################################################################
 # Fetch artefacts & create Swarm secrets
