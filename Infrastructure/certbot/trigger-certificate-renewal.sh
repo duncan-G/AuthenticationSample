@@ -171,19 +171,10 @@ log "checking for renewal status at: $s3_status_path"
 
 # Check if the file exists first
 if aws s3 ls "$s3_status_path" &>/dev/null; then
-  log "renewal-status.json found, downloading to $status_json..."
-  log "staging directory: $STAGING_DIR (exists: $(test -d "$STAGING_DIR" && echo "yes" || echo "no"))"
-  
+  log "renewal-status.json found, downloading..."
   aws s3 cp "$s3_status_path" "$status_json" \
             || fatal "failed to download renewal-status.json"
-  
-  # Verify the file was actually downloaded
-  if [[ -f "$status_json" ]]; then
-    log "✓ renewal-status.json downloaded successfully at $status_json"
-    log "file size: $(stat -c%s "$status_json" 2>/dev/null || echo "unknown") bytes"
-  else
-    fatal "renewal-status.json download appeared to succeed but file not found at $status_json"
-  fi
+  log "renewal-status.json downloaded successfully at $status_json"
 else
   log "no renewal-status.json found at: $s3_status_path"
   exit 0
