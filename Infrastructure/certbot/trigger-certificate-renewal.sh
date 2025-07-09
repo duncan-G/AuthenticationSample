@@ -24,7 +24,7 @@ readonly WORKER_CONSTRAINT=${WORKER_CONSTRAINT:-node.role==worker}
 readonly RENEWAL_THRESHOLD_DAYS=${RENEWAL_THRESHOLD_DAYS:-10}
 
 # Swarm-secret names created at runtime and removed on exit
-SECRET_IDS=()
+TEMP_SECRET_IDS=()
 
 # Associative array to store new secret names for domain certificates
 declare -A NEW_SECRETS
@@ -43,7 +43,8 @@ cleanup() {
   local rc=$?
   log "clean-up (exit code: $rc)…"
   docker service rm "$SERVICE_NAME" &>/dev/null || true
-  ((${#SECRET_IDS[@]})) && docker secret rm "${SECRET_IDS[@]}" &>/dev/null || true
+  # Only clean up temporary secrets, not certificate secrets
+  ((${#TEMP_SECRET_IDS[@]})) && docker secret rm "${TEMP_SECRET_IDS[@]}" &>/dev/null || true
   # rm -rf "$STAGING_DIR"
 }
 trap cleanup EXIT
@@ -98,7 +99,7 @@ make_secret() {
   local name=$1 val=$2
   id=$(printf '%s' "$val" | docker secret create "$name" -) \
       || fatal "secret $name create failed"
-  SECRET_IDS+=("$name")
+  TEMP_SECRET_IDS+=("$name")
   echo "$name"
 }
 
@@ -239,7 +240,6 @@ for d in "${renew_domains[@]}"; do
     docker secret create "$sec" "$dest/$f" &>/dev/null \
       || fatal "secret create failed: $sec"
     NEW_SECRETS["$d/$f"]=$sec
-    SECRET_IDS+=("$sec")
     log "created secret: $sec"
   done
 done
