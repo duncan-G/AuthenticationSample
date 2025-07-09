@@ -126,8 +126,9 @@ days_until_expiry() {
     fi
 
     local expiration_date_str
-    expiration_date_str=$(openssl x509 -in "$pem_file" -noout -enddate 2>/dev/null | cut -d= -f2)
-
+    expiration_date_str=$(openssl x509 -in "$pem_file" -noout -enddate 2>/dev/null | cut -d= -f2 | tr -s ' ')
+    log "Expiration date string: $expiration_date_str"
+    
     if [ -z "$expiration_date_str" ]; then
         fatal "Could not extract expiration date. Is '$pem_file' a valid certificate?"
     fi
