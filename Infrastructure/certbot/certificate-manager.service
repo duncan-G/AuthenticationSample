@@ -17,14 +17,17 @@ WorkingDirectory=%S
 RuntimeDirectory=certificate-manager
 RuntimeDirectoryMode=0755
 
+# Allow ECR credential helper to write to its default cache directory
+ReadWritePaths=/home/ec2-user/.ecr
+
 ExecStart=/usr/bin/flock -n %t/certificate-manager/instance.lock /usr/local/bin/certificate-manager.sh --daemon
 
 Restart=always
 RestartSec=10
 
 SyslogIdentifier=certificate-manager
-StandardOutput=journal
-StandardError=journal
+StandardOutput=append:/var/log/certificate-manager/certificate-manager.log
+StandardError=append:/var/log/certificate-manager/certificate-manager.log
 
 LockPersonality=yes
 NoNewPrivileges=true

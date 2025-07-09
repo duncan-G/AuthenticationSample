@@ -32,8 +32,8 @@ REQUIRED_BINS=(docker flock)
 
 # ── Logging -------------------------------------------------------------------
 _ts() { date '+%Y-%m-%d %H:%M:%S'; }
-log()   { printf '[ %s ] %s\n' "$(_ts)" "$*" >&2; }
-error() { log "\e[31mERROR:\e[0m $*"; }
+log()   { printf '[ %s ] MANAGER: %s\n' "$(_ts)" "$*" >&2; }
+error() { log "ERROR: $*"; }
 
 # ── Error & signal traps ------------------------------------------------------
 DAEMON_MODE=false

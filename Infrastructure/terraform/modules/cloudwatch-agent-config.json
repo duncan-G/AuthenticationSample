@@ -25,6 +25,13 @@
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
+            "file_path": "/var/log/certificate-manager/certificate-manager.log",
+            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
+            "log_stream_name": "{instance_id}-manager",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
             "file_path": "/var/log/letsencrypt/letsencrypt.log",
             "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
             "log_stream_name": "{instance_id}-letsencrypt",
@@ -42,21 +49,18 @@
             "log_group_name": "/aws/ec2/${app_name}-docker-worker",
             "log_stream_name": "{instance_id}-status",
             "timezone": "UTC"
-          }
-        ]
-      },
-      "systemd": {
-        "collect_list": [
+          },
           {
-            "unit_name": "certificate-manager.service",
-            "log_group_name": "/aws/ec2/${app_name}-certificate-manager",
-            "log_stream_name": "{instance_id}-journalctl",
+            "file_path": "/home/ec2-user/.ecr/log/*.log",
+            "log_group_name": "/aws/ec2/${app_name}-ecr-cred-helper",
+            "log_stream_name": "{instance_id}-cred-helper",
             "timezone": "UTC"
           }
         ]
       }
     }
   },
+  
   "metrics": {
     "metrics_collected": {
       "cpu": {

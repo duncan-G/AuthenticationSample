@@ -16,6 +16,12 @@ resource "aws_ssm_document" "docker_manager_setup" {
         runCommand = [
           # Write the existing manager setup script to disk
           "cat <<'EOF' > /tmp/install-docker-manager.sh",
+          # Pre-emptively create ECR cache directory for the ec2-user with correct permissions.
+          # This is necessary because a systemd service with readonly home directory permissions will
+          # use the ecr-login credential helper which will attempt to create this directory and fail.
+          "mkdir -p /home/ec2-user/.ecr",
+          "chown ec2-user:ec2-user /home/ec2-user/.ecr",
+          "chmod 0700 /home/ec2-user/.ecr",
           "${indent(2, file("${path.module}/../install-docker-manager.sh"))}",
           "EOF",
           "chmod +x /tmp/install-docker-manager.sh",
@@ -69,15 +75,19 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           # The other directories required by the service need to be created manually.
           "mkdir -p /var/lib/certificate-manager",
           "mkdir -p /run/certificate-manager",
+          "mkdir -p /var/log/certificate-manager",
           # Set proper ownership for systemd directories
           "chown ec2-user:ec2-user /var/lib/certificate-manager",
           "chown ec2-user:ec2-user /run/certificate-manager",
+          "chown ec2-user:ec2-user /var/log/certificate-manager",
+          # Create and set permissions for the log file
+          "touch /var/log/certificate-manager/certificate-manager.log",
+          "chown ec2-user:ec2-user /var/log/certificate-manager/certificate-manager.log",
+          "chmod 644 /var/log/certificate-manager/certificate-manager.log",
           # Reload systemd and enable the service
           "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",
-          "systemctl start certificate-manager.service",
-          # Restart CloudWatch agent to pick up new journalctl configuration
-          "systemctl restart amazon-cloudwatch-agent"
+          "systemctl start certificate-manager.service"
         ]
         timeoutSeconds = "600" # 10 minutes timeout
       }
@@ -150,6 +160,12 @@ resource "aws_ssm_document" "docker_worker_setup" {
         runCommand = [
           # Write the existing worker setup script to disk
           "cat <<'EOF' > /tmp/install-docker-worker.sh",
+          # Pre-emptively create ECR cache directory for the ec2-user with correct permissions.
+          # This is necessary because a systemd service with readonly home directory permissions will
+          # use the ecr-login credential helper which will attempt to create this directory and fail.
+          "mkdir -p /home/ec2-user/.ecr",
+          "chown ec2-user:ec2-user /home/ec2-user/.ecr",
+          "chmod 0700 /home/ec2-user/.ecr",
           "${indent(2, file("${path.module}/../install-docker-worker.sh"))}",
           "EOF",
           "chmod +x /tmp/install-docker-worker.sh",

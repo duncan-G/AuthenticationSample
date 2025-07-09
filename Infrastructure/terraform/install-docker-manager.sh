@@ -139,7 +139,7 @@ configure_docker_ecr_auth() {
   echo '{
   "credsStore": "ecr-login"
 }' > /etc/docker/config.json
-  
+
   log "Docker ECR authentication configured ✅"
 }
 
