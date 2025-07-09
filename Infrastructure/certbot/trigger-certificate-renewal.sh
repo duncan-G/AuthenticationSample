@@ -38,8 +38,8 @@ fatal()   { log "ERROR: $*"; exit 1; }
 ###############################################################################
 cleanup() {
   local rc=$?
-  log "clean-up (rc=$rc)…"
-  docker service rm -f "$SERVICE_NAME" &>/dev/null || true
+  log "clean-up (exit code: $rc)…"
+  docker service rm "$SERVICE_NAME" &>/dev/null || true
   ((${#SECRET_IDS[@]})) && docker secret rm "${SECRET_IDS[@]}" &>/dev/null || true
   rm -rf "$STAGING_DIR"
 }
