@@ -31,6 +31,7 @@ FORCE_UPLOAD=${FORCE_UPLOAD:-false}
 _ts() { date '+%F %T'; }
 log()   { printf '[ %s ] %s\n' "$(_ts)" "$*" | tee -a "$LOG_FILE" >&2; }
 status(){ printf '%s: %s at %s\n' "$1" "$2" "$(_ts)" >"$STATUS_FILE"; log "STATUS ⇢ $1 — $2"; }
+fatal()   { log "ERROR: $*"; exit 1; }
 
 trap 'status FAILED "line $LINENO exited with code $?"; exit 1' ERR
 mkdir -p "$LOG_DIR"
@@ -116,27 +117,43 @@ assume_role() {
 }
 
 days_until_expiry() {
-  local pem=$1 exp_ts now_ts
+    local pem_file="$1"
+    local seconds_in_a_day=86400
 
-  # Get the raw OpenSSL string and collapse repeated spaces → "Oct 3 …"
-  local exp_str
-  exp_str=$(openssl x509 -enddate -noout -in "$pem" |
-            cut -d= -f2 |
-            tr -s ' ')           # squeeze runs of spaces
+    if [ ! -f "$pem_file" ]; then
+        log "File '$pem_file' not found or is not a regular file."
+        return 1
+    fi
 
-  exp_ts=$(date -u -d "$exp_str" +%s)   || return 1
-  now_ts=$(date -u +%s)
+    local expiration_date_str
+    expiration_date_str=$(openssl x509 -in "$pem_file" -noout -enddate 2>/dev/null | cut -d= -f2)
 
-  echo $(( (exp_ts - now_ts) / 86400 ))
+    if [ -z "$expiration_date_str" ]; then
+        fatal "Could not extract expiration date. Is '$pem_file' a valid certificate?"
+    fi
+
+    # Convert the date string to seconds since the epoch for calculation.
+    local expiration_date_seconds
+    if ! expiration_date_seconds=$(date -d "$expiration_date_str" +%s); then
+        fatal "Could not parse the date string '$expiration_date_str'."
+    fi
+
+    local current_date_seconds
+    current_date_seconds=$(date +%s)
+
+    local diff=$(( (expiration_date_seconds - current_date_seconds) / seconds_in_a_day ))
+
+    echo "$diff"
 }
 
 needs_renewal() {
-  [[ $FORCE == true ]] && return 0
+    [[ ${FORCE:-false} == true ]] && return 0           # forced by caller
 
-  local pem="$LETSENCRYPT_DIR/live/${DOMAINS[0]}/cert.pem"
-  [[ ! -f $pem ]] && return 0
+    local pem="$LETSENCRYPT_DIR/live/${DOMAINS[0]}/cert.pem"
+    [[ ! -f $pem ]] && return 0                         # nothing to check yet
 
-  [[ $(days_until_expiry "$pem") -le $RENEWAL_THRESHOLD_DAYS ]]
+    local days_remaining=$(days_until_expiry "$pem")
+    [[ $days_remaining -le $RENEWAL_THRESHOLD_DAYS ]]
 }
 
 certbot_run() {
