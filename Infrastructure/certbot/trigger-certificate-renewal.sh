@@ -165,9 +165,23 @@ done
 # Pull renewal status
 ###############################################################################
 status_json="$STAGING_DIR/status.json"
-aws s3 cp "s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/renewal-status.json" \
-          "$status_json" --only-show-errors \
-          || { log "no renewal-status.json found – nothing to rotate"; exit 0; }
+s3_status_path="s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/renewal-status.json"
+
+log "checking for renewal status at: $s3_status_path"
+
+# Check if the file exists first
+if aws s3 ls "$s3_status_path" &>/dev/null; then
+  log "renewal-status.json found, downloading..."
+  aws s3 cp "$s3_status_path" "$status_json" \
+            || fatal "failed to download renewal-status.json"
+  log "renewal-status.json downloaded successfully"
+else
+  log "no renewal-status.json found at: $s3_status_path"
+  log "checking what files exist in the directory..."
+  aws s3 ls "s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/" || true
+  log "nothing to rotate - exiting"
+  exit 0
+fi
 
 renewed=$(jq -e '.renewal_occurred' "$status_json")
 renew_domains=($(jq -r '.renewed_domains[]' "$status_json"))
@@ -181,9 +195,13 @@ renew_domains=($(jq -r '.renewed_domains[]' "$status_json"))
 log "downloading cert artefacts…"
 for d in "${renew_domains[@]}"; do
   dest="$STAGING_DIR/$d"; mkdir -p "$dest"
-  aws s3 cp "s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/$d/" "$dest/" \
-            --recursive --only-show-errors \
+  s3_cert_path="s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/$d/"
+  log "downloading certificates for domain: $d from $s3_cert_path"
+  
+  aws s3 cp "$s3_cert_path" "$dest/" --recursive \
             || fatal "download failed: $d"
+  
+  log "downloaded certificates for $d, creating Swarm secrets..."
   for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
     [[ -f $dest/$f ]] || continue
     sec="${d//./-}-$f-$RUN_ID"
@@ -191,6 +209,7 @@ for d in "${renew_domains[@]}"; do
       || fatal "secret create failed: $sec"
     NEW_SECRETS["$d/$f"]=$sec
     SECRET_IDS+=("$sec")
+    log "created secret: $sec"
   done
 done
 log "artefacts ready as Swarm secrets"
