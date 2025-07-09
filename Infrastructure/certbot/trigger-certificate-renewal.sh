@@ -196,7 +196,7 @@ if ! jq -e . "$status_json" >/dev/null 2>&1; then
 fi
 
 # Get renewal status with error handling
-if ! renewed=$(jq -e '.renewal_occurred' "$status_json" 2>&1); then
+if ! renewed=$(jq -r '.renewal_occurred' "$status_json" 2>&1); then
   log "ERROR: Failed to extract renewal_occurred from JSON: $renewed"
   exit 1
 fi
