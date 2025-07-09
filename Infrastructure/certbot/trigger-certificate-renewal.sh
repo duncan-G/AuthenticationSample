@@ -180,8 +180,15 @@ else
   exit 0
 fi
 
-renewed=$(jq -e '.renewal_occurred' "$status_json")
-renew_domains=($(jq -r '.renewed_domains[]' "$status_json"))
+# Read renewal status from JSON
+if ! status_data=$(jq -e . "$status_json"); then
+  log "invalid JSON in renewal-status.json"
+  exit 1
+fi
+log "renewal status: $status_data"
+
+renewed=$(jq -e '.renewal_occurred' <<<"$status_data")
+renew_domains=($(jq -r '.renewed_domains[]' <<<"$status_data"))
 
 [[ $renewed == true && ${#renew_domains[@]} -gt 0 && $FORCE_UPLOAD == false ]] || {
   log "no domains renewed or force upload enabled – exit"; exit 0; }
