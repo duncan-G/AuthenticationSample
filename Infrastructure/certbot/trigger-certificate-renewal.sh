@@ -153,11 +153,10 @@ while (( SECONDS < end )); do
   state=$(docker service ps --filter desired-state=shutdown \
           --format '{{.CurrentState}}' "$service_id" | head -n1)
   case $state in
-    *running) ;;
     *Complete*) log "service completed OK"; break ;;
     *Failed*)  fatal "renewal task failed" ;;
+    *)         state=running; log "current state: $state" ;;
   esac
-  log "current state: $state"
   sleep 3
 done
 (( SECONDS < end )) || fatal "renewal task timed out"

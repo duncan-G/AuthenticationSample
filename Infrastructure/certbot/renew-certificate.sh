@@ -132,8 +132,11 @@ days_until_expiry() {
 
 needs_renewal() {
   [[ $FORCE == true ]] && return 0
-  local pem=$LETSENCRYPT_DIR/live/${DOMAINS[0]}/cert.pem
-  [[ ! -f $pem ]] || (( $(days_until_expiry "$pem") <= RENEWAL_THRESHOLD_DAYS ))
+
+  local pem="$LETSENCRYPT_DIR/live/${DOMAINS[0]}/cert.pem"
+  [[ ! -f $pem ]] && return 0
+
+  [[ $(days_until_expiry "$pem") -le $RENEWAL_THRESHOLD_DAYS ]]
 }
 
 certbot_run() {
