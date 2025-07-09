@@ -174,12 +174,9 @@ if aws s3 ls "$s3_status_path" &>/dev/null; then
   log "renewal-status.json found, downloading..."
   aws s3 cp "$s3_status_path" "$status_json" \
             || fatal "failed to download renewal-status.json"
-  log "renewal-status.json downloaded successfully"
+  log "renewal-status.json downloaded successfully at $status_json"
 else
   log "no renewal-status.json found at: $s3_status_path"
-  log "checking what files exist in the directory..."
-  aws s3 ls "s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/" || true
-  log "nothing to rotate - exiting"
   exit 0
 fi
 
