@@ -117,33 +117,37 @@ assume_role() {
 }
 
 days_until_expiry() {
-    local pem_file="$1"
-    local seconds_in_a_day=86400
+    local pem_file=$1
+    local seconds_in_day=86400
 
-    if [ ! -f "$pem_file" ]; then
-        log "File '$pem_file' not found or is not a regular file."
-        return 1
-    fi
+    # Sanity-check input file
+    [[ -f $pem_file ]] || { echo 0; return 1; }
 
-    local expiration_date_str
-    expiration_date_str=$(openssl x509 -in "$pem_file" -noout -enddate 2>/dev/null | cut -d= -f2 | tr -s ' ')
-    log "Expiration date string: $expiration_date_str"
-    
-    if [ -z "$expiration_date_str" ]; then
-        fatal "Could not extract expiration date. Is '$pem_file' a valid certificate?"
-    fi
+    # Extract the OpenSSL “notAfter” string, e.g.  "Oct  3 18:07:43 2025 GMT"
+    local raw
+    raw=$(openssl x509 -in "$pem_file" -noout -enddate 2>/dev/null) || { echo 0; return 1; }
+    raw=${raw#notAfter=}                       # strip tag
+    raw=$(tr -s ' ' <<<"$raw")                 # remove double spaces
 
-    # Convert the date string to seconds since the epoch for calculation.
-    local expiration_date_seconds
-    if ! expiration_date_seconds=$(date -d "$expiration_date_str" +%s); then
-        fatal "Could not parse the date string '$expiration_date_str'."
-    fi
+    # Split into parts
+    local mon day time year
+    read -r mon day time year _ <<<"$raw"
 
-    local current_date_seconds
-    current_date_seconds=$(date +%s)
+    # Map month name → 01-12
+    local months=(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec) mm
+    for i in "${!months[@]}"; do
+        [[ ${months[i]} == "$mon" ]] && printf -v mm '%02d' $((i+1))
+    done
+    printf -v day '%02d' "$day"
 
-    local diff=$(( (expiration_date_seconds - current_date_seconds) / seconds_in_a_day ))
+    # Convert to epoch (BusyBox-friendly ISO-like format)
+    local exp_epoch now_epoch
+    exp_epoch=$(date -u -d "${year}-${mm}-${day} ${time}" +%s 2>/dev/null) || { echo 0; return 1; }
+    now_epoch=$(date -u +%s)
 
+    # Calculate whole days (floor) – never negative
+    local diff=$(( (exp_epoch - now_epoch) / seconds_in_day ))
+    (( diff < 0 )) && diff=0
     echo "$diff"
 }
 
