@@ -26,6 +26,9 @@ readonly RENEWAL_THRESHOLD_DAYS=${RENEWAL_THRESHOLD_DAYS:-10}
 # Swarm-secret names created at runtime and removed on exit
 SECRET_IDS=()
 
+# Associative array to store new secret names for domain certificates
+declare -A NEW_SECRETS
+
 ###############################################################################
 # Logging helpers
 ###############################################################################
