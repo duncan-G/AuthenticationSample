@@ -188,7 +188,7 @@ fi
 log "renewal status: $status_data"
 
 renewed=$(jq -e '.renewal_occurred' <<<"$status_data")
-renew_domains=($(jq -r '.renewed_domains[]' <<<"$status_data"))
+mapfile -t renew_domains < <(jq -r '.renewed_domains[]' <<<"$status_data")
 
 [[ $renewed == true && ${#renew_domains[@]} -gt 0 && $FORCE_UPLOAD == false ]] || {
   log "no domains renewed or force upload enabled – exit"; exit 0; }
