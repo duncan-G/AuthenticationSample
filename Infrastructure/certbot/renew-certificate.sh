@@ -277,7 +277,7 @@ main() {
 
     # ── Upload artefacts & status file ───────────────────────────────────────
     upload_s3 "$renewal_occurred"
-    log "Uploaded artefacts to S3"
+    log "Uploaded artefacts to S3: Run ID $RUN_ID"
 
     # ── Final status ─────────────────────────────────────────────────────────
     if [[ $renewal_occurred == true ]]; then
