@@ -41,7 +41,7 @@ cleanup() {
   log "clean-up (exit code: $rc)…"
   docker service rm "$SERVICE_NAME" &>/dev/null || true
   ((${#SECRET_IDS[@]})) && docker secret rm "${SECRET_IDS[@]}" &>/dev/null || true
-  rm -rf "$STAGING_DIR"
+  # rm -rf "$STAGING_DIR"
 }
 trap cleanup EXIT
 trap 'fatal "command failed on line $LINENO"' ERR
@@ -171,10 +171,19 @@ log "checking for renewal status at: $s3_status_path"
 
 # Check if the file exists first
 if aws s3 ls "$s3_status_path" &>/dev/null; then
-  log "renewal-status.json found, downloading..."
+  log "renewal-status.json found, downloading to $status_json..."
+  log "staging directory: $STAGING_DIR (exists: $(test -d "$STAGING_DIR" && echo "yes" || echo "no"))"
+  
   aws s3 cp "$s3_status_path" "$status_json" \
             || fatal "failed to download renewal-status.json"
-  log "renewal-status.json downloaded successfully at $status_json"
+  
+  # Verify the file was actually downloaded
+  if [[ -f "$status_json" ]]; then
+    log "✓ renewal-status.json downloaded successfully at $status_json"
+    log "file size: $(stat -c%s "$status_json" 2>/dev/null || echo "unknown") bytes"
+  else
+    fatal "renewal-status.json download appeared to succeed but file not found at $status_json"
+  fi
 else
   log "no renewal-status.json found at: $s3_status_path"
   exit 0
