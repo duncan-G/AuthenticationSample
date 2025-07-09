@@ -268,13 +268,16 @@ main() {
     local pw
     pw=$(random_secret)                   # captures stdout safely
     update_secret "$pw"
+    log "Updated secret with password"
 
     for d in "${DOMAINS[@]}"; do
         make_pfx "$d" "$pw"
+        log "Created pfx file for $d"
     done
 
     # ── Upload artefacts & status file ───────────────────────────────────────
     upload_s3 "$renewal_occurred"
+    log "Uploaded artefacts to S3"
 
     # ── Final status ─────────────────────────────────────────────────────────
     if [[ $renewal_occurred == true ]]; then
