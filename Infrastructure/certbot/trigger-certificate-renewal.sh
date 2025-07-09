@@ -185,10 +185,35 @@ if ! status_data=$(jq -e . "$status_json"); then
   log "invalid JSON in renewal-status.json"
   exit 1
 fi
+
 log "renewal status: $status_data"
 
-renewed=$(jq -e '.renewal_occurred' <<<"$status_data")
-mapfile -t renew_domains < <(jq -r '.renewed_domains[]' <<<"$status_data")
+# Debug: Check if jq can parse the file
+if ! jq -e . "$status_json" >/dev/null 2>&1; then
+  log "ERROR: Cannot parse JSON file: $status_json"
+  cat "$status_json"
+  exit 1
+fi
+
+# Get renewal status with error handling
+if ! renewed=$(jq -e '.renewal_occurred' "$status_json" 2>&1); then
+  log "ERROR: Failed to extract renewal_occurred from JSON: $renewed"
+  exit 1
+fi
+
+# Get renewed domains with error handling
+if ! renew_domains_output=$(jq -r '.renewed_domains[]' "$status_json" 2>&1); then
+  log "ERROR: Failed to extract renewed_domains from JSON: $renew_domains_output"
+  exit 1
+fi
+
+# Convert to array
+renew_domains=()
+while IFS= read -r domain; do
+  [[ -n "$domain" ]] && renew_domains+=("$domain")
+done <<< "$renew_domains_output"
+
+log "Extracted renewed domains: ${renew_domains[*]}"
 
 [[ $renewed == true && ${#renew_domains[@]} -gt 0 && $FORCE_UPLOAD == false ]] || {
   log "no domains renewed or force upload enabled – exit"; exit 0; }
