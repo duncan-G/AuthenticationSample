@@ -15,5 +15,3 @@ Hooks:
   - AfterInstall: "scripts/after-install.sh"
   - ApplicationStart: "scripts/application-start.sh"
   - ValidateService: "scripts/validate-service.sh"
-  - BeforeAllowTraffic: "scripts/before-allow-traffic.sh"
-  - AfterAllowTraffic: "scripts/after-allow-traffic.sh"

@@ -1,0 +1,73 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  memory_limiter:
+    limit_mib: 512
+
+  resource:
+    attributes:
+      - key: service.name
+        action: upsert
+        from_attribute: service.name
+      - key: service.version
+        action: upsert
+        from_attribute: service.version
+
+exporters:
+  # AWS X-Ray for distributed tracing
+  awsxray:
+    region: us-west-1  # Change to your AWS region
+    no_verify_ssl: false
+    
+  # CloudWatch for metrics
+  awscloudwatchmetrics:
+    region: us-west-1  # Change to your AWS region
+    namespace: AuthenticationSample/OpenTelemetry
+    dimension_rollup_option: NoDimensionRollup
+    metric_declarations:
+      - dimensions: [[service.name], [service.name, service.version]]
+        metric_name_selectors:
+          - ".*"
+        
+  # CloudWatch Logs for logs
+  awscloudwatchlogs:
+    region: us-west-1  # Change to your AWS region
+    log_group_name: /aws/otel/application-logs
+    log_stream_name: otel-collector
+
+  # Keep console exporter for debugging
+  logging:
+    loglevel: debug
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [awsxray, logging]
+      
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [awscloudwatchmetrics, logging]
+      
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [awscloudwatchlogs, logging] 
