@@ -1,80 +1,124 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ApplicationStart hook for CodeDeploy – starts the new revision and triggers an Envoy hot-swap
 
-# ApplicationStart hook for CodeDeploy
-# This script starts the new version of the application
+set -euo pipefail
 
-set -e
+####################################
+# Helper utilities
+####################################
+err()  { printf "ERROR: %s\n" "$*" >&2; exit 1; }
+log() { printf ">>> %s\n"  "$*"; }
+need_bin() { command -v "$1" &>/dev/null || err "Required binary '$1' not found"; }
 
-# Load environment variables
-source /opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh
+####################################
+# Sanity checks
+####################################
+for b in docker aws jq; do need_bin "$b"; done
 
-echo "Starting ApplicationStart hook for ${SERVICE_NAME}..."
+: "${DEPLOYMENT_GROUP_ID:?Missing DEPLOYMENT_GROUP_ID}"
+: "${DEPLOYMENT_ID:?Missing DEPLOYMENT_ID}"
+: "${STACK_FILE:?Missing STACK_FILE}"
+: "${SERVICE_NAME:?Missing SERVICE_NAME}"
+: "${VERSION:?Missing VERSION}"
 
-# Set environment variables for deployment
-export IMAGE_NAME="${IMAGE_URI}"
-export CERTIFICATE_PASSWORD="${CERTIFICATE_PASSWORD}"
-export ENV_FILE="/opt/microservices/${SERVICE_NAME}/.env"
-export OVERRIDE_ENV_FILE="/opt/microservices/${SERVICE_NAME}/.env.docker"
+ARCHIVE_ROOT="/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive"
 
-# Create temporary stack file with new image
-cat > /tmp/${STACK_NAME}-stack.yml << EOF
-version: "3.8"
+# shellcheck source=/dev/null
+source "${ARCHIVE_ROOT}/scripts/env.sh"
 
-services:
-  app:
-    image: ${IMAGE_URI}
-    env_file:
-      - ${ENV_FILE}
-      - ${OVERRIDE_ENV_FILE}
-    environment:
-      ASPNETCORE_URLS: https://+:8000
-      ASPNETCORE_ENVIRONMENT: Production
-    networks:
-      - net
-    secrets:
-      - source: aspnetapp.pfx
-        target: /https/aspnetapp.pfx
-    deploy:
-      mode: global
-      restart_policy:
-        condition: on-failure
-        delay: 15s
-        max_attempts: 3
-        window: 120s
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
-        monitor: 15s
-        order: stop-first
-networks:
-  net:
-    external: true
+log "Starting ApplicationStart hook for ${SERVICE_NAME}..."
 
-secrets:
-  aspnetapp.pfx:
-    external: true
-EOF
+####################################
+# Create versioned Envoy configs
+####################################
+log "Creating new versioned configs…"
 
-# Deploy or update the stack
-echo "Deploying ${SERVICE_NAME} to Docker Swarm..."
-if docker stack ls | grep -q "${STACK_NAME}"; then
-    echo "Updating existing stack: ${STACK_NAME}"
-    docker stack deploy --compose-file /tmp/${STACK_NAME}-stack.yml "${STACK_NAME}"
+# Determine config directory packaged with the revision
+CONFIG_DIR="${ARCHIVE_ROOT}/configs"
+
+if [[ -d $CONFIG_DIR ]]; then
+  # Iterate over all YAML/YML files inside the config directory
+  shopt -s nullglob
+  for full_path in "$CONFIG_DIR"/*.yml "$CONFIG_DIR"/*.yaml; do
+    [[ -f $full_path ]] || continue
+
+    base=$(basename "${full_path%.*}")        # Strip extension
+    base_clean=${base//./_}                     # Replace dots with underscores
+    cfg_name="${base_clean}_config_${VERSION}"
+
+    log "Creating Docker config '${cfg_name}' from '${full_path}'"
+    docker config inspect "$cfg_name" &>/dev/null && docker config rm "$cfg_name" || true
+    docker config create "$cfg_name" "$full_path" \
+      || err "Failed to create Docker config '${cfg_name}'"
+  done
+  shopt -u nullglob
 else
-    echo "Creating new stack: ${STACK_NAME}"
-    docker stack deploy --compose-file /tmp/${STACK_NAME}-stack.yml "${STACK_NAME}"
+  log "⚠︎ Config directory not found: $CONFIG_DIR (skipping config creation)"
 fi
 
-# Wait for deployment to start
-echo "Waiting for deployment to start..."
+# Allow the Swarm to propagate new configs
+sleep 5
+
+####################################
+# Deploy / update the stack
+####################################
+stack_src="${ARCHIVE_ROOT}/${STACK_FILE}"
+[[ -f $stack_src ]] || err "Stack file not found: $stack_src"
+
+tmp_stack="/tmp/${SERVICE_NAME}-stack.yml"
+cp "$stack_src" "$tmp_stack"
+
+log "Deploying stack '${SERVICE_NAME}'…"
+docker stack deploy --compose-file "$tmp_stack" "$SERVICE_NAME"
+
+####################################
+# Basic health-check
+####################################
 sleep 10
+docker stack ps "$SERVICE_NAME" --no-trunc
 
-# Check if deployment is progressing
-if ! docker stack ps "${STACK_NAME}" --format "table {{.Name}}\t{{.CurrentState}}" | grep -q "Running\|Pending"; then
-    echo "ERROR: Deployment failed to start properly"
-    docker stack ps "${STACK_NAME}"
-    exit 1
+if ! docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -Eq 'Running|Pending'; then
+  err "Deployment failed to start properly"
 fi
 
-echo "ApplicationStart hook completed successfully" 
+####################################
+# Validate Service hot-swap
+####################################
+sleep 15
+SERVICE_ID=$(docker service ls --filter "label=service=${SERVICE_NAME}" \
+                                  --format '{{.ID}}' | head -n1)
+
+if [[ -n $SERVICE_ID ]]; then
+  state=$(docker service ps "$SERVICE_ID" --format '{{.CurrentState}}' | head -n1)
+  log "Service state: $state"
+  [[ $state == Running* ]] \
+    && log "✓ Service hot-swap successful" \
+    || log "⚠︎ Service still starting"
+else
+  log "⚠︎ Service not found for validation"
+fi
+
+####################################
+# Prune old Docker configs (keep latest 3)
+####################################
+log "Cleaning up old config versions…"
+
+if [[ -d $CONFIG_DIR ]]; then
+  shopt -s nullglob
+  for full_path in "$CONFIG_DIR"/*.yml "$CONFIG_DIR"/*.yaml; do
+    [[ -f $full_path ]] || continue
+    base=$(basename "${full_path%.*}")
+    base_clean=${base//./_}
+    prefix="${base_clean}_config_"
+
+    mapfile -t old < <(docker config ls --format '{{.Name}}' \
+               | grep "^${prefix}" | sort -r | tail -n +4)
+    for o in "${old[@]}"; do
+      log "Removing outdated config: $o"
+      docker config rm "$o" || true
+    done
+  done
+  shopt -u nullglob
+fi
+
+log "ApplicationStart hook completed successfully."

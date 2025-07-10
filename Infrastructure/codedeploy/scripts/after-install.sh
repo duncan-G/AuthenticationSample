@@ -1,31 +1,43 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# AfterInstall hook for CodeDeploy – runs after the new version is installed
 
-# AfterInstall hook for CodeDeploy
-# This script runs after the new version is installed
+set -euo pipefail
 
-set -e
+####################################
+# Helper utilities
+####################################
+err()  { printf "ERROR: %s\n" "$*" >&2; exit 1; }
+log() { printf ">>> %s\n"  "$*"; }
+need_bin() { command -v "$1" &>/dev/null || err "Required binary '$1' not found"; }
 
-# Load environment variables
-source /opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh
+####################################
+# Sanity checks
+####################################
+need_bin docker
 
-echo "Starting AfterInstall hook for ${SERVICE_NAME}..."
+: "${DEPLOYMENT_GROUP_ID:?Missing DEPLOYMENT_GROUP_ID}"
+: "${DEPLOYMENT_ID:?Missing DEPLOYMENT_ID}"
+: "${STACK_NAME:?Missing STACK_NAME}"
 
-# Pull the new image
-echo "Pulling new image: ${IMAGE_URI}"
-docker pull "${IMAGE_URI}"
+# shellcheck source=/dev/null
+source "/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh"
 
-# Verify image was pulled successfully
-if ! docker image inspect "${IMAGE_URI}" >/dev/null 2>&1; then
-    echo "ERROR: Failed to pull image ${IMAGE_URI}"
-    exit 1
+log "Starting AfterInstall hook for ${SERVICE_NAME:-unknown}..."
+
+####################################
+# Backup current stack configuration
+####################################
+if docker stack ls --format '{{.Name}}' | grep -qx "${STACK_NAME}"; then
+  log "Creating backup of current stack '${STACK_NAME}'..."
+  ts=$(date +%Y%m%d-%H%M%S)
+  backup="/tmp/${STACK_NAME}-backup-${ts}.txt"
+
+  docker stack ps "${STACK_NAME}" \
+       --format 'table {{.Name}}\t{{.Image}}\t{{.Node}}\t{{.CurrentState}}' > "$backup"
+
+  log "✓ Backup written to $backup"
+else
+  log "Stack '${STACK_NAME}' not found – nothing to back up"
 fi
 
-echo "Image pulled successfully: ${IMAGE_URI}"
-
-# Create backup of current stack configuration if it exists
-if docker stack ls | grep -q "${STACK_NAME}"; then
-    echo "Creating backup of current stack configuration..."
-    docker stack ps "${STACK_NAME}" --format "table {{.Name}}\t{{.Image}}\t{{.Node}}" > "/tmp/${STACK_NAME}-backup-$(date +%Y%m%d-%H%M%S).txt"
-fi
-
-echo "AfterInstall hook completed successfully" 
+log "AfterInstall hook completed successfully."

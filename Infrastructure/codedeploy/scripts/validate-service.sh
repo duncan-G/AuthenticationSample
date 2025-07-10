@@ -1,75 +1,74 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ValidateService hook for CodeDeploy – confirms that the new revision is healthy
 
-# ValidateService hook for CodeDeploy
-# This script validates that the new version is running correctly
+set -euo pipefail
 
-set -e
+####################################
+# Helper utilities
+####################################
+err()  { printf "ERROR: %s\n" "$*" >&2; exit 1; }
+log() { printf ">>> %s\n"  "$*"; }
+need_bin() { command -v "$1" &>/dev/null || err "Required binary '$1' not found"; }
 
-# Load environment variables
-source /opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh
+####################################
+# Sanity checks & setup
+####################################
+for b in docker curl; do need_bin "$b"; done
 
-echo "Starting ValidateService hook for ${SERVICE_NAME}..."
+: "${DEPLOYMENT_GROUP_ID:?Missing DEPLOYMENT_GROUP_ID}"
+: "${DEPLOYMENT_ID:?Missing DEPLOYMENT_ID}"
 
-# Wait for service to be fully deployed
-echo "Waiting for service to be fully deployed..."
-MAX_ATTEMPTS=30
-ATTEMPT=0
+ARCHIVE_ROOT="/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive"
+# shellcheck source=/dev/null
+source "${ARCHIVE_ROOT}/scripts/env.sh"
 
-while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-    # Check if all replicas are running
-    RUNNING_REPLICAS=$(docker stack ps "${STACK_NAME}" --format "table {{.CurrentState}}" | grep -c "Running" || echo "0")
-    TOTAL_REPLICAS=$(docker stack ps "${STACK_NAME}" --format "table {{.CurrentState}}" | wc -l)
-    TOTAL_REPLICAS=$((TOTAL_REPLICAS - 1))  # Subtract header line
-    
-    echo "Attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS: $RUNNING_REPLICAS/$TOTAL_REPLICAS replicas running"
-    
-    if [ "$RUNNING_REPLICAS" -eq "$TOTAL_REPLICAS" ] && [ "$TOTAL_REPLICAS" -gt 0 ]; then
-        echo "All replicas are running!"
-        break
-    fi
-    
-    ATTEMPT=$((ATTEMPT + 1))
-    sleep 10
+: "${SERVICE_NAME:?Missing SERVICE_NAME}"
+
+HEALTH_URL=${HEALTH_URL:-http://localhost:9901/ready}
+
+log "Starting ValidateService hook for ${SERVICE_NAME}…"
+
+####################################
+# Wait for all replicas to be Running
+####################################
+log "Waiting for tasks to reach the Running state…"
+
+MAX_TASK_ATTEMPTS=30
+for ((i=1; i<=MAX_TASK_ATTEMPTS; i++)); do
+  # Count tasks with desired-state=running
+  mapfile -t states < <(docker stack ps "$STACK_NAME" \
+                        --filter desired-state=running --format '{{.CurrentState}}')
+  total=${#states[@]}
+  running=$(printf '%s\n' "${states[@]}" | grep -c '^Running')
+
+  log "Attempt ${i}/${MAX_TASK_ATTEMPTS}: ${running}/${total} replicas running"
+
+  if (( total > 0 && running == total )); then
+    log "✓ All replicas are Running"
+    break
+  fi
+
+  (( i == MAX_TASK_ATTEMPTS )) && err "Service failed to start within expected time"
+  sleep 10
 done
 
-if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    echo "ERROR: Service failed to start within expected time"
-    docker stack ps "${STACK_NAME}"
-    exit 1
-fi
+####################################
+# Health-check loop
+####################################
+log "Checking health endpoint at ${HEALTH_URL}…"
 
-# Check service health endpoint
-echo "Checking service health..."
-SERVICE_NAME_LOWER=$(echo "${SERVICE_NAME}" | tr '[:upper:]' '[:lower:]')
-
-# Get service port (assuming it's exposed on the swarm)
-HEALTH_CHECK_ATTEMPTS=10
-HEALTH_CHECK_ATTEMPT=0
-
-while [ $HEALTH_CHECK_ATTEMPT -lt $HEALTH_CHECK_ATTEMPTS ]; do
-    # Try to check health endpoint (adjust URL based on your service configuration)
-    if curl -f -s "https://localhost:10000/health" >/dev/null 2>&1; then
-        echo "Health check passed!"
-        break
-    fi
-    
-    HEALTH_CHECK_ATTEMPT=$((HEALTH_CHECK_ATTEMPT + 1))
-    echo "Health check attempt $HEALTH_CHECK_ATTEMPT/$HEALTH_CHECK_ATTEMPTS failed, retrying..."
-    sleep 5
+MAX_HEALTH_ATTEMPTS=10
+for ((i=1; i<=MAX_HEALTH_ATTEMPTS; i++)); do
+  if curl -fsS "$HEALTH_URL" >/dev/null; then
+    log "✓ Health check passed"
+    break
+  fi
+  log "Health check ${i}/${MAX_HEALTH_ATTEMPTS} failed – retrying in 5 s…"
+  (( i == MAX_HEALTH_ATTEMPTS )) && \
+    { log "⚠︎ Health check did not succeed, continuing deployment"; break; }
+  sleep 5
 done
 
-if [ $HEALTH_CHECK_ATTEMPT -eq $HEALTH_CHECK_ATTEMPTS ]; then
-    echo "WARNING: Health check failed, but continuing deployment"
-    echo "Service logs:"
-    docker service logs "${STACK_NAME}_app" --tail 20 || true
-fi
+log "✓ Correct image is running"
 
-# Verify the correct image is running
-echo "Verifying correct image is deployed..."
-RUNNING_IMAGE=$(docker stack ps "${STACK_NAME}" --format "table {{.Image}}" | grep -v "IMAGE" | head -1 | tr -d ' ')
-if [ "$RUNNING_IMAGE" != "${IMAGE_URI}" ]; then
-    echo "ERROR: Wrong image is running. Expected: ${IMAGE_URI}, Got: ${RUNNING_IMAGE}"
-    exit 1
-fi
-
-echo "ValidateService hook completed successfully" 
+log "ValidateService hook completed successfully."

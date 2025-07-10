@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  app:
+    image: envoyproxy/envoy:v1.33-latest
+    networks:
+      - net
+    ports:
+      - "443:443"   # HTTPS Application Service
+      - "80:80"     # HTTP redirect
+    configs:
+      - source: envoy_config
+        target: /etc/envoy/envoy.yaml
+      - source: envoy_clusters
+        target: /etc/envoy/discovery/envoy.cds.yaml
+      - source: envoy_secrets
+        target: /etc/envoy/discovery/envoy.sds.yaml
+      - source: envoy_routes
+        target: /etc/envoy/discovery/envoy.rds.yaml
+    secrets:
+      - source: ${CERT_PEM_SECRET_NAME}
+        target: /etc/envoy/certs/cert.pem
+      - source: ${CERT_KEY_SECRET_NAME}
+        target: /etc/envoy/certs/cert.key
+    deploy:
+      labels:
+        version: ${VERSION}
+        service: ${SERVICE_NAME}
+        environment: ${ENVIRONMENT}
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 800M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 30s
+        order: stop-first
+        max_failure_ratio: 0.3
+      placement:
+        constraints:
+          - node.role == worker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9901/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  net:
+    external: true
+
+configs:
+  envoy_config:
+    name: envoy_config_${VERSION}
+    external: true
+  envoy_clusters:
+    name: envoy_cds_config_${VERSION}
+    external: true
+  envoy_secrets:
+    name: envoy_sds_config_${VERSION}
+    external: true
+  envoy_routes:
+    name: envoy_rds_config_${VERSION}
+    external: true
+
+secrets:
+  ${CERT_PEM_SECRET_NAME}:
+    external: true
+  ${CERT_KEY_SECRET_NAME}:
+    external: true 

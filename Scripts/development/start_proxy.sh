@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source the deployment utilities
-source "$(dirname "$0")/deployment_utils.sh"
+source "$(dirname "$0")/../deployment/deployment_utils.sh"
 
 # Get current version from running Envoy service if it exists
 CURRENT_VERSION=$(docker service inspect envoy_app 2>/dev/null | jq -r '.[0].Spec.Labels.version // "0"')
@@ -10,13 +10,13 @@ CURRENT_VERSION=$(docker service inspect envoy_app 2>/dev/null | jq -r '.[0].Spe
 VERSION=$((CURRENT_VERSION + 1))
 
 echo "Starting Envoy proxy"
-docker config create envoy_config_$VERSION Infrastructure/envoy/envoy.yaml
-docker config create envoy_clusters_$VERSION Infrastructure/envoy/discovery/envoy.cds.yaml
-docker config create envoy_secrets_$VERSION Infrastructure/envoy/discovery/envoy.sds.yaml
-docker config create envoy_routes_$VERSION Infrastructure/envoy/discovery/envoy.rds.yaml
+docker config create envoy_config_$VERSION Infrastructure/envoy/dev/envoy-debug.yaml
+docker config create envoy_clusters_$VERSION Infrastructure/envoy/dev/discovery/envoy.cds.yaml
+docker config create envoy_secrets_$VERSION Infrastructure/envoy/dev/discovery/envoy.sds.yaml
+docker config create envoy_routes_$VERSION Infrastructure/envoy/dev/discovery/envoy.rds.yaml
 
 echo "Deploying Envoy proxy"
-env VERSION=$VERSION docker stack deploy --compose-file Infrastructure/envoy/envoy.stack.debug.yaml envoy
+env VERSION=$VERSION docker stack deploy --compose-file Infrastructure/envoy/dev/envoy.stack.debug.yaml envoy
 
 # Wait for deployment
 if ! wait_for_deployment "envoy_app" "$VERSION"; then
