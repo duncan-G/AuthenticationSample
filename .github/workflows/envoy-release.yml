@@ -65,6 +65,7 @@ jobs:
         
         # Create deployment package directory
         mkdir -p deployment-package
+        mkdir -p deployment-package/scripts
         
         # Copy and customize the AppSpec file
         cp Infrastructure/codedeploy/appspec.yml deployment-package/
