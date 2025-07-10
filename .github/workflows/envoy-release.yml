@@ -96,7 +96,7 @@ jobs:
 
         # ========= Copy & template Envoy configs =========
         mkdir -p configs
-        cp Infrastructure/envoy/prod/*.yaml configs/
+        cp Infrastructure/envoy/prod/* configs/
 
         find configs -type f -name '*.ya?ml' -exec sed -i \
           -e "s|\${VERSION}|$VERSION|g" \
