@@ -40,7 +40,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-codedeploy
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-role-codedeploy
         role-session-name: GitHubActions-CodeDeploy-${{ github.run_id }}
         aws-region: ${{ vars.AWS_REGION || 'us-west-1' }}
 
