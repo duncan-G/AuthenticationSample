@@ -113,7 +113,8 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
         Action = [
           "s3:GetObject",
           "s3:GetObjectVersion",
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:PutObject"
         ]
         Resource = [
           "arn:aws:s3:::${var.app_name}-codedeploy-${var.bucket_suffix}",
