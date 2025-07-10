@@ -50,8 +50,9 @@ jobs:
         APP_NAME="${{ vars.APP_NAME }}"            # Org / repo variable
         SHORT_SHA="${GITHUB_SHA::8}"
         VERSION="${{ env.SERVICE_NAME }}-${ENVIRONMENT}-${SHORT_SHA}"
+        DOMAIN="${{ vars.DOMAIN_NAME }}"
 
-        CERT_PREFIX="api.${APP_NAME}"
+        CERT_PREFIX="api.${DOMAIN}"
         CERT_PREFIX="${CERT_PREFIX//./-}"          # turn dots → dashes
 
         {
@@ -94,11 +95,17 @@ jobs:
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
 
+        # Template appspec.yml variables
+        sed -i \
+          -e "s|{{ ENVIRONMENT }}|$ENVIRONMENT|g" \
+          -e "s|{{ SERVICE_NAME }}|$SERVICE_NAME|g" \
+          staging/appspec.yml
+
         # ========= Copy & template Envoy configs =========
         mkdir -p configs
         cp Infrastructure/envoy/prod/* configs/
 
-        find configs -type f -name '*.ya?ml' -exec sed -i \
+        find configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
           -e "s|\${VERSION}|$VERSION|g" \
           -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
           -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
@@ -106,7 +113,9 @@ jobs:
           -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert-pem|g" \
           -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-cert-key|g" {} +
 
-        mv configs/${STACK_FILE} staging/
+        mv configs/* staging/configs/
+        mv staging/configs/$STACK_FILE staging/
+
         tar -czf deployment-package.tar.gz -C staging .
 
     # ───────────────────────────────
