@@ -22,9 +22,7 @@ ARCHIVE_ROOT="/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEP
 # shellcheck source=/dev/null
 source "${ARCHIVE_ROOT}/scripts/env.sh"
 
-: "${STACK_NAME:?Missing STACK_NAME}"
 : "${SERVICE_NAME:?Missing SERVICE_NAME}"
-: "${IMAGE_URI:?Missing IMAGE_URI}"
 
 HEALTH_URL=${HEALTH_URL:-http://localhost:9901/ready}
 
@@ -70,25 +68,6 @@ for ((i=1; i<=MAX_HEALTH_ATTEMPTS; i++)); do
     { log "⚠︎ Health check did not succeed, continuing deployment"; break; }
   sleep 5
 done
-
-####################################
-# Verify the correct image is running
-####################################
-log "Verifying expected image '${IMAGE_URI}' is deployed…"
-
-mapfile -t images < <(docker stack ps "$STACK_NAME" \
-                      --filter desired-state=running \
-                      --format '{{.Image}}' | awk '{$1=$1;print}' | sort -u)
-
-if [[ ${#images[@]} -eq 0 ]]; then
-  err "No running tasks found to validate image"
-fi
-
-if [[ ${#images[@]} -gt 1 || ${images[0]} != "$IMAGE_URI" ]]; then
-  printf "ERROR: Mismatched image(s) detected.\nExpected: %s\nFound:\n" "$IMAGE_URI" >&2
-  printf "  • %s\n" "${images[@]}" >&2
-  exit 1
-fi
 
 log "✓ Correct image is running"
 

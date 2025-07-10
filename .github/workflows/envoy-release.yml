@@ -60,47 +60,63 @@ jobs:
         SERVICE_NAME="${{ env.SERVICE_NAME }}"
         ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
         VERSION="${{ steps.version.outputs.version }}"
+        DOMAIN="api.${{ vars.APP_NAME }}"
+        CERT_PREFIX=$(echo "$DOMAIN" | sed 's/\./-/g')
         
         # Create deployment package directory
         mkdir -p deployment-package
         
         # Copy and customize the AppSpec file
-        cp Infrastructure/codedeploy/envoy/appspec.yml deployment-package/
+        cp Infrastructure/codedeploy/appspec.yml deployment-package/
         
         # Replace placeholders with actual values
         sed -i "s/{{ ENVIRONMENT }}/$ENVIRONMENT/g" deployment-package/appspec.yml
         sed -i "s/{{ SERVICE_NAME }}/$SERVICE_NAME/g" deployment-package/appspec.yml
         
         # Copy deployment scripts
-        if [ -d "Infrastructure/codedeploy/envoy" ]; then
-          cp -r Infrastructure/codedeploy/envoy/* deployment-package/
-          
-          DOMAIN="api.ultramotiontech.com"
-          CERT_PREFIX=$(echo "$DOMAIN" | sed 's/\./-/g')
-          cat > deployment-package/scripts/deployment.env << EOF
+        cp -r Infrastructure/codedeploy/scripts/* deployment-package/scripts/
 
-          SERVICE_NAME=$SERVICE_NAME
-          ENVIRONMENT=$ENVIRONMENT
-          VERSION=$VERSION
-          STACK_NAME=$SERVICE_NAME
-          STACK_FILE=configs/envoy.stack.release.yml
-          DOMAIN=$DOMAIN
-          CERT_PREFIX=$CERT_PREFIX
-          CERT_DOMAIN=$DOMAIN
-          SECRET_NAME=${{ vars.APP_NAME }}-secrets
-          EOF
-          
-          echo "Created deployment-specific environment file"
-        fi
+        # Export variables for envsubst so they are replaced in env.sh
+        export SERVICE_NAME ENVIRONMENT VERSION DOMAIN CERT_PREFIX
+        export STACK_FILE="envoy.stack.release.yml"
+        export SECRET_NAME="${{ vars.APP_NAME }}-secrets"
+        export AWS_REGION="${{ vars.AWS_REGION || 'us-west-1' }}"
+        export VALIDATE_CERTIFICATES=true
+        export DEPLOYMENT_BUCKET="${{ secrets.DEPLOYMENT_BUCKET }}"
+        export APP_NAME="${{ vars.APP_NAME }}"
+
+        # Substitute variables inside env.sh using envsubst
+        envsubst < deployment-package/scripts/env.sh > deployment-package/scripts/env.sh.tmp && mv deployment-package/scripts/env.sh.tmp deployment-package/scripts/env.sh
+        chmod +x deployment-package/scripts/env.sh
         
-        # Copy envoy configuration files to flat structure
+
+        # Copy Envoy configuration files
         mkdir -p deployment-package/configs
-        cp Infrastructure/envoy/prod/* deployment-package/configs/
-        
-        # Substitute environment variables in configuration files
-        DOMAIN="api.ultramotiontech.com"
-        CERT_PREFIX=$(echo "$DOMAIN" | sed 's/\./-/g')
+        cp Infrastructure/envoy/prod/*.yaml deployment-package/configs/
         find deployment-package/configs -name "*.yaml" -type f -exec sed -i "s/\$DOMAIN/$DOMAIN/g" {} \;
+
+
+        # Define certificate secret names (used for substitutions)
+        CERT_PEM_SECRET_NAME="${CERT_PREFIX}-cert-pem"
+        CERT_KEY_SECRET_NAME="${CERT_PREFIX}-cert-key"
+
+        # Substitute environment variables in configuration files under configs/
+        find deployment-package/configs -name "*.yaml" -type f -exec sed -i "s/\$DOMAIN/$DOMAIN/g" {} \;
+        find deployment-package/configs -name "*.yml" -type f -exec sed -i "s/\${VERSION}/$VERSION/g" {} \;
+        find deployment-package/configs -name "*.yml" -type f -exec sed -i "s/\${SERVICE_NAME}/$SERVICE_NAME/g" {} \;
+        find deployment-package/configs -name "*.yml" -type f -exec sed -i "s/\${ENVIRONMENT}/$ENVIRONMENT/g" {} \;
+        find deployment-package/configs -name "*.yml" -type f -exec sed -i "s/\${CERT_PEM_SECRET_NAME}/$CERT_PEM_SECRET_NAME/g" {} \;
+        find deployment-package/configs -name "*.yml" -type f -exec sed -i "s/\${CERT_KEY_SECRET_NAME}/$CERT_KEY_SECRET_NAME/g" {} \;
+
+        # Move the stack file out of the configs directory
+        mv deployment-package/configs/envoy.stack.release.yml deployment-package/
+
+        # Substitute variables in stack file
+        sed -i "s/\${VERSION}/$VERSION/g" deployment-package/envoy.stack.release.yml
+        sed -i "s/\${SERVICE_NAME}/$SERVICE_NAME/g" deployment-package/envoy.stack.release.yml
+        sed -i "s/\${ENVIRONMENT}/$ENVIRONMENT/g" deployment-package/envoy.stack.release.yml
+        sed -i "s/\${CERT_PEM_SECRET_NAME}/$CERT_PEM_SECRET_NAME/g" deployment-package/envoy.stack.release.yml
+        sed -i "s/\${CERT_KEY_SECRET_NAME}/$CERT_KEY_SECRET_NAME/g" deployment-package/envoy.stack.release.yml
         
         # Create deployment package
         tar -czf deployment-package.tar.gz -C deployment-package .
