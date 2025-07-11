@@ -156,6 +156,12 @@ resource "aws_iam_role_policy_attachment" "ec2_codedeploy_policy_attachment" {
   policy_arn = aws_iam_policy.ec2_codedeploy_policy.arn
 }
 
+# Attach same CodeDeploy policy to the manager (private) instance role
+resource "aws_iam_role_policy_attachment" "private_instance_codedeploy_policy_attachment" {
+  role       = aws_iam_role.private_instance_role.name
+  policy_arn = aws_iam_policy.ec2_codedeploy_policy.arn
+}
+
 # Instance profile for EC2 CodeDeploy role
 resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
   name = "${var.app_name}-ec2-codedeploy-profile"

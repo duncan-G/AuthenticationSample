@@ -550,7 +550,6 @@ resource "aws_iam_role_policy_attachment" "private_manager_ssm_send_command" {
 }
 
 
-
 # Instance Profiles
 resource "aws_iam_instance_profile" "public_instance_profile" {
   name = "${var.app_name}-ec2-public-instance-profile"
