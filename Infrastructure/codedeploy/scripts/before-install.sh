@@ -38,13 +38,13 @@ if [[ "${VALIDATE_CERTIFICATES:-false}" == "true" ]]; then
                    --secret-id "$SECRET_NAME" \
                    --query 'SecretString' --output text) || err "Could not retrieve secret '$SECRET_NAME'"
 
-  APP_NAME=$(jq -r '.app_name // empty' <<<"$SECRET_JSON")
-  CERTIFICATE_STORE=$(jq -r '.certificate_store // empty' <<<"$SECRET_JSON")
+  APP_NAME=$(jq -r '.APP_NAME // empty' <<<"$SECRET_JSON")
+  CERTIFICATE_STORE=$(jq -r '.CERTIFICATE_STORE // empty' <<<"$SECRET_JSON")
 
   [[ -n $APP_NAME && -n $CERTIFICATE_STORE ]] \
-    || err "Missing 'app_name' or 'certificate_store' in secret '$SECRET_NAME'"
+    || err "Missing 'APP_NAME' or 'CERTIFICATE_STORE' in secret '$SECRET_NAME'"
 
-  log "✓ Retrieved app_name and certificate_store"
+  log "✓ Retrieved APP_NAME and CERTIFICATE_STORE"
 
   ###########################
   # Determine latest run ID
