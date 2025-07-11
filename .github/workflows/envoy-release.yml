@@ -84,9 +84,9 @@ jobs:
         # ========= Create staging area =========
         mkdir -p staging/scripts
         mkdir -p staging/configs
-        cp Infrastructure/codedeploy/appspec.yml                 staging/
-        cp -r Infrastructure/codedeploy/scripts/*                staging/scripts/
-        cp -r Infrastructure/codedeploy/envoy/prod/*             staging/configs/
+        cp Infrastructure/codedeploy/appspec.yml        staging/
+        cp -r Infrastructure/codedeploy/scripts/*       staging/scripts/
+        cp -r Infrastructure/envoy/prod/*               staging/configs/
 
         # Render env.sh (envsubst keeps it POSIX-portable)
         export SERVICE_NAME ENVIRONMENT VERSION APP_NAME CERT_PREFIX \
