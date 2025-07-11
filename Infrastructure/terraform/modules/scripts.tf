@@ -339,7 +339,7 @@ resource "aws_ssm_parameter" "docker_swarm_worker_token" {
   overwrite   = true
 
   lifecycle {
-    ignore_changes = [ value ]
+    ignore_changes = [value]
   }
 
   tags = {
@@ -356,7 +356,7 @@ resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
   overwrite   = true
 
   lifecycle {
-    ignore_changes = [ value ]
+    ignore_changes = [value]
   }
 
   tags = {
@@ -373,7 +373,7 @@ resource "aws_ssm_parameter" "docker_swarm_network_name" {
   overwrite   = true
 
   lifecycle {
-    ignore_changes = [ value ]
+    ignore_changes = [value]
   }
 
   tags = {
