@@ -18,9 +18,9 @@ services:
       - source: envoy_routes
         target: /etc/envoy/discovery/envoy.rds.yaml
     secrets:
-      - source: ${CERT_PEM_SECRET_NAME}
+      - source: cert_pem
         target: /etc/envoy/certs/cert.pem
-      - source: ${CERT_KEY_SECRET_NAME}
+      - source: cert_key
         target: /etc/envoy/certs/cert.key
     deploy:
       labels:
