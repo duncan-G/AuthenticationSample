@@ -17,14 +17,15 @@ for b in docker aws jq; do need_bin "$b"; done
 
 : "${DEPLOYMENT_GROUP_ID:?Missing DEPLOYMENT_GROUP_ID}"
 : "${DEPLOYMENT_ID:?Missing DEPLOYMENT_ID}"
-: "${STACK_FILE:?Missing STACK_FILE}"
-: "${SERVICE_NAME:?Missing SERVICE_NAME}"
-: "${VERSION:?Missing VERSION}"
 
 ARCHIVE_ROOT="/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive"
 
 # shellcheck source=/dev/null
 source "${ARCHIVE_ROOT}/scripts/env.sh"
+
+: "${STACK_FILE:?Missing STACK_FILE}"
+: "${SERVICE_NAME:?Missing SERVICE_NAME}"
+: "${VERSION:?Missing VERSION}"
 
 log "Starting ApplicationStart hook for ${SERVICE_NAME}..."
 

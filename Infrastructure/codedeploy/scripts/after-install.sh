@@ -21,6 +21,8 @@ need_bin docker
 # shellcheck source=/dev/null
 source "/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh"
 
+: "${SERVICE_NAME:?Missing SERVICE_NAME}"
+
 log "Starting AfterInstall hook for ${SERVICE_NAME}..."
 
 ####################################
