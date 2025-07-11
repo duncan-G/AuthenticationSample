@@ -338,6 +338,10 @@ resource "aws_ssm_parameter" "docker_swarm_worker_token" {
   value       = "placeholder" # Will be updated by the script
   overwrite   = true
 
+  lifecycle {
+    ignore_changes = [ value ]
+  }
+
   tags = {
     Name        = "${var.app_name}-docker-swarm-worker-token"
     Environment = var.environment
@@ -351,6 +355,10 @@ resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
   value       = "placeholder" # Will be updated by the script
   overwrite   = true
 
+  lifecycle {
+    ignore_changes = [ value ]
+  }
+
   tags = {
     Name        = "${var.app_name}-docker-swarm-manager-ip"
     Environment = var.environment
@@ -363,6 +371,10 @@ resource "aws_ssm_parameter" "docker_swarm_network_name" {
   type        = "String"
   value       = "placeholder" # Will be updated by the script
   overwrite   = true
+
+  lifecycle {
+    ignore_changes = [ value ]
+  }
 
   tags = {
     Name        = "${var.app_name}-docker-swarm-network-name"
