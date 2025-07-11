@@ -661,7 +661,7 @@ resource "aws_instance" "private" {
                 
                 cd /tmp
                 REGION="${var.region}"
-                wget "https://aws-codedeploy-${REGION}.s3.${REGION}.amazonaws.com/latest/install" -O install_codedeploy
+                wget "https://aws-codedeploy-$${REGION}.s3.$${REGION}.amazonaws.com/latest/install" -O install_codedeploy
                 chmod +x install_codedeploy
                 ./install_codedeploy auto
 
