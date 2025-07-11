@@ -33,8 +33,10 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       type  = "KEY_AND_VALUE"
       value = var.environment
     }
+  }
 
-    # Deploy only to manager/private instances
+  # Tag group 2: restrict deployment to manager/private tier instances only
+  ec2_tag_set {
     ec2_tag_filter {
       key   = "Tier"
       type  = "KEY_AND_VALUE"
