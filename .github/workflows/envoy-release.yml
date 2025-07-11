@@ -78,6 +78,7 @@ jobs:
         APP_NAME='${{ vars.APP_NAME }}'
         SERVICE_NAME='${{ env.SERVICE_NAME }}'
         CERT_PREFIX='${{ steps.vars.outputs.cert_prefix }}'
+        DOMAIN='${{ vars.DOMAIN_NAME }}'
 
         STACK_FILE='envoy.stack.release.yml'
 
