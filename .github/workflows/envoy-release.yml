@@ -83,8 +83,10 @@ jobs:
 
         # ========= Create staging area =========
         mkdir -p staging/scripts
+        mkdir -p staging/configs
         cp Infrastructure/codedeploy/appspec.yml                 staging/
         cp -r Infrastructure/codedeploy/scripts/*                staging/scripts/
+        cp -r Infrastructure/codedeploy/envoy/prod/*             staging/configs/
 
         # Render env.sh (envsubst keeps it POSIX-portable)
         export SERVICE_NAME ENVIRONMENT VERSION APP_NAME CERT_PREFIX \
@@ -102,18 +104,14 @@ jobs:
           staging/appspec.yml
 
         # ========= Copy & template Envoy configs =========
-        mkdir -p configs
-        cp Infrastructure/envoy/prod/* configs/
-
-        find configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
+        find staging/configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
           -e "s|\${VERSION}|$VERSION|g" \
           -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
           -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
-          -e "s|\$DOMAIN|api.${APP_NAME}|g" \
+          -e "s|\$DOMAIN|${DOMAIN}|g" \
           -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert-pem|g" \
           -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-cert-key|g" {} +
 
-        mv configs/* staging/configs/
         mv staging/configs/$STACK_FILE staging/
 
         tar -czf deployment-package.tar.gz -C staging .
