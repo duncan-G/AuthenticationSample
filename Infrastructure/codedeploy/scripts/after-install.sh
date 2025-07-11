@@ -17,12 +17,11 @@ need_bin docker
 
 : "${DEPLOYMENT_GROUP_ID:?Missing DEPLOYMENT_GROUP_ID}"
 : "${DEPLOYMENT_ID:?Missing DEPLOYMENT_ID}"
-: "${SERVICE_NAME:?Missing SERVICE_NAME}"
 
 # shellcheck source=/dev/null
 source "/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh"
 
-log "Starting AfterInstall hook for ${SERVICE_NAME:-unknown}..."
+log "Starting AfterInstall hook for ${SERVICE_NAME}..."
 
 ####################################
 # Backup current stack configuration
