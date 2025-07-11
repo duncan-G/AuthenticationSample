@@ -131,8 +131,8 @@ jobs:
       run: |
         TS=$(date +%Y%m%d-%H%M%S)
         DEPLOY_ID=$(aws deploy create-deployment \
-          --application-name "${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}" \
-          --deployment-group-name "${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}-deployment-group" \
+          --application-name "${{ vars.APP_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}" \
+          --deployment-group-name "${{ vars.APP_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}-deployment-group" \
           --s3-location bucket=${{ secrets.DEPLOYMENT_BUCKET }},key=deployments/${{ env.SERVICE_NAME }}/${{ steps.vars.outputs.environment }}/deployment-${TS}.tar.gz,bundleType=tgz \
           --description "Deploy ${{ steps.vars.outputs.version }}" \
           --query deploymentId --output text)

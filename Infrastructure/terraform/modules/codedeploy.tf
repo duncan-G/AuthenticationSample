@@ -2,7 +2,7 @@
 
 # CodeDeploy Application
 resource "aws_codedeploy_app" "microservices" {
-  for_each = toset(["authentication"]) # Add more services as needed
+  for_each = toset(["authentication", "envoy"]) # Added envoy microservice
 
   name = "${var.app_name}-${each.key}-${var.environment}"
 
@@ -17,7 +17,7 @@ resource "aws_codedeploy_app" "microservices" {
 
 # CodeDeploy Deployment Group
 resource "aws_codedeploy_deployment_group" "microservices" {
-  for_each = toset(["authentication"]) # Add more services as needed
+  for_each = toset(["authentication", "envoy"]) # Added envoy microservice
 
   app_name              = aws_codedeploy_app.microservices[each.key].name
   deployment_group_name = "${var.app_name}-${each.key}-${var.environment}-deployment-group"
@@ -163,7 +163,7 @@ resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
 
 # CloudWatch Log Group for CodeDeploy
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
-  for_each = toset(["authentication"]) # Add more services as needed
+  for_each = toset(["authentication", "envoy"]) # Added envoy microservice
 
   name              = "/aws/codedeploy/${var.app_name}-${each.key}-${var.environment}"
   retention_in_days = 14
