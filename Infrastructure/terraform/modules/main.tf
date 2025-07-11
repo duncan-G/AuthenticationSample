@@ -491,12 +491,6 @@ resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
   policy_arn = aws_iam_policy.worker_ecr_pull.arn
 }
 
-# Attach manager ECR pull policy to private instance role (manager)
-resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.manager_ecr_pull.arn
-}
-
 # Policy for manager instance to describe EC2 instances
 resource "aws_iam_policy" "manager_ec2_describe" {
   name        = "${var.app_name}-manager-ec2-describe"
@@ -517,10 +511,6 @@ resource "aws_iam_policy" "manager_ec2_describe" {
 }
 
 # Attach EC2 describe policy to private instance role (manager)
-resource "aws_iam_role_policy_attachment" "private_manager_ec2_describe" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.manager_ec2_describe.arn
-}
 
 # Policy for manager instance to send SSM commands to worker instances
 resource "aws_iam_policy" "manager_ssm_send_command" {
@@ -544,9 +534,43 @@ resource "aws_iam_policy" "manager_ssm_send_command" {
 }
 
 # Attach SSM send command policy to private instance role (manager)
-resource "aws_iam_role_policy_attachment" "private_manager_ssm_send_command" {
+
+# Combined policy for manager instance consolidating ECR pull, EC2 describe, and SSM send command permissions
+resource "aws_iam_policy" "private_manager_core" {
+  name        = "${var.app_name}-manager-core-access"
+  description = "Combined core permissions for manager EC2 instance"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ec2:DescribeInstances",
+          "ec2:DescribeInstanceStatus",
+          "ssm:SendCommand",
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommands",
+          "ssm:ListCommandInvocations"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.app_name}-manager-core-access"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "private_manager_core" {
   role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.manager_ssm_send_command.arn
+  policy_arn = aws_iam_policy.private_manager_core.arn
 }
 
 
