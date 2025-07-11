@@ -113,9 +113,7 @@ jobs:
           -e "s|\${VERSION}|$VERSION|g" \
           -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
           -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
-          -e "s|\$DOMAIN|${DOMAIN}|g" \
-          -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert-pem|g" \
-          -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-cert-key|g" {} +
+          -e "s|\$DOMAIN|${DOMAIN}|g"
 
         mv staging/configs/$STACK_FILE staging/
 

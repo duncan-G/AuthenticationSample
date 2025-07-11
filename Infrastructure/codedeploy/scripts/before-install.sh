@@ -65,7 +65,7 @@ if [[ "${VALIDATE_CERTIFICATES:-false}" == "true" ]]; then
   CERT_PREFIX=${CERT_PREFIX:-}
   declare -a secrets=(
     "${CERT_PREFIX}-cert.pem-${LATEST_RUN_ID}"
-    "${CERT_PREFIX}-privkey.key-${LATEST_RUN_ID}"
+    "${CERT_PREFIX}-privkey.pem-${LATEST_RUN_ID}"
     "${CERT_PREFIX}-cert.pfx-${LATEST_RUN_ID}"
   )
 

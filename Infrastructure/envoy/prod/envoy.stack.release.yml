@@ -82,7 +82,9 @@ configs:
     external: true
 
 secrets:
-  ${CERT_PEM_SECRET_NAME}:
+  cert_pem:
+    name: ${CERT_PEM_SECRET_NAME}
     external: true
-  ${CERT_KEY_SECRET_NAME}:
-    external: true 
+  cert_key:
+    name: ${CERT_KEY_SECRET_NAME}
+    external: true
