@@ -342,7 +342,8 @@ resource "aws_iam_role" "public_instance_role" {
 
   tags = {
     Name        = "${var.app_name}-ec2-public-instance-role"
-    Environment = "public"
+    Environment = var.environment
+    Tier        = "public"
   }
 }
 
@@ -365,7 +366,8 @@ resource "aws_iam_role" "private_instance_role" {
 
   tags = {
     Name        = "${var.app_name}-ec2-private-instance-role"
-    Environment = "private"
+    Environment = var.environment
+    Tier        = "private"
   }
 }
 
@@ -625,7 +627,8 @@ resource "aws_instance" "public" {
 
   tags = {
     Name        = "${var.app_name}-public-instance-worker"
-    Environment = "public"
+    Environment = var.environment
+    Tier        = "public"
   }
 }
 
@@ -648,7 +651,8 @@ resource "aws_instance" "private" {
 
   tags = {
     Name        = "${var.app_name}-private-instance-manager"
-    Environment = "private"
+    Environment = var.environment
+    Tier        = "private"
   }
 }
 

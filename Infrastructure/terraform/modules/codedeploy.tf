@@ -33,12 +33,6 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       type  = "KEY_AND_VALUE"
       value = var.environment
     }
-
-    ec2_tag_filter {
-      key   = "Service"
-      type  = "KEY_AND_VALUE"
-      value = each.key
-    }
   }
 
   tags = {
