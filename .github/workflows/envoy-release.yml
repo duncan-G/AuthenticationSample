@@ -49,7 +49,7 @@ jobs:
         ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
         APP_NAME="${{ vars.APP_NAME }}"            # Org / repo variable
         SHORT_SHA="${GITHUB_SHA::8}"
-        VERSION="${{ env.SERVICE_NAME }}-${ENVIRONMENT}-${SHORT_SHA}"
+        VERSION="${SHORT_SHA}"
         DOMAIN="${{ vars.DOMAIN_NAME }}"
 
         CERT_PREFIX="api.${DOMAIN}"

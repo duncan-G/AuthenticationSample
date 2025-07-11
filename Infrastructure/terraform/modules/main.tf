@@ -648,26 +648,6 @@ resource "aws_instance" "private" {
               # Ensure SSM agent is running
               systemctl enable amazon-ssm-agent
               systemctl start amazon-ssm-agent
-
-              # Install CodeDeploy agent (same steps as above)
-              if ! systemctl status codedeploy-agent >/dev/null 2>&1; then
-                sudo yum update -y
-                sudo yum install -y ruby wget
-
-                # Clean any previous codedeploy agent caching
-                CODEDEPLOY_BIN="/opt/codedeploy-agent/bin/codedeploy-agent"
-                $CODEDEPLOY_BIN stop
-                yum erase codedeploy-agent -y
-                
-                cd /tmp
-                REGION="${var.region}"
-                wget "https://aws-codedeploy-$${REGION}.s3.$${REGION}.amazonaws.com/latest/install" -O install_codedeploy
-                chmod +x install_codedeploy
-                ./install_codedeploy auto
-
-                systemctl enable codedeploy-agent
-                systemctl start codedeploy-agent
-              fi
               EOF
   )
 
