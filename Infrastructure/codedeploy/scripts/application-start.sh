@@ -61,21 +61,38 @@ fi
 sleep 5
 
 ###########################
-# Determine latest run ID
-###########################
-log "Fetching latest certificate run ID from S3..."
-LATEST_RUN_ID=$(aws s3 cp "s3://${CERTIFICATE_STORE}/${APP_NAME}/last-renewal-run-id" - 2>/dev/null | tr -d '\n') \
-  || err "Could not retrieve latest run ID (s3://${CERTIFICATE_STORE}/${APP_NAME}/last-renewal-run-id)"
-[[ -n $LATEST_RUN_ID ]] || err "last-renewal-run-id is empty"
-log "✓ Latest certificate run ID: $LATEST_RUN_ID"
-
-####################################
 # Substitute certificate secrets
-####################################
-sed -i \
-  -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert.pem-${LATEST_RUN_ID}|g" \
-  -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-privkey.pem-${LATEST_RUN_ID}|g" \
-  "${ARCHIVE_ROOT}/${STACK_FILE}"
+###########################
+if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
+  : "${SECRET_NAME:?Missing SECRET_NAME}"
+
+  log "Retrieving secrets from AWS Secrets Manager..."
+  SECRET_JSON=$(aws secretsmanager get-secret-value \
+                   --secret-id "$SECRET_NAME" \
+                   --query 'SecretString' --output text) || err "Could not retrieve secret '$SECRET_NAME'"
+
+  APP_NAME=$(jq -r '.APP_NAME // empty' <<<"$SECRET_JSON")
+  CERTIFICATE_STORE=$(jq -r '.CERTIFICATE_STORE // empty' <<<"$SECRET_JSON")
+
+  [[ -n $APP_NAME && -n $CERTIFICATE_STORE ]] \
+    || err "Missing 'APP_NAME' or 'CERTIFICATE_STORE' in secret '$SECRET_NAME'"
+
+  log "✓ Retrieved APP_NAME and CERTIFICATE_STORE"
+
+  log "Fetching latest certificate run ID from S3..."
+  LATEST_RUN_ID=$(aws s3 cp "s3://${CERTIFICATE_STORE}/${APP_NAME}/last-renewal-run-id" - 2>/dev/null | tr -d '\n') \
+    || err "Could not retrieve latest run ID (s3://${CERTIFICATE_STORE}/${APP_NAME}/last-renewal-run-id)"
+  [[ -n $LATEST_RUN_ID ]] || err "last-renewal-run-id is empty"
+  log "✓ Latest certificate run ID: $LATEST_RUN_ID"
+
+  ####################################
+  # Substitute certificate secrets
+  ####################################
+  sed -i \
+    -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert.pem-${LATEST_RUN_ID}|g" \
+    -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-privkey.pem-${LATEST_RUN_ID}|g" \
+    "${ARCHIVE_ROOT}/${STACK_FILE}"
+fi
 
 ####################################
 # Deploy / update the stack

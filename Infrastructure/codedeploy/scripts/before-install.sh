@@ -22,15 +22,19 @@ for bin in aws jq docker; do need_bin "$bin"; done
 # shellcheck source=/dev/null
 source "/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh"
 
-log "Starting BeforeInstall hook for ${SERVICE_NAME:-unknown}..."
+: "${STACK_FILE:?Missing STACK_FILE}"
+: "${SERVICE_NAME:?Missing SERVICE_NAME}"
+: "${ENVIRONMENT:?Missing ENVIRONMENT}"
+
+log "Starting BeforeInstall hook for ${SERVICE_NAME}..."
 log "Deployment ID: ${DEPLOYMENT_ID}"
-log "Service: ${SERVICE_NAME:-unknown}"
-log "Environment: ${ENVIRONMENT:-unknown}"
+log "Service: ${SERVICE_NAME}"
+log "Environment: ${ENVIRONMENT}"
 
 ###########################
 # Retrieve secrets
 ###########################
-if [[ "${VALIDATE_CERTIFICATES:-false}" == "true" ]]; then
+if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
   : "${SECRET_NAME:?Missing SECRET_NAME}"
 
   log "Retrieving secrets from AWS Secrets Manager..."
