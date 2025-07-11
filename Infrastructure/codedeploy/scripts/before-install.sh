@@ -58,7 +58,8 @@ if [[ "${VALIDATE_CERTIFICATES:-false}" == "true" ]]; then
   ###########################
   # Validate Docker Swarm & secrets
   ###########################
-  [[ "$(docker log --format '{{.Swarm.LocalNodeState}}')" == "active" ]] \
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "none")
+  [[ "$state" == "active" ]] \
     || err "Docker Swarm is not active"
 
   CERT_PREFIX=${CERT_PREFIX:-}
