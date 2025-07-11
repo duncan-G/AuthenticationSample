@@ -94,6 +94,29 @@ if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
     "${ARCHIVE_ROOT}/${STACK_FILE}"
 fi
 
+###########################
+# Substitute network name
+###########################
+log "Retrieving overlay network name from SSM..."
+NETWORK_NAME=$(aws ssm get-parameter \
+                  --name "/docker/swarm/network-name" \
+                  --query 'Parameter.Value' \
+                  --output text) || err "Could not retrieve network name from SSM"
+
+[[ -n $NETWORK_NAME ]] || err "Network name from SSM is empty"
+log "✓ Retrieved network name: $NETWORK_NAME"
+
+sed -i \
+  -e "s|\${NETWORK_NAME}|${NETWORK_NAME}|g" \
+  "${ARCHIVE_ROOT}/${STACK_FILE}"
+
+###########################
+# Verify overlay network
+###########################
+docker network inspect "$NETWORK_NAME" &>/dev/null \
+  && log "✓ Overlay network '$NETWORK_NAME' exists" \
+  || err "Required overlay network '$NETWORK_NAME' not found"
+
 ####################################
 # Deploy / update the stack
 ####################################
