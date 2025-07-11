@@ -244,7 +244,6 @@ install_codedeploy_agent() {
   chmod +x install_codedeploy
   ./install_codedeploy auto
 
-  systemctl enable codedeploy-agent
   systemctl start codedeploy-agent
 
   log "CodeDeploy agent installed and running ✅"
