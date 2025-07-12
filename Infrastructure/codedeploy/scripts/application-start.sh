@@ -17,14 +17,15 @@ for b in docker aws jq; do need_bin "$b"; done
 
 : "${DEPLOYMENT_GROUP_ID:?Missing DEPLOYMENT_GROUP_ID}"
 : "${DEPLOYMENT_ID:?Missing DEPLOYMENT_ID}"
-: "${STACK_FILE:?Missing STACK_FILE}"
-: "${SERVICE_NAME:?Missing SERVICE_NAME}"
-: "${VERSION:?Missing VERSION}"
 
 ARCHIVE_ROOT="/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive"
 
 # shellcheck source=/dev/null
 source "${ARCHIVE_ROOT}/scripts/env.sh"
+
+: "${STACK_FILE:?Missing STACK_FILE}"
+: "${SERVICE_NAME:?Missing SERVICE_NAME}"
+: "${VERSION:?Missing VERSION}"
 
 log "Starting ApplicationStart hook for ${SERVICE_NAME}..."
 
@@ -58,6 +59,63 @@ fi
 
 # Allow the Swarm to propagate new configs
 sleep 5
+
+###########################
+# Substitute certificate secrets
+###########################
+if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
+  : "${SECRET_NAME:?Missing SECRET_NAME}"
+
+  log "Retrieving secrets from AWS Secrets Manager..."
+  SECRET_JSON=$(aws secretsmanager get-secret-value \
+                   --secret-id "$SECRET_NAME" \
+                   --query 'SecretString' --output text) || err "Could not retrieve secret '$SECRET_NAME'"
+
+  APP_NAME=$(jq -r '.APP_NAME // empty' <<<"$SECRET_JSON")
+  CERTIFICATE_STORE=$(jq -r '.CERTIFICATE_STORE // empty' <<<"$SECRET_JSON")
+
+  [[ -n $APP_NAME && -n $CERTIFICATE_STORE ]] \
+    || err "Missing 'APP_NAME' or 'CERTIFICATE_STORE' in secret '$SECRET_NAME'"
+
+  log "✓ Retrieved APP_NAME and CERTIFICATE_STORE"
+
+  log "Fetching latest certificate run ID from S3..."
+  LATEST_RUN_ID=$(aws s3 cp "s3://${CERTIFICATE_STORE}/${APP_NAME}/last-renewal-run-id" - 2>/dev/null | tr -d '\n') \
+    || err "Could not retrieve latest run ID (s3://${CERTIFICATE_STORE}/${APP_NAME}/last-renewal-run-id)"
+  [[ -n $LATEST_RUN_ID ]] || err "last-renewal-run-id is empty"
+  log "✓ Latest certificate run ID: $LATEST_RUN_ID"
+
+  ####################################
+  # Substitute certificate secrets
+  ####################################
+  sed -i \
+    -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert.pem-${LATEST_RUN_ID}|g" \
+    -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-privkey.pem-${LATEST_RUN_ID}|g" \
+    "${ARCHIVE_ROOT}/${STACK_FILE}"
+fi
+
+###########################
+# Substitute network name
+###########################
+log "Retrieving overlay network name from SSM..."
+NETWORK_NAME=$(aws ssm get-parameter \
+                  --name "/docker/swarm/network-name" \
+                  --query 'Parameter.Value' \
+                  --output text) || err "Could not retrieve network name from SSM"
+
+[[ -n $NETWORK_NAME ]] || err "Network name from SSM is empty"
+log "✓ Retrieved network name: $NETWORK_NAME"
+
+sed -i \
+  -e "s|\${NETWORK_NAME}|${NETWORK_NAME}|g" \
+  "${ARCHIVE_ROOT}/${STACK_FILE}"
+
+###########################
+# Verify overlay network
+###########################
+docker network inspect "$NETWORK_NAME" &>/dev/null \
+  && log "✓ Overlay network '$NETWORK_NAME' exists" \
+  || err "Required overlay network '$NETWORK_NAME' not found"
 
 ####################################
 # Deploy / update the stack

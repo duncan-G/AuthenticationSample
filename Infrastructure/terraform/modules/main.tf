@@ -342,7 +342,8 @@ resource "aws_iam_role" "public_instance_role" {
 
   tags = {
     Name        = "${var.app_name}-ec2-public-instance-role"
-    Environment = "public"
+    Environment = var.environment
+    Tier        = "public"
   }
 }
 
@@ -365,7 +366,8 @@ resource "aws_iam_role" "private_instance_role" {
 
   tags = {
     Name        = "${var.app_name}-ec2-private-instance-role"
-    Environment = "private"
+    Environment = var.environment
+    Tier        = "private"
   }
 }
 
@@ -413,59 +415,10 @@ resource "aws_iam_role_policy_attachment" "private_cloudwatch_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# Custom policy for private instance to write Docker swarm SSM parameters
-resource "aws_iam_policy" "private_ssm_docker_access" {
-  name        = "${var.app_name}-private-instance-docker-ssm-access"
-  description = "Allow write access to Docker swarm SSM parameters for private instance"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ssm:PutParameter",
-          "ssm:GetParameter",
-          "ssm:GetParameters"
-        ]
-        Resource = [
-          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
-        ]
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "private_ssm_docker_access" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.private_ssm_docker_access.arn
-}
-
 # Policy for EC2 worker instances to pull images from ECR
 resource "aws_iam_policy" "worker_ecr_pull" {
   name        = "${var.app_name}-worker-ecr-pull"
   description = "Allow EC2 worker instances to pull images from ECR"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# Policy for EC2 manager instances to pull images from ECR
-resource "aws_iam_policy" "manager_ecr_pull" {
-  name        = "${var.app_name}-manager-ecr-pull"
-  description = "Allow EC2 manager instances to pull images from ECR"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -489,64 +442,64 @@ resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
   policy_arn = aws_iam_policy.worker_ecr_pull.arn
 }
 
-# Attach manager ECR pull policy to private instance role (manager)
-resource "aws_iam_role_policy_attachment" "private_manager_ecr_pull" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.manager_ecr_pull.arn
-}
+# Combined policy for manager instance consolidating ECR pull, EC2 describe, and SSM send command permissions
+resource "aws_iam_policy" "private_manager_core" {
+  name        = "${var.app_name}-manager-core-access"
+  description = "Combined core permissions for manager EC2 instance"
 
-# Policy for manager instance to describe EC2 instances
-resource "aws_iam_policy" "manager_ec2_describe" {
-  name        = "${var.app_name}-manager-ec2-describe"
-  description = "Allow manager instance to describe EC2 instances for ECR authentication"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Effect = "Allow"
         Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
           "ec2:DescribeInstances",
-          "ec2:DescribeInstanceStatus"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# Attach EC2 describe policy to private instance role (manager)
-resource "aws_iam_role_policy_attachment" "private_manager_ec2_describe" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.manager_ec2_describe.arn
-}
-
-# Policy for manager instance to send SSM commands to worker instances
-resource "aws_iam_policy" "manager_ssm_send_command" {
-  name        = "${var.app_name}-manager-ssm-send-command"
-  description = "Allow manager instance to send SSM commands to worker instances for ECR authentication"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
+          "ec2:DescribeInstanceStatus",
           "ssm:SendCommand",
           "ssm:GetCommandInvocation",
           "ssm:ListCommands",
           "ssm:ListCommandInvocations"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:PutParameter",
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.app_name}-secrets*"
+        ]
       }
     ]
   })
+
+  tags = {
+    Name        = "${var.app_name}-manager-core-access"
+    Environment = var.environment
+  }
 }
 
-# Attach SSM send command policy to private instance role (manager)
-resource "aws_iam_role_policy_attachment" "private_manager_ssm_send_command" {
+resource "aws_iam_role_policy_attachment" "private_manager_core" {
   role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.manager_ssm_send_command.arn
+  policy_arn = aws_iam_policy.private_manager_core.arn
 }
-
 
 
 # Instance Profiles
@@ -614,18 +567,10 @@ resource "aws_instance" "public" {
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
 
-  # User data to setup SSM agent
-  user_data = base64encode(<<-EOF
-              #!/bin/bash
-              # Ensure SSM agent is running for script execution
-              systemctl enable amazon-ssm-agent
-              systemctl start amazon-ssm-agent
-              EOF
-  )
-
   tags = {
     Name        = "${var.app_name}-public-instance-worker"
-    Environment = "public"
+    Environment = var.environment
+    Tier        = "public"
   }
 }
 
@@ -637,18 +582,10 @@ resource "aws_instance" "private" {
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
 
-  # Simple user data to ensure SSM agent is running
-  user_data = base64encode(<<-EOF
-              #!/bin/bash
-              # Ensure SSM agent is running for script execution
-              systemctl enable amazon-ssm-agent
-              systemctl start amazon-ssm-agent
-              EOF
-  )
-
   tags = {
     Name        = "${var.app_name}-private-instance-manager"
-    Environment = "private"
+    Environment = var.environment
+    Tier        = "private"
   }
 }
 

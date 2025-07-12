@@ -2,7 +2,7 @@
 
 # CodeDeploy Application
 resource "aws_codedeploy_app" "microservices" {
-  for_each = toset(["authentication"]) # Add more services as needed
+  for_each = toset(["authentication", "envoy"]) # Added envoy microservice
 
   name = "${var.app_name}-${each.key}-${var.environment}"
 
@@ -17,7 +17,7 @@ resource "aws_codedeploy_app" "microservices" {
 
 # CodeDeploy Deployment Group
 resource "aws_codedeploy_deployment_group" "microservices" {
-  for_each = toset(["authentication"]) # Add more services as needed
+  for_each = toset(["authentication", "envoy"]) # Added envoy microservice
 
   app_name              = aws_codedeploy_app.microservices[each.key].name
   deployment_group_name = "${var.app_name}-${each.key}-${var.environment}-deployment-group"
@@ -33,11 +33,14 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       type  = "KEY_AND_VALUE"
       value = var.environment
     }
+  }
 
+  # Tag group 2: restrict deployment to manager/private tier instances only
+  ec2_tag_set {
     ec2_tag_filter {
-      key   = "Service"
+      key   = "Tier"
       type  = "KEY_AND_VALUE"
-      value = each.key
+      value = "private"
     }
   }
 
@@ -113,7 +116,8 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
         Action = [
           "s3:GetObject",
           "s3:GetObjectVersion",
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:PutObject"
         ]
         Resource = [
           "arn:aws:s3:::${var.app_name}-codedeploy-${var.bucket_suffix}",
@@ -154,6 +158,12 @@ resource "aws_iam_role_policy_attachment" "ec2_codedeploy_policy_attachment" {
   policy_arn = aws_iam_policy.ec2_codedeploy_policy.arn
 }
 
+# Attach same CodeDeploy policy to the manager (private) instance role
+resource "aws_iam_role_policy_attachment" "private_instance_codedeploy_policy_attachment" {
+  role       = aws_iam_role.private_instance_role.name
+  policy_arn = aws_iam_policy.ec2_codedeploy_policy.arn
+}
+
 # Instance profile for EC2 CodeDeploy role
 resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
   name = "${var.app_name}-ec2-codedeploy-profile"
@@ -162,7 +172,7 @@ resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
 
 # CloudWatch Log Group for CodeDeploy
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
-  for_each = toset(["authentication"]) # Add more services as needed
+  for_each = toset(["authentication", "envoy"]) # Added envoy microservice
 
   name              = "/aws/codedeploy/${var.app_name}-${each.key}-${var.environment}"
   retention_in_days = 14

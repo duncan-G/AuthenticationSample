@@ -489,7 +489,8 @@ setup_github_workflow() {
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
         "SUBDOMAINS:$subdomains_list" \
-        "CERTBOT_EBS_VOLUME_ID:$CERTBOT_EBS_VOLUME_ID"
+        "CERTBOT_EBS_VOLUME_ID:$CERTBOT_EBS_VOLUME_ID" \
+        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET"
     
     add_github_variables "$GITHUB_REPO_FULL" \
         "AWS_REGION:$AWS_REGION" \
