@@ -249,35 +249,13 @@ resource "aws_nat_gateway" "nat" {
 }
 
 ########################
-# SSH Key Pair
-########################
-
-resource "aws_key_pair" "ssh_key" {
-  key_name   = "${var.app_name}-ssh-key"
-  public_key = file("~/.ssh/id_rsa.pub")
-
-  tags = {
-    Name        = "${var.app_name}-ssh-key"
-    Environment = var.environment
-  }
-}
-
-########################
 # Security group
 ########################
 
 resource "aws_security_group" "instance" {
   name_prefix = "${var.app_name}-instance-sg-"
-  description = "Allow SSH, HTTP, HTTPS, and Docker Swarm communication"
+  description = "Allow HTTP, HTTPS, and Docker Swarm communication"
   vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   ingress {
     description = "HTTP"
@@ -630,7 +608,6 @@ resource "aws_instance" "public" {
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
-  key_name                    = aws_key_pair.ssh_key.key_name
 
   user_data = base64encode(templatefile("${path.module}/ssm-diagnostics.sh", {
     app_name    = var.app_name
@@ -653,7 +630,6 @@ resource "aws_instance" "private" {
   associate_public_ip_address = false
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
-  key_name                    = aws_key_pair.ssh_key.key_name
 
   user_data = base64encode(templatefile("${path.module}/ssm-diagnostics.sh", {
     app_name    = var.app_name
@@ -683,14 +659,6 @@ output "public_instance_ip" {
 output "private_instance_ip" {
   value       = aws_instance.private.private_ip
   description = "Private IP of the private subnet instance"
-}
-
-output "ssh_commands" {
-  value = {
-    public_instance  = "ssh -i ~/.ssh/id_rsa ec2-user@${aws_instance.public.public_ip}"
-    private_instance = "ssh -i ~/.ssh/id_rsa -o ProxyCommand='ssh -i ~/.ssh/id_rsa -W %h:%p ec2-user@${aws_instance.public.public_ip}' ec2-user@${aws_instance.private.private_ip}"
-  }
-  description = "SSH commands to connect to the instances"
 }
 
 
