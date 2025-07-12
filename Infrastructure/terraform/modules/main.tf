@@ -382,10 +382,10 @@ resource "aws_iam_role_policy_attachment" "public_cloudwatch_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# Custom policy for public instance to read Docker swarm SSM parameters
+# Custom policy for public instance to read Docker swarm SSM parameters and write diagnostics
 resource "aws_iam_policy" "public_ssm_docker_access" {
   name        = "${var.app_name}-public-instance-docker-ssm-access"
-  description = "Allow read access to Docker swarm SSM parameters for public instance"
+  description = "Allow read access to Docker swarm SSM parameters and write diagnostics for public instance"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -398,6 +398,29 @@ resource "aws_iam_policy" "public_ssm_docker_access" {
         ]
         Resource = [
           "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:PutParameter",
+          "ssm:GetParameter",
+          "ssm:DescribeInstanceInformation"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/diagnostics/${var.app_name}/*",
+          "*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/ec2/${var.app_name}-ssm-diagnostics*"
         ]
       }
     ]
@@ -448,10 +471,10 @@ resource "aws_iam_role_policy_attachment" "public_ssm_docker_access" {
   policy_arn = aws_iam_policy.public_ssm_docker_access.arn
 }
 
-# Combined policy for manager instance consolidating ECR pull, EC2 describe, and SSM send command permissions
+# Combined policy for manager instance consolidating ECR pull, EC2 describe, SSM send command permissions, and diagnostics
 resource "aws_iam_policy" "private_manager_core" {
   name        = "${var.app_name}-manager-core-access"
-  description = "Combined core permissions for manager EC2 instance"
+  description = "Combined core permissions for manager EC2 instance including diagnostics"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -468,7 +491,8 @@ resource "aws_iam_policy" "private_manager_core" {
           "ssm:SendCommand",
           "ssm:GetCommandInvocation",
           "ssm:ListCommands",
-          "ssm:ListCommandInvocations"
+          "ssm:ListCommandInvocations",
+          "ssm:DescribeInstanceInformation"
         ]
         Resource = "*"
       },
@@ -480,7 +504,8 @@ resource "aws_iam_policy" "private_manager_core" {
           "ssm:GetParameters"
         ]
         Resource = [
-          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*",
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/diagnostics/${var.app_name}/*"
         ]
       },
       {
@@ -491,6 +516,17 @@ resource "aws_iam_policy" "private_manager_core" {
         ]
         Resource = [
           "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.app_name}-secrets*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/ec2/${var.app_name}-ssm-diagnostics*"
         ]
       }
     ]
@@ -573,6 +609,13 @@ resource "aws_instance" "public" {
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
 
+  user_data = base64encode(templatefile("${path.module}/ssm-diagnostics.sh", {
+    app_name     = var.app_name
+    region       = var.region
+    instance_id  = "public-worker"
+    subnet_type  = "public"
+  }))
+
   tags = {
     Name        = "${var.app_name}-public-instance-worker"
     Environment = var.environment
@@ -587,6 +630,13 @@ resource "aws_instance" "private" {
   associate_public_ip_address = false
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
+
+  user_data = base64encode(templatefile("${path.module}/ssm-diagnostics.sh", {
+    app_name     = var.app_name
+    region       = var.region
+    instance_id  = "private-manager"
+    subnet_type  = "private"
+  }))
 
   tags = {
     Name        = "${var.app_name}-private-instance-manager"
