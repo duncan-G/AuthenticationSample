@@ -442,6 +442,12 @@ resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
   policy_arn = aws_iam_policy.worker_ecr_pull.arn
 }
 
+# Attach SSM Docker access policy to public instance role (worker)
+resource "aws_iam_role_policy_attachment" "public_ssm_docker_access" {
+  role       = aws_iam_role.public_instance_role.name
+  policy_arn = aws_iam_policy.public_ssm_docker_access.arn
+}
+
 # Combined policy for manager instance consolidating ECR pull, EC2 describe, and SSM send command permissions
 resource "aws_iam_policy" "private_manager_core" {
   name        = "${var.app_name}-manager-core-access"
