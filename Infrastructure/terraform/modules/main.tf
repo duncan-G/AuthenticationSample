@@ -666,7 +666,6 @@ resource "aws_instance" "private" {
   # Simple user data to ensure SSM agent is running
   user_data = base64encode(<<-EOF
               #!/bin/bash
-              set -euo pipefail
 
               # Ensure SSM agent is running
               systemctl enable amazon-ssm-agent
