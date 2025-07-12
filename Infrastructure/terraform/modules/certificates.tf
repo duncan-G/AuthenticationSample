@@ -23,49 +23,6 @@ data "aws_route53_zone" "existing" {
 }
 
 ########################
-# AWS Secrets Manager Access Policy
-########################
-
-# IAM policy for AWS Secrets Manager access
-resource "aws_iam_policy" "secrets_manager_access_policy" {
-  name        = "${var.app_name}-secrets-manager-access"
-  description = "Allow access to AWS Secrets Manager for certificate configuration"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:PutSecretValue"
-        ]
-        Resource = [
-          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.app_name}-secrets*"
-        ]
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "${var.app_name}-secrets-manager-access"
-    Environment = var.environment
-  }
-}
-
-# Attach Secrets Manager access policy to private instance role
-resource "aws_iam_role_policy_attachment" "private_secrets_manager_access" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = aws_iam_policy.secrets_manager_access_policy.arn
-}
-
-# Attach Secrets Manager access policy to public instance role
-resource "aws_iam_role_policy_attachment" "public_secrets_manager_access" {
-  role       = aws_iam_role.public_instance_role.name
-  policy_arn = aws_iam_policy.secrets_manager_access_policy.arn
-}
-
-########################
 # SSL Certificate Store (S3)
 ########################
 
