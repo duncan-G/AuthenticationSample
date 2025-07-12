@@ -610,10 +610,10 @@ resource "aws_instance" "public" {
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
 
   user_data = base64encode(templatefile("${path.module}/ssm-diagnostics.sh", {
-    app_name     = var.app_name
-    region       = var.region
-    instance_id  = "public-worker"
-    subnet_type  = "public"
+    app_name    = var.app_name
+    region      = var.region
+    instance_id = "public-worker"
+    subnet_type = "public"
   }))
 
   tags = {
@@ -632,10 +632,10 @@ resource "aws_instance" "private" {
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
 
   user_data = base64encode(templatefile("${path.module}/ssm-diagnostics.sh", {
-    app_name     = var.app_name
-    region       = var.region
-    instance_id  = "private-manager"
-    subnet_type  = "private"
+    app_name    = var.app_name
+    region      = var.region
+    instance_id = "private-manager"
+    subnet_type = "private"
   }))
 
   tags = {
