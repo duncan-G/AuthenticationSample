@@ -383,43 +383,11 @@ resource "aws_iam_role_policy_attachment" "public_cloudwatch_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# Custom policy for public instance to read Docker swarm SSM parameters and register with SSM
-resource "aws_iam_policy" "public_ssm_docker_access" {
-  name        = "${var.app_name}-public-instance-docker-ssm-access"
-  description = "Allow read access to Docker swarm SSM parameters and SSM registration for public instance"
+# Combined policy for worker instance consolidating ECR pull, SSM parameters, Secrets Manager, S3 certificates, Route53, and EBS permissions
+resource "aws_iam_policy" "public_worker_core" {
+  name        = "${var.app_name}-worker-core-access"
+  description = "Combined core permissions for worker EC2 instance"
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ssm:GetParameter",
-          "ssm:GetParameters"
-        ]
-        Resource = [
-          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
-        ]
-      }
-    ]
-  })
-}
-
-# Policy Attachments for Private Instance
-resource "aws_iam_role_policy_attachment" "private_session_manager" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_role_policy_attachment" "private_cloudwatch_agent" {
-  role       = aws_iam_role.private_instance_role.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-}
-
-# Policy for EC2 worker instances to pull images from ECR
-resource "aws_iam_policy" "worker_ecr_pull" {
-  name        = "${var.app_name}-worker-ecr-pull"
-  description = "Allow EC2 worker instances to pull images from ECR"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -432,21 +400,63 @@ resource "aws_iam_policy" "worker_ecr_pull" {
           "ecr:BatchGetImage"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/docker/swarm/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.app_name}-secrets*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVolumes",
+          "ec2:DescribeVolumeStatus",
+          "ec2:DescribeInstances",
+          "ec2:AttachVolume",
+          "ec2:DetachVolume",
+          "ec2:CreateVolume",
+          "ec2:DeleteVolume"
+        ]
+        Resource = "*"
       }
     ]
   })
+
+  tags = {
+    Name        = "${var.app_name}-worker-core-access"
+    Environment = var.environment
+  }
 }
 
-# Attach worker ECR pull policy to public instance role (worker)
-resource "aws_iam_role_policy_attachment" "public_worker_ecr_pull" {
+resource "aws_iam_role_policy_attachment" "public_worker_core" {
   role       = aws_iam_role.public_instance_role.name
-  policy_arn = aws_iam_policy.worker_ecr_pull.arn
+  policy_arn = aws_iam_policy.public_worker_core.arn
 }
 
-# Attach SSM Docker access policy to public instance role (worker)
-resource "aws_iam_role_policy_attachment" "public_ssm_docker_access" {
-  role       = aws_iam_role.public_instance_role.name
-  policy_arn = aws_iam_policy.public_ssm_docker_access.arn
+# Policy Attachments for Private Instance
+resource "aws_iam_role_policy_attachment" "private_session_manager" {
+  role       = aws_iam_role.private_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "private_cloudwatch_agent" {
+  role       = aws_iam_role.private_instance_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 # Combined policy for manager instance consolidating ECR pull, EC2 describe, SSM send command permissions
@@ -588,8 +598,7 @@ resource "aws_instance" "public" {
     aws_iam_instance_profile.public_instance_profile,
     aws_iam_role_policy_attachment.public_session_manager,
     aws_iam_role_policy_attachment.public_cloudwatch_agent,
-    aws_iam_role_policy_attachment.public_worker_ecr_pull,
-    aws_iam_role_policy_attachment.public_ssm_docker_access
+    aws_iam_role_policy_attachment.public_worker_core
   ]
 }
 
