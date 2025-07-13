@@ -31,14 +31,13 @@ exporters:
     no_verify_ssl: false
     
   # CloudWatch for metrics
-  awscloudwatchmetrics:
-    region: $AWS_REGION
+  awsemf:
+    region: ${AWS_REGION}
     namespace: AuthenticationSample/OpenTelemetry
     dimension_rollup_option: NoDimensionRollup
     metric_declarations:
       - dimensions: [[service.name], [service.name, service.version]]
-        metric_name_selectors:
-          - ".*"
+        metric_name_selectors: [".*"]
         
   # CloudWatch Logs for logs
   awscloudwatchlogs:
@@ -47,8 +46,8 @@ exporters:
     log_stream_name: otel-collector
 
   # Keep console exporter for debugging
-  logging:
-    loglevel: debug
+  debug:
+    verbosity: detailed
 
 extensions:
   health_check:
@@ -65,9 +64,9 @@ service:
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [awscloudwatchmetrics, logging]
+      exporters: [awsemf, logging]
       
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [awscloudwatchlogs, logging] 
+      exporters: [awscloudwatchlogs, logging]
