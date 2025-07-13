@@ -83,7 +83,8 @@ fi
 # Dependency checks / installation (jq, awscli, docker)
 ############################################
 
-
+## Docker should come pre-installed. Keep this function if case
+## we switch to minimal AMI.
 install_docker() {
   if command -v docker &>/dev/null; then
     log "Docker already present – skipping installation"
@@ -96,6 +97,29 @@ install_docker() {
   systemctl enable --now docker
   usermod -aG docker ec2-user || true  # don't fail if user absent
   log "Docker installed and running ✅"
+}
+
+wait_for_docker() {
+  local max_attempts=30
+  local wait_seconds=2
+  local attempt=1
+
+  log "Waiting for Docker service to be ready …"
+
+  while (( attempt <= max_attempts )); do
+    if docker info &>/dev/null; then
+      log "Docker service is ready ✅"
+      return 0
+    fi
+
+    log "Docker not ready yet (attempt $attempt/$max_attempts) – waiting ${wait_seconds}s"
+    sleep "$wait_seconds"
+    ((attempt++))
+  done
+
+  log "ERROR: Docker service failed to become ready after $((max_attempts * wait_seconds)) seconds"
+  status "FAILED" "Docker service timeout"
+  exit 1
 }
 
 install_ecr_credential_helper() {
@@ -257,7 +281,7 @@ main() {
   log "Bootstrap initiated"
   status "IN_PROGRESS" "Docker Swarm manager setup started"
 
-  install_docker
+  wait_for_docker
   install_ecr_credential_helper
   configure_docker_ecr_auth
 
