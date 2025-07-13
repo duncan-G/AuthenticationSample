@@ -17,7 +17,7 @@ services:
     deploy:
       labels:
         service: otel-collector
-        environment: ${ENVIRONMENT:-staging}
+        environment: ${ENVIRONMENT}
       mode: replicated
       replicas: 1
       placement:
@@ -34,7 +34,7 @@ services:
         condition: on-failure
         delay: 15s
         max_attempts: 3
-        window: 120s
+        window: 120s 
       update_config:
         parallelism: 1
         delay: 10s
