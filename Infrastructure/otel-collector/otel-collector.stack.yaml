@@ -61,5 +61,5 @@ networks:
 
 configs:
   otel_collector_config:
-    name: otel_collector_config_${VERSION}
+    name: otel-collector_config_${VERSION}
     external: true 
