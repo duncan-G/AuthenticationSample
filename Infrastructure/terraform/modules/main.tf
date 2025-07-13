@@ -382,10 +382,10 @@ resource "aws_iam_role_policy_attachment" "public_cloudwatch_agent" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# Custom policy for public instance to read Docker swarm SSM parameters
+# Custom policy for public instance to read Docker swarm SSM parameters and register with SSM
 resource "aws_iam_policy" "public_ssm_docker_access" {
   name        = "${var.app_name}-public-instance-docker-ssm-access"
-  description = "Allow read access to Docker swarm SSM parameters for public instance"
+  description = "Allow read access to Docker swarm SSM parameters and SSM registration for public instance"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -469,7 +469,10 @@ resource "aws_iam_policy" "private_manager_core" {
           "ssm:GetCommandInvocation",
           "ssm:ListCommands",
           "ssm:ListCommandInvocations",
-          "ssm:DescribeInstanceInformation"
+          "ssm:DescribeInstanceInformation",
+          "ssm:UpdateInstanceInformation",
+          "ssm:DescribeInstanceAssociationsStatus",
+          "ssm:DescribeEffectiveInstanceAssociations"
         ]
         Resource = "*"
       },
@@ -579,6 +582,14 @@ resource "aws_instance" "public" {
     Environment = var.environment
     Tier        = "public"
   }
+
+  depends_on = [
+    aws_iam_instance_profile.public_instance_profile,
+    aws_iam_role_policy_attachment.public_session_manager,
+    aws_iam_role_policy_attachment.public_cloudwatch_agent,
+    aws_iam_role_policy_attachment.public_worker_ecr_pull,
+    aws_iam_role_policy_attachment.public_ssm_docker_access
+  ]
 }
 
 resource "aws_instance" "private" {
@@ -594,6 +605,13 @@ resource "aws_instance" "private" {
     Environment = var.environment
     Tier        = "private"
   }
+
+  depends_on = [
+    aws_iam_instance_profile.private_instance_profile,
+    aws_iam_role_policy_attachment.private_session_manager,
+    aws_iam_role_policy_attachment.private_cloudwatch_agent,
+    aws_iam_role_policy_attachment.private_manager_core
+  ]
 }
 
 
