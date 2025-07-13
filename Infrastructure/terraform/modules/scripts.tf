@@ -87,6 +87,13 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           # Reload systemd and enable the service
           "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",
+          # Wait for Docker to be ready before starting the service
+          "echo 'Waiting for Docker to be ready...'",
+          "until systemctl is-active --quiet docker; do",
+          "  echo 'Docker not ready yet, waiting...'",
+          "  sleep 5",
+          "done",
+          "echo 'Docker is ready, starting certificate-manager service'",
           "systemctl start certificate-manager.service"
         ]
         timeoutSeconds = "600" # 10 minutes timeout
@@ -338,6 +345,10 @@ resource "aws_ssm_parameter" "docker_swarm_worker_token" {
   value       = "placeholder" # Will be updated by the script
   overwrite   = true
 
+  lifecycle {
+    ignore_changes = [value]
+  }
+
   tags = {
     Name        = "${var.app_name}-docker-swarm-worker-token"
     Environment = var.environment
@@ -351,6 +362,10 @@ resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
   value       = "placeholder" # Will be updated by the script
   overwrite   = true
 
+  lifecycle {
+    ignore_changes = [value]
+  }
+
   tags = {
     Name        = "${var.app_name}-docker-swarm-manager-ip"
     Environment = var.environment
@@ -363,6 +378,10 @@ resource "aws_ssm_parameter" "docker_swarm_network_name" {
   type        = "String"
   value       = "placeholder" # Will be updated by the script
   overwrite   = true
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 
   tags = {
     Name        = "${var.app_name}-docker-swarm-network-name"

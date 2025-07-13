@@ -58,12 +58,56 @@ for cmd in docker aws jq; do command -v "$cmd" &>/dev/null || fatal "$cmd missin
 ###############################################################################
 # Swarm must be initialised
 ###############################################################################
-while ! docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null \
-          | grep -Eq '^(active|pending)$'; do
-  log "waiting for Docker Swarm…"
-  sleep 5
-done
-log "Docker Swarm ready"
+# TODO: Remove this once we switch to minimal AMI
+wait_for_docker() {
+  local max_attempts=30
+  local wait_seconds=10
+  local attempt=1
+
+  log "Waiting for Docker service to be ready …"
+
+  while (( attempt <= max_attempts )); do
+    if docker info &>/dev/null; then
+      log "Docker service is ready ✅"
+      return 0
+    fi
+
+    log "Docker not ready yet (attempt $attempt/$max_attempts) – waiting ${wait_seconds}s"
+    sleep "$wait_seconds"
+    ((attempt++))
+  done
+
+  log "ERROR: Docker service failed to become ready after $((max_attempts * wait_seconds)) seconds"
+  status "FAILED" "Docker service timeout"
+  exit 1
+}
+
+wait_for_swarm() {
+  local max_attempts=30
+  local wait_seconds=5
+  local attempt=1
+
+  log "Waiting for Docker Swarm to be ready …"
+
+  while (( attempt <= max_attempts )); do 
+    if docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null \
+          | grep -Eq '^(active|pending)$'; then
+      log "Docker Swarm is ready ✅"
+      return 0
+    fi
+
+    log "Docker Swarm not ready yet (attempt $attempt/$max_attempts) – waiting ${wait_seconds}s"
+    sleep "$wait_seconds"
+    ((attempt++))
+  done
+
+  log "ERROR: Docker Swarm failed to become ready after $((max_attempts * wait_seconds)) seconds"
+  status "FAILED" "Docker Swarm timeout"
+  exit 1
+}
+
+wait_for_docker
+wait_for_swarm
 
 ###############################################################################
 # Pull runtime configuration from AWS Secrets Manager

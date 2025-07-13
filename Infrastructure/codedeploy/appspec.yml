@@ -1,17 +1,17 @@
 version: 0.0
-Resources:
-  - TargetService:
-      Type: AWS::CodeDeploy::EC2
-      Properties:
-        InstanceTagSet:
-          - Key: "Environment"
-            Value: "{{ ENVIRONMENT }}"
-          - Key: "Service"
-            Value: "{{ SERVICE_NAME }}"
+os: linux
 
-# Hooks for deployment lifecycle
-Hooks:
-  - BeforeInstall: "scripts/before-install.sh"
-  - AfterInstall: "scripts/after-install.sh"
-  - ApplicationStart: "scripts/application-start.sh"
-  - ValidateService: "scripts/validate-service.sh"
+# EC2/On-Prem deployment – lifecycle hooks only (files are copied implicitly)
+hooks:
+  BeforeInstall:
+    - location: scripts/before-install.sh
+      runas: root
+  AfterInstall:
+    - location: scripts/after-install.sh
+      runas: root
+  ApplicationStart:
+    - location: scripts/application-start.sh
+      runas: root
+  ValidateService:
+    - location: scripts/validate-service.sh
+      runas: root

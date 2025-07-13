@@ -83,7 +83,8 @@ fi
 # Dependency checks / installation (jq, awscli, docker)
 ############################################
 
-
+## Docker should come pre-installed. Keep this function if case
+## we switch to minimal AMI.
 install_docker() {
   if command -v docker &>/dev/null; then
     log "Docker already present – skipping installation"
@@ -222,6 +223,33 @@ create_overlay_network() {
   log "Overlay network '$NETWORK_NAME' created"
 }
 
+install_codedeploy_agent() {
+  # Skip if already active
+  if systemctl status codedeploy-agent &>/dev/null; then
+    log "CodeDeploy agent already running – skipping installation"
+    return
+  fi
+
+  log "Installing CodeDeploy agent …"
+  yum -y -q update
+  yum -y -q install ruby wget
+
+  # Remove any stale installation first (ignore failures)
+  if [[ -x /opt/codedeploy-agent/bin/codedeploy-agent ]]; then
+    /opt/codedeploy-agent/bin/codedeploy-agent stop || true
+    yum -y -q erase codedeploy-agent || true
+  fi
+
+  cd /home/ec2-user/
+  wget "https://aws-codedeploy-${AWS_REGION}.s3.${AWS_REGION}.amazonaws.com/latest/install" -O install_codedeploy
+  chmod +x install_codedeploy
+  ./install_codedeploy auto
+
+  systemctl start codedeploy-agent
+
+  log "CodeDeploy agent installed and running ✅"
+}
+
 ############################################
 # Main logic
 ############################################
@@ -238,6 +266,8 @@ main() {
   readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
   [[ -n "$AWS_REGION" ]] || { log "AWS region unknown"; status "FAILED" "No AWS region"; exit 1; }
   log "Using AWS region: $AWS_REGION"
+
+  install_codedeploy_agent
 
   # Initialise or query Swarm
   local manager_ip

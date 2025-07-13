@@ -13,7 +13,7 @@ services:
       - source: otel_collector_config
         target: /etc/otel/config.yaml
     environment:
-      - AWS_REGION=${AWS_REGION:-us-west-1}
+      - AWS_REGION=${AWS_REGION}
     deploy:
       labels:
         service: otel-collector
@@ -60,5 +60,5 @@ networks:
 
 configs:
   otel_collector_config:
-    name: otel_collector_config_${VERSION:-latest}
+    name: otel_collector_config_${VERSION}
     external: true 

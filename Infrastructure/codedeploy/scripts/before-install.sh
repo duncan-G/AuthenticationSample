@@ -22,15 +22,19 @@ for bin in aws jq docker; do need_bin "$bin"; done
 # shellcheck source=/dev/null
 source "/opt/codedeploy-agent/deployment-root/${DEPLOYMENT_GROUP_ID}/${DEPLOYMENT_ID}/deployment-archive/scripts/env.sh"
 
-log "Starting BeforeInstall hook for ${SERVICE_NAME:-unknown}..."
+: "${STACK_FILE:?Missing STACK_FILE}"
+: "${SERVICE_NAME:?Missing SERVICE_NAME}"
+: "${ENVIRONMENT:?Missing ENVIRONMENT}"
+
+log "Starting BeforeInstall hook for ${SERVICE_NAME}..."
 log "Deployment ID: ${DEPLOYMENT_ID}"
-log "Service: ${SERVICE_NAME:-unknown}"
-log "Environment: ${ENVIRONMENT:-unknown}"
+log "Service: ${SERVICE_NAME}"
+log "Environment: ${ENVIRONMENT}"
 
 ###########################
 # Retrieve secrets
 ###########################
-if [[ "${VALIDATE_CERTIFICATES:-false}" == "true" ]]; then
+if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
   : "${SECRET_NAME:?Missing SECRET_NAME}"
 
   log "Retrieving secrets from AWS Secrets Manager..."
@@ -38,13 +42,13 @@ if [[ "${VALIDATE_CERTIFICATES:-false}" == "true" ]]; then
                    --secret-id "$SECRET_NAME" \
                    --query 'SecretString' --output text) || err "Could not retrieve secret '$SECRET_NAME'"
 
-  APP_NAME=$(jq -r '.app_name // empty' <<<"$SECRET_JSON")
-  CERTIFICATE_STORE=$(jq -r '.certificate_store // empty' <<<"$SECRET_JSON")
+  APP_NAME=$(jq -r '.APP_NAME // empty' <<<"$SECRET_JSON")
+  CERTIFICATE_STORE=$(jq -r '.CERTIFICATE_STORE // empty' <<<"$SECRET_JSON")
 
   [[ -n $APP_NAME && -n $CERTIFICATE_STORE ]] \
-    || err "Missing 'app_name' or 'certificate_store' in secret '$SECRET_NAME'"
+    || err "Missing 'APP_NAME' or 'CERTIFICATE_STORE' in secret '$SECRET_NAME'"
 
-  log "✓ Retrieved app_name and certificate_store"
+  log "✓ Retrieved APP_NAME and CERTIFICATE_STORE"
 
   ###########################
   # Determine latest run ID
@@ -58,13 +62,14 @@ if [[ "${VALIDATE_CERTIFICATES:-false}" == "true" ]]; then
   ###########################
   # Validate Docker Swarm & secrets
   ###########################
-  [[ "$(docker log --format '{{.Swarm.LocalNodeState}}')" == "active" ]] \
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "none")
+  [[ "$state" == "active" ]] \
     || err "Docker Swarm is not active"
 
   CERT_PREFIX=${CERT_PREFIX:-}
   declare -a secrets=(
     "${CERT_PREFIX}-cert.pem-${LATEST_RUN_ID}"
-    "${CERT_PREFIX}-cert.key-${LATEST_RUN_ID}"
+    "${CERT_PREFIX}-privkey.pem-${LATEST_RUN_ID}"
     "${CERT_PREFIX}-cert.pfx-${LATEST_RUN_ID}"
   )
 

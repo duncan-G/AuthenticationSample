@@ -77,6 +77,9 @@ fi
 ############################################
 # Functions
 ############################################
+
+## Docker should come pre-installed. Keep this function if
+## we switch to minimal AMI.
 install_docker() {
   if command -v docker &>/dev/null; then
     log "Docker already installed — skip"

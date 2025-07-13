@@ -27,12 +27,12 @@ processors:
 exporters:
   # AWS X-Ray for distributed tracing
   awsxray:
-    region: us-west-1  # Change to your AWS region
+    region: $AWS_REGION
     no_verify_ssl: false
     
   # CloudWatch for metrics
   awscloudwatchmetrics:
-    region: us-west-1  # Change to your AWS region
+    region: $AWS_REGION
     namespace: AuthenticationSample/OpenTelemetry
     dimension_rollup_option: NoDimensionRollup
     metric_declarations:
@@ -42,7 +42,7 @@ exporters:
         
   # CloudWatch Logs for logs
   awscloudwatchlogs:
-    region: us-west-1  # Change to your AWS region
+    region: $AWS_REGION
     log_group_name: /aws/otel/application-logs
     log_stream_name: otel-collector
 

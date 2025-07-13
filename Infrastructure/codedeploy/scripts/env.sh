@@ -9,10 +9,11 @@
 SERVICE_NAME=$SERVICE_NAME
 ENVIRONMENT=$ENVIRONMENT
 STACK_FILE=$STACK_FILE
+VERSION=$VERSION
 
-# AWS Secrets Manager configuration
+# AWS Secrets Manager configuration needed when require_tls is true
 SECRET_NAME=$SECRET_NAME
 
 # Certificate validation (set to "true" to enable certificate validation)
-VALIDATE_CERTIFICATES=$VALIDATE_CERTIFICATES
+REQUIRE_TLS=$REQUIRE_TLS
 CERT_PREFIX=$CERT_PREFIX
