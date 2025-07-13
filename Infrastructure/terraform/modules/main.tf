@@ -258,15 +258,6 @@ resource "aws_security_group" "instance" {
   description = "Allow HTTP, HTTPS, and Docker Swarm communication"
   vpc_id      = aws_vpc.main.id
 
-  # TODO: Remove SSH access after testing
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   ingress {
     description = "HTTP"
     from_port   = 80
@@ -586,7 +577,6 @@ resource "aws_instance" "public" {
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
-  key_name                    = "auth-sample-test" # TODO: Remove after testing
 
   tags = {
     Name        = "${var.app_name}-public-instance-worker"
@@ -610,7 +600,6 @@ resource "aws_instance" "private" {
   associate_public_ip_address = false
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.private_instance_profile.name
-  key_name                    = "auth-sample-test" # TODO: Remove after testing
 
   tags = {
     Name        = "${var.app_name}-private-instance-manager"

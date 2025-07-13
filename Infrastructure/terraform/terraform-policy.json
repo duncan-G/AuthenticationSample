@@ -77,7 +77,6 @@
       ],
       "Resource": [
         "arn:aws:ssm:*:*:parameter/docker/swarm/*",
-        "arn:aws:ssm:*:*:parameter/ssh/*",
         "arn:aws:ssm:*:*:document/${APP_NAME}-*"
       ]
     },
