@@ -2,7 +2,7 @@
 
 # CodeDeploy Application
 resource "aws_codedeploy_app" "microservices" {
-  for_each = toset(["authentication", "envoy"]) # Added envoy microservice
+  for_each = toset(["authentication", "envoy", "otel-collector"]) # Added envoy microservice
 
   name = "${var.app_name}-${each.key}-${var.environment}"
 

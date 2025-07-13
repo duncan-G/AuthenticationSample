@@ -46,7 +46,7 @@ jobs:
     - name: Derive run-time variables
       id: vars
       run: |
-        ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
+        ENVIRONMENT="${{ github.event.inputs.environment || 'production' }}"
         APP_NAME="${{ vars.APP_NAME }}"            # Org / repo variable
         SHORT_SHA="${GITHUB_SHA::8}"
         VERSION="${SHORT_SHA}"        # turn dots → dashes
