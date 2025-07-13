@@ -153,10 +153,11 @@ if ! docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -Eq 'Ru
   err "Deployment failed to start properly"
 fi
 
+log "Service is running"
+
 ####################################
 # Validate Service hot-swap
 ####################################
-sleep 15
 SERVICE_ID=$(docker service ls --filter "label=service=${SERVICE_NAME}" \
                                   --format '{{.ID}}' | head -n1)
 

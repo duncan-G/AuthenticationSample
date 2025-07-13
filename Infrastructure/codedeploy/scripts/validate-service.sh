@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ValidateService hook for CodeDeploy – confirms that the new revision is healthy
+# ValidateService hook for CodeDeploy – confirms that every replica reports a healthy Docker HEALTHCHECK
 
 set -euo pipefail
 
@@ -7,13 +7,13 @@ set -euo pipefail
 # Helper utilities
 ####################################
 err()  { printf "ERROR: %s\n" "$*" >&2; exit 1; }
-log() { printf ">>> %s\n"  "$*"; }
+log()  { printf ">>> %s\n"  "$*"; }
 need_bin() { command -v "$1" &>/dev/null || err "Required binary '$1' not found"; }
 
 ####################################
 # Sanity checks & setup
 ####################################
-for b in docker curl; do need_bin "$b"; done
+for b in docker; do need_bin "$b"; done
 
 : "${DEPLOYMENT_GROUP_ID:?Missing DEPLOYMENT_GROUP_ID}"
 : "${DEPLOYMENT_ID:?Missing DEPLOYMENT_ID}"
@@ -24,18 +24,15 @@ source "${ARCHIVE_ROOT}/scripts/env.sh"
 
 : "${SERVICE_NAME:?Missing SERVICE_NAME}"
 
-HEALTH_URL=${HEALTH_URL:-http://localhost:9901/ready}
-
 log "Starting ValidateService hook for ${SERVICE_NAME}…"
 
 ####################################
-# Wait for all replicas to be Running
+# 1. Wait until the correct number of replicas are Running
 ####################################
 log "Waiting for tasks to reach the Running state…"
 
 MAX_TASK_ATTEMPTS=30
 for ((i=1; i<=MAX_TASK_ATTEMPTS; i++)); do
-  # Count tasks with desired-state=running
   mapfile -t states < <(docker stack ps "$SERVICE_NAME" \
                         --filter desired-state=running --format '{{.CurrentState}}')
   total=${#states[@]}
@@ -53,22 +50,32 @@ for ((i=1; i<=MAX_TASK_ATTEMPTS; i++)); do
 done
 
 ####################################
-# Health-check loop
+# 2. Wait for every container's HEALTHCHECK to report 'healthy'
 ####################################
-log "Checking health endpoint at ${HEALTH_URL}…"
+log "Waiting for all containers to report a healthy status…"
 
-MAX_HEALTH_ATTEMPTS=10
+MAX_HEALTH_ATTEMPTS=30
 for ((i=1; i<=MAX_HEALTH_ATTEMPTS; i++)); do
-  if curl -fsS "$HEALTH_URL" >/dev/null; then
-    log "✓ Health check passed"
+  # Refresh container list each pass in case tasks re-schedule
+  mapfile -t containers < <(docker ps -q --filter "label=com.docker.swarm.service.name=${SERVICE_NAME}")
+
+  unhealthy=0
+  for cid in "${containers[@]}"; do
+    # If the image has no HEALTHCHECK, .State.Health is null – treat that as healthy
+    health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid")
+    [[ "$health" != "healthy" && "$health" != "none" ]] && unhealthy=$((unhealthy+1))
+  done
+
+  log "Attempt ${i}/${MAX_HEALTH_ATTEMPTS}: $(( ${#containers[@]} - unhealthy ))/${#containers[@]} containers healthy"
+
+  if (( unhealthy == 0 )); then
+    log "✓ All containers are healthy"
     break
   fi
-  log "Health check ${i}/${MAX_HEALTH_ATTEMPTS} failed – retrying in 5 s…"
-  (( i == MAX_HEALTH_ATTEMPTS )) && \
-    { log "⚠︎ Health check did not succeed, continuing deployment"; break; }
+
+  (( i == MAX_HEALTH_ATTEMPTS )) && err "Containers did not become healthy within expected time"
   sleep 5
 done
 
-log "✓ Correct image is running"
-
+log "✓ Correct image is running and all health checks have passed"
 log "ValidateService hook completed successfully."
