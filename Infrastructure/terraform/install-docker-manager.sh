@@ -99,29 +99,6 @@ install_docker() {
   log "Docker installed and running ✅"
 }
 
-wait_for_docker() {
-  local max_attempts=30
-  local wait_seconds=2
-  local attempt=1
-
-  log "Waiting for Docker service to be ready …"
-
-  while (( attempt <= max_attempts )); do
-    if docker info &>/dev/null; then
-      log "Docker service is ready ✅"
-      return 0
-    fi
-
-    log "Docker not ready yet (attempt $attempt/$max_attempts) – waiting ${wait_seconds}s"
-    sleep "$wait_seconds"
-    ((attempt++))
-  done
-
-  log "ERROR: Docker service failed to become ready after $((max_attempts * wait_seconds)) seconds"
-  status "FAILED" "Docker service timeout"
-  exit 1
-}
-
 install_ecr_credential_helper() {
   if command -v docker-credential-ecr-login &>/dev/null; then
     log "ECR credential helper already present – skipping installation"
@@ -281,7 +258,7 @@ main() {
   log "Bootstrap initiated"
   status "IN_PROGRESS" "Docker Swarm manager setup started"
 
-  wait_for_docker
+  install_docker
   install_ecr_credential_helper
   configure_docker_ecr_auth
 
