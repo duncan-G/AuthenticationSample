@@ -85,7 +85,6 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           "chown ec2-user:ec2-user /var/log/certificate-manager/certificate-manager.log",
           "chmod 644 /var/log/certificate-manager/certificate-manager.log",
           # Reload systemd and enable the service
-          "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",
           "systemctl start certificate-manager.service"
         ]
