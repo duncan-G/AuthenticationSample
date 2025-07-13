@@ -142,9 +142,9 @@ max_retries=30
 while docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -q '^Starting'; do
   ((retries++))
   if ((retries > max_retries)); then
-    echo "Service failed to move past Starting state after $max_retries attempts"
+    err "Service failed to move past Starting state after $max_retries attempts"
   fi
-  echo "Service still starting, waiting... (attempt $retries/$max_retries)"
+  log "Service still starting, waiting... (attempt $retries/$max_retries)"
   sleep 5
 done
 
