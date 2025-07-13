@@ -9,7 +9,7 @@ receivers:
 processors:
   memory_limiter:
     limit_mib: 900
-    check_interval: 2s
+    check_interval: 5s
     spike_limit_mib: 150
   resource:
     attributes:
@@ -21,7 +21,7 @@ processors:
         from_attribute: service.version
 
   batch:
-    timeout: 5s
+    timeout: 10s
     send_batch_size: 512
     send_batch_max_size: 1024
 

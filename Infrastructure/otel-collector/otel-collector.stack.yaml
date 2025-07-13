@@ -28,8 +28,8 @@ services:
           cpus: '1.0'
           memory: 1G
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.5'
+          memory: 512M
       restart_policy:
         condition: on-failure
         delay: 15s
@@ -41,12 +41,6 @@ services:
         failure_action: rollback
         monitor: 15s
         order: stop-first
-    healthcheck:
-      test: ["CMD", "/bin/sh", "-c", "nc -z localhost 4317 && nc -z localhost 4318 && nc -z localhost 13133"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     logging:
       driver: "json-file"
       options:
