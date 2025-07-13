@@ -136,7 +136,7 @@ data "aws_ami" "amazon_linux" {
   owners      = ["amazon"]
 
   filter {
-    name   = "name"
+    name = "name"
     # Match regular AMIs only (not minimal) - regular AMIs follow pattern: al2023-ami-2023.*
     values = ["al2023-ami-2023*"]
   }
