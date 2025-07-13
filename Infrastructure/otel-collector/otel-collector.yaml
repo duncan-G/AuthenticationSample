@@ -8,9 +8,9 @@ receivers:
 
 processors:
   memory_limiter:
-    limit_mib: 480
+    limit_mib: 900
     check_interval: 2s
-    spike_limit_mib: 96
+    spike_limit_mib: 150
   resource:
     attributes:
       - key: service.name
@@ -21,9 +21,9 @@ processors:
         from_attribute: service.version
 
   batch:
-    timeout: 1s
-    send_batch_size: 256
-    send_batch_max_size: 512
+    timeout: 5s
+    send_batch_size: 512
+    send_batch_max_size: 1024
 
 exporters:
   awsxray:
