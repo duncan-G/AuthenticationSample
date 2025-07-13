@@ -1,4 +1,4 @@
-name: Envoy Deployment
+name: OpenTelemetry Collector Deployment
 
 on:
   # ───── Manual trigger ─────
@@ -8,15 +8,15 @@ on:
         description: Target environment
         required: true
         type: choice
-        default: staging
+        default: production
         options: [staging, production]
 
-  # ───── Auto-trigger when Envoy config or workflow changes ─────
+  # ───── Auto-trigger when otel-collector config or workflow changes ─────
   push:
     branches: [main]
     paths:
-      - 'Infrastructure/envoy/**'
-      - '.github/workflows/envoy-release.yml'
+      - 'Infrastructure/otel-collector/**'
+      - '.github/workflows/otel-collector-release.yml'
 
 # ───── Global defaults ─────
 permissions:
@@ -24,12 +24,12 @@ permissions:
   id-token: write           # OIDC for aws-actions/configure-aws-credentials
 
 env:
-  SERVICE_NAME: envoy
+  SERVICE_NAME: otel-collector
   AWS_REGION: us-west-1      # overridden if repo/org variable AWS_REGION exists
 
 jobs:
   deploy:
-    name: Deploy Envoy
+    name: Deploy OpenTelemetry Collector
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
 
@@ -49,11 +49,7 @@ jobs:
         ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
         APP_NAME="${{ vars.APP_NAME }}"            # Org / repo variable
         SHORT_SHA="${GITHUB_SHA::8}"
-        VERSION="${SHORT_SHA}"
-        DOMAIN="${{ vars.DOMAIN_NAME }}"
-
-        CERT_PREFIX="api.${DOMAIN}"
-        CERT_PREFIX="${CERT_PREFIX//./-}"          # turn dots → dashes
+        VERSION="${SHORT_SHA}"        # turn dots → dashes
 
         # Single timestamp for this workflow run (avoids mismatch between upload & deployment)
         TS="$(date +%Y%m%d-%H%M%S)"
@@ -61,7 +57,6 @@ jobs:
         {
           echo "environment=$ENVIRONMENT"
           echo "version=$VERSION"
-          echo "cert_prefix=$CERT_PREFIX"
           echo "ts=$TS"
         } >>"$GITHUB_OUTPUT"
 
@@ -81,23 +76,20 @@ jobs:
         VERSION='${{ steps.vars.outputs.version }}'
         APP_NAME='${{ vars.APP_NAME }}'
         SERVICE_NAME='${{ env.SERVICE_NAME }}'
-        CERT_PREFIX='${{ steps.vars.outputs.cert_prefix }}'
-        DOMAIN='${{ vars.DOMAIN_NAME }}'
 
-        STACK_FILE='envoy.stack.release.yml'
+        STACK_FILE='otel-collector.stack.yaml'
 
         # ========= Create staging area =========
         mkdir -p staging/scripts
         mkdir -p staging/configs
         cp Infrastructure/codedeploy/appspec.yml        staging/
         cp -r Infrastructure/codedeploy/scripts/*       staging/scripts/
-        cp -r Infrastructure/envoy/prod/*               staging/configs/
+        cp -r Infrastructure/otel-collector/*           staging/configs/
 
         # Render env.sh (envsubst keeps it POSIX-portable)
-        export SERVICE_NAME ENVIRONMENT VERSION APP_NAME CERT_PREFIX \
-               STACK_FILE SECRET_NAME="${APP_NAME}-secrets" \
+        export SERVICE_NAME ENVIRONMENT VERSION APP_NAME STACK_FILE \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=true
+               REQUIRE_TLS=false
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
@@ -108,12 +100,11 @@ jobs:
           -e "s|{{ SERVICE_NAME }}|$SERVICE_NAME|g" \
           staging/appspec.yml
 
-        # ========= Copy & template Envoy configs =========
+        # ========= Copy & template otel-collector configs =========
         find staging/configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
+          -e "s|\${AWS_REGION}|$AWS_REGION|g" \
           -e "s|\${VERSION}|$VERSION|g" \
-          -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
-          -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
-          -e "s|\$DOMAIN|${DOMAIN}|g" {} +
+          -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" {} +
 
         mv staging/configs/$STACK_FILE staging/
 
@@ -143,4 +134,4 @@ jobs:
         aws deploy wait deployment-successful --deployment-id ${{ steps.deploy.outputs.id }}
         STATUS=$(aws deploy get-deployment --deployment-id ${{ steps.deploy.outputs.id }} --query 'deploymentInfo.status' --output text)
         echo "Deployment finished with status: $STATUS"
-        [[ "$STATUS" == "Succeeded" ]] || exit 1
+        [[ "$STATUS" == "Succeeded" ]] || exit 1 

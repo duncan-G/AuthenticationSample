@@ -11,7 +11,7 @@ ENVIRONMENT=$ENVIRONMENT
 STACK_FILE=$STACK_FILE
 VERSION=$VERSION
 
-# AWS Secrets Manager configuration
+# AWS Secrets Manager configuration needed when require_tls is true
 SECRET_NAME=$SECRET_NAME
 
 # Certificate validation (set to "true" to enable certificate validation)
