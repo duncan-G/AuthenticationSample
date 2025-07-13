@@ -85,7 +85,15 @@ resource "aws_ssm_document" "certificate_manager_setup" {
           "chown ec2-user:ec2-user /var/log/certificate-manager/certificate-manager.log",
           "chmod 644 /var/log/certificate-manager/certificate-manager.log",
           # Reload systemd and enable the service
+          "systemctl daemon-reload",
           "systemctl enable certificate-manager.service",
+          # Wait for Docker to be ready before starting the service
+          "echo 'Waiting for Docker to be ready...'",
+          "until systemctl is-active --quiet docker; do",
+          "  echo 'Docker not ready yet, waiting...'",
+          "  sleep 5",
+          "done",
+          "echo 'Docker is ready, starting certificate-manager service'",
           "systemctl start certificate-manager.service"
         ]
         timeoutSeconds = "600" # 10 minutes timeout
