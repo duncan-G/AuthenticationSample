@@ -7,13 +7,10 @@ receivers:
         endpoint: 0.0.0.0:4318
 
 processors:
-  batch:
-    timeout: 1s
-    send_batch_size: 1024
-    send_batch_max_size: 2048
-
   memory_limiter:
     limit_mib: 512
+    check_interval: 2s
+    spike_limit_mib: 128
 
   resource:
     attributes:
@@ -24,13 +21,16 @@ processors:
         action: upsert
         from_attribute: service.version
 
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
 exporters:
-  # AWS X-Ray for distributed tracing
   awsxray:
-    region: $AWS_REGION
+    region: ${AWS_REGION}
     no_verify_ssl: false
     
-  # CloudWatch for metrics
   awsemf:
     region: ${AWS_REGION}
     namespace: AuthenticationSample/OpenTelemetry
@@ -39,13 +39,11 @@ exporters:
       - dimensions: [[service.name], [service.name, service.version]]
         metric_name_selectors: [".*"]
         
-  # CloudWatch Logs for logs
   awscloudwatchlogs:
-    region: $AWS_REGION
+    region: ${AWS_REGION}
     log_group_name: /aws/otel/application-logs
     log_stream_name: otel-collector
 
-  # Keep console exporter for debugging
   debug:
     verbosity: detailed
 
@@ -57,16 +55,16 @@ service:
   extensions: [health_check]
   pipelines:
     traces:
-      receivers: [otlp]
-      processors: [memory_limiter, batch, resource]
-      exporters: [awsxray, logging]
-      
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [awsxray, debug]
+
     metrics:
-      receivers: [otlp]
-      processors: [memory_limiter, batch, resource]
-      exporters: [awsemf, logging]
-      
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [awsemf, debug]
+
     logs:
-      receivers: [otlp]
-      processors: [memory_limiter, batch, resource]
-      exporters: [awscloudwatchlogs, logging]
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [awscloudwatchlogs, debug]
