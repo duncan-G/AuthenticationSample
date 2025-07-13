@@ -137,7 +137,7 @@ docker stack deploy --compose-file "$tmp_stack" "$SERVICE_NAME"
 log "Waiting for service to start..."
 retries=0
 max_retries=30
-while docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -q '^Starting'; do
+while docker service ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -q '^Starting'; do
   ((retries++))
   if ((retries > max_retries)); then
     err "Service failed to move past Starting state after $max_retries attempts"
@@ -147,7 +147,7 @@ while docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -q '^S
 done
 
 
-if ! docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -Eq 'Running|Pending'; then
+if ! docker service ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -Eq 'Running|Pending'; then
   err "Deployment failed to start properly"
 fi
 

@@ -36,7 +36,7 @@ log "Waiting for tasks to reach the Running state…"
 MAX_TASK_ATTEMPTS=30
 for ((i=1; i<=MAX_TASK_ATTEMPTS; i++)); do
   # Count tasks with desired-state=running
-  mapfile -t states < <(docker stack ps "$STACK_NAME" \
+  mapfile -t states < <(docker stack ps "$SERVICE_NAME" \
                         --filter desired-state=running --format '{{.CurrentState}}')
   total=${#states[@]}
   running=$(printf '%s\n' "${states[@]}" | grep -c '^Running')
