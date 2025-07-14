@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  app:
+    image: $IMAGE_NAME
+    env_file:
+      - ${ENV_FILE}
+      - ${OVERRIDE_ENV_FILE}
+    environment:
+      ASPNETCORE_URLS: https://+:8000
+      ASPNETCORE_ENVIRONMENT: Production
+    networks:
+      - net
+    secrets:
+      - source: aspnetapp.pfx
+        target: /https/aspnetapp.pfx
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        order: stop-first
+networks:
+  net:
+    name: ${NETWORK_NAME}
+    external: true
+
+secrets:
+  aspnetapp.pfx:
+    name: ${CERT_PFX_SECRET_NAME}
+    external: true
+  cert_password:
+    name: ${CERT_PASSWORD_SECRET_NAME}
+    external: true
