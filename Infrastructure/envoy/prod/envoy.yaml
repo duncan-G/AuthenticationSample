@@ -178,4 +178,4 @@ static_resources:
         endpoints:
         - lb_endpoints:
           - endpoint:
-              address: { socket_address: { address: otel_collector_app, port_value: 4317 } }
+              address: { socket_address: { address: otel-collector_app, port_value: 4317 } }
