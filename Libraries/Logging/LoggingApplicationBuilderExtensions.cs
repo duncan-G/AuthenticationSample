@@ -62,7 +62,7 @@ public static class LoggingApplicationBuilderExtensions
 
                 if (options.AddAWSInstrumentation)
                 {
-                    // traceBuilder.AddAWSInstrumentation();
+                    traceBuilder.AddAWSInstrumentation();
                 }
 
                 traceBuilder.AddSource("AuthenticationSample.*");
@@ -84,7 +84,7 @@ public static class LoggingApplicationBuilderExtensions
 
                 if (options.AddAWSInstrumentation)
                 {
-                    // metricsBuilder.AddAWSInstrumentation();
+                    metricsBuilder.AddAWSInstrumentation();
                 }
 
                 metricsBuilder.AddMeter("AuthenticationSample.*");

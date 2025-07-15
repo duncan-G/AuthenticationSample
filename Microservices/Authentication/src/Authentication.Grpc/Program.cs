@@ -1,4 +1,5 @@
 using AuthenticationSample.Api.Cors;
+using AuthenticationSample.Api.Secrets;
 using AuthenticationSample.Authentication.Grpc.Services;
 using AuthenticationSample.Logging;
 
@@ -6,11 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Load secrets into configuration
 
-builder.AddSecrets("authentication");
-
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true);
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
+    .AddSecretsManager( $"auth-sample-secrets-{builder.Environment.EnvironmentName.ToLower()}", "Authentication_");
 
 // Configure logging
 builder.AddLogging(options =>
@@ -18,9 +18,6 @@ builder.AddLogging(options =>
     options.ServiceName = "Authentication";
     options.AddAWSInstrumentation = true;
 });
-
-// Add mapping
-builder.Services.AddAutoMapper(typeof(Program));
 
 // Add services to the container.
 builder.Services.AddGrpc();
