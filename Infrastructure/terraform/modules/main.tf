@@ -640,4 +640,48 @@ output "private_instance_ip" {
   description = "Private IP of the private subnet instance"
 }
 
+# ECR Repositories for Microservices
+resource "aws_ecr_repository" "microservices" {
+  for_each = toset(["authentication"])
+
+  name = "${var.app_name}/${each.key}"
+
+  image_tag_mutability = "MUTABLE"
+  
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "${var.app_name}-${each.key}-ecr"
+    Environment = var.environment
+    Service     = each.key
+  }
+}
+
+# Lifecycle policy for ECR repositories
+resource "aws_ecr_lifecycle_policy" "microservices" {
+  for_each = aws_ecr_repository.microservices
+
+  repository = each.value.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 images"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
 

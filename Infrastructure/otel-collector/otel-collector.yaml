@@ -1,0 +1,64 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    limit_mib: 900
+    check_interval: 5s
+    spike_limit_mib: 150
+  resource:
+    attributes:
+      - key: service.name
+        action: upsert
+        from_attribute: service.name
+      - key: service.version
+        action: upsert
+        from_attribute: service.version
+
+  batch:
+    timeout: 10s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+exporters:
+  awsxray:
+    region: ${AWS_REGION}
+    no_verify_ssl: false
+    
+  awsemf:
+    region: ${AWS_REGION}
+    namespace: AuthenticationSample/OpenTelemetry
+    dimension_rollup_option: NoDimensionRollup
+    metric_declarations:
+      - dimensions: [[service.name], [service.name, service.version]]
+        metric_name_selectors: [".*"]
+        
+  awscloudwatchlogs:
+    region: ${AWS_REGION}
+    log_group_name: /aws/otel/application-logs
+    log_stream_name: otel-collector
+
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [awsxray, debug]
+
+    metrics:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [awsemf, debug]
+
+    logs:
+      receivers:  [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters:  [awscloudwatchlogs, debug]

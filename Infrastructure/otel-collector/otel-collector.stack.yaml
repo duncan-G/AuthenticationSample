@@ -17,7 +17,7 @@ services:
     deploy:
       labels:
         service: otel-collector
-        environment: ${ENVIRONMENT:-staging}
+        environment: ${ENVIRONMENT}
       mode: replicated
       replicas: 1
       placement:
@@ -25,28 +25,22 @@ services:
           - node.role == manager
       resources:
         limits:
-          cpus: '0.50'
-          memory: 512M
+          cpus: '1.0'
+          memory: 1G
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.5'
+          memory: 512M
       restart_policy:
         condition: on-failure
         delay: 15s
         max_attempts: 3
-        window: 120s
+        window: 120s 
       update_config:
         parallelism: 1
         delay: 10s
         failure_action: rollback
         monitor: 15s
         order: stop-first
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:13133/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -56,9 +50,10 @@ services:
 
 networks:
   net:
+    name: ${NETWORK_NAME}
     external: true
 
 configs:
   otel_collector_config:
-    name: otel_collector_config_${VERSION}
+    name: otel-collector_config_${VERSION}
     external: true 

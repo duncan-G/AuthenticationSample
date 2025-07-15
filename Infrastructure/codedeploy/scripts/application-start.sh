@@ -132,17 +132,32 @@ docker stack deploy --compose-file "$tmp_stack" "$SERVICE_NAME"
 ####################################
 # Basic health-check
 ####################################
+
+# Wait for service to move past Starting state
+log "Waiting for service to start..."
 sleep 10
-docker stack ps "$SERVICE_NAME" --no-trunc
+  
+retries=0
+max_retries=30
+while docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -q '^Starting'; do
+  retries=$((retries + 1))
+  if [ "$retries" -gt "$max_retries" ]; then
+    err "Service failed to move past Starting state after $max_retries attempts"
+  fi
+  log "Service still starting, waiting... (attempt $retries/$max_retries)"
+  sleep 5
+done
+
 
 if ! docker stack ps "$SERVICE_NAME" --format '{{.CurrentState}}' | grep -Eq 'Running|Pending'; then
   err "Deployment failed to start properly"
 fi
 
+log "Service is running"
+
 ####################################
 # Validate Service hot-swap
 ####################################
-sleep 15
 SERVICE_ID=$(docker service ls --filter "label=service=${SERVICE_NAME}" \
                                   --format '{{.ID}}' | head -n1)
 
