@@ -1,16 +1,16 @@
 using AuthenticationSample.Api.Cors;
 using AuthenticationSample.Authentication.Grpc.Services;
 using AuthenticationSample.Logging;
-using dotenv.net;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Load secrets into configuration
-DotEnv.Load();
+
+builder.AddSecrets("authentication");
+
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-    .AddEnvironmentVariables("Authentication_");
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true);
 
 // Configure logging
 builder.AddLogging(options =>

@@ -1,4 +1,3 @@
-using AutoMapper;
 using Google.Protobuf.Collections;
 
 namespace AuthenticationSample.Api.Mapping;

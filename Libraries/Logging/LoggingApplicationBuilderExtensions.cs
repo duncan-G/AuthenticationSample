@@ -55,7 +55,10 @@ public static class LoggingApplicationBuilderExtensions
                     .AddHttpClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation(efiOption => { efiOption.SetDbStatementForText = true; })
                     .AddSource("Npgsql");
-                if (options.AddSemanticKernelInstrumentation) traceBuilder.AddSource("Microsoft.SemanticKernel*");
+                if (options.AddSemanticKernelInstrumentation)
+                {
+                    traceBuilder.AddSource("Microsoft.SemanticKernel*");
+                }
 
                 if (options.AddAWSInstrumentation)
                 {
@@ -74,7 +77,10 @@ public static class LoggingApplicationBuilderExtensions
                     .AddProcessInstrumentation()
                     .AddMeter("Npgsql");
 
-                if (options.AddSemanticKernelInstrumentation) metricsBuilder.AddMeter("Microsoft.SemanticKernel*");
+                if (options.AddSemanticKernelInstrumentation)
+                {
+                    metricsBuilder.AddMeter("Microsoft.SemanticKernel*");
+                }
 
                 if (options.AddAWSInstrumentation)
                 {
@@ -87,7 +93,10 @@ public static class LoggingApplicationBuilderExtensions
             .WithLogging();
 
         var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-        if (useOtlpExporter) builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        if (useOtlpExporter)
+        {
+            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        }
 
         return builder;
     }
