@@ -90,17 +90,6 @@
       "Resource": "*"
     },
     {
-      "Sid": "EC2KeyPairManagement",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:ImportKeyPair",
-        "ec2:DeleteKeyPair",
-        "ec2:DescribeKeyPairs",
-        "ec2:CreateKeyPair"
-      ],
-      "Resource": "arn:aws:ec2:*:${AWS_ACCOUNT_ID}:key-pair/${APP_NAME}-*"
-    },
-    {
       "Sid": "SSMAssociationManagement",
       "Effect": "Allow",
       "Action": [
@@ -244,6 +233,61 @@
       ],
       "Resource": [
         "arn:aws:ecr:*:${AWS_ACCOUNT_ID}:repository/${APP_NAME}/*"
+      ]
+    },
+    {
+      "Sid": "SSOAdminPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "sso:CreatePermissionSet",
+        "sso:DeletePermissionSet",
+        "sso:DescribePermissionSet",
+        "sso:ListPermissionSets",
+        "sso:ProvisionPermissionSet",
+        "sso:PutInlinePolicyToPermissionSet",
+        "sso:DeleteInlinePolicyFromPermissionSet",
+        "sso:GetInlinePolicyForPermissionSet",
+        "sso:AttachManagedPolicyToPermissionSet",
+        "sso:DetachManagedPolicyFromPermissionSet",
+        "sso:ListManagedPoliciesInPermissionSet",
+        "sso:TagResource",
+        "sso:UntagResource",
+        "sso:ListTagsForResource",
+        "sso:ListInstances",
+        "sso:DescribeInstance"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SSOIdentityStoreGroupPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "identitystore:CreateGroup",
+        "identitystore:DeleteGroup",
+        "identitystore:DescribeGroup",
+        "identitystore:ListGroups",
+        "identitystore:UpdateGroup"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:UpdateSecretVersionStage",
+        "secretsmanager:ListSecrets",
+        "secretsmanager:TagResource",
+        "secretsmanager:UntagResource",
+        "secretsmanager:ListSecretVersionIds",
+        "secretsmanager:GetResourcePolicy",
+        "secretsmanager:PutResourcePolicy",
+        "secretsmanager:DeleteResourcePolicy"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:*:${AWS_ACCOUNT_ID}:secret:${APP_NAME}-secrets-development*"
       ]
     }
   ]
