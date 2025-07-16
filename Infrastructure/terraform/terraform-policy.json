@@ -277,6 +277,7 @@
         "secretsmanager:CreateSecret",
         "secretsmanager:DeleteSecret",
         "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
         "secretsmanager:UpdateSecretVersionStage",
         "secretsmanager:ListSecrets",
         "secretsmanager:TagResource",
