@@ -5,7 +5,7 @@
 # Data sources
 data "aws_ssoadmin_instances" "sso" {}
 
-data "aws_identitystore_identity_store" "identity_store" {
+locals {
   identity_store_id = tolist(data.aws_ssoadmin_instances.sso.identity_store_ids)[0]
 }
 
@@ -45,10 +45,39 @@ resource "aws_ssoadmin_permission_set" "developer" {
 
 # Attach the custom policy to the permission set
 resource "aws_ssoadmin_permission_set_inline_policy" "developer_secret_manager_inline_policy" {
-  inline_policy = templatefile("${path.module}/developer-policy.json", {
-    region     = var.region
-    account_id = data.aws_caller_identity.current.account_id
-    app_name   = var.app_name
+  inline_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "SecretManagerDevAccess"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:ListSecrets"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:${var.app_name}-secrets-development-*"
+        ]
+      },
+      {
+        Sid    = "SecretManagerGeneralRead"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:ListSecrets"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "BasicDeveloperAccess"
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity",
+          "sts:GetSessionToken"
+        ]
+        Resource = "*"
+      }
+    ]
   })
   instance_arn       = tolist(data.aws_ssoadmin_instances.sso.arns)[0]
   permission_set_arn = aws_ssoadmin_permission_set.developer.arn
@@ -67,10 +96,10 @@ resource "aws_ssoadmin_managed_policy_attachment" "developer_readonly_access" {
 
 # Create SSO group "Developers"
 resource "aws_identitystore_group" "developers" {
-  identity_store_id = data.aws_identitystore_identity_store.identity_store.identity_store_id
+  identity_store_id = local.identity_store_id
 
   display_name = "Developers"
-  description  = "Development team with access to development secrets"
+  description  = "Development team"
 }
 
 # Note: Users should be created manually and assigned to groups manually
