@@ -13,11 +13,7 @@ builder.Configuration
     .AddSecretsManager( $"auth-sample-secrets-{builder.Environment.EnvironmentName.ToLower()}", "Authentication_");
 
 // Configure logging
-builder.AddLogging(options =>
-{
-    options.ServiceName = "Authentication";
-    options.AddAWSInstrumentation = true;
-});
+builder.AddLogging("ApplicationLogging");
 
 // Add services to the container.
 builder.Services.AddGrpc();
