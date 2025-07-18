@@ -4,7 +4,6 @@
 
 # Data sources
 data "aws_ssoadmin_instances" "sso" {}
-data "aws_caller_identity" "current" {}
 
 locals {
   identity_store_id = tolist(data.aws_ssoadmin_instances.sso.identity_store_ids)[0]
