@@ -254,7 +254,8 @@
         "sso:UntagResource",
         "sso:ListTagsForResource",
         "sso:ListInstances",
-        "sso:DescribeInstance"
+        "sso:DescribeInstance",
+        "sso:DescribePermissionSetProvisioningStatus"
       ],
       "Resource": "*"
     },
@@ -269,6 +270,21 @@
         "identitystore:UpdateGroup"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "SSOIAMPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:ListRoles",
+        "iam:ListRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/AWSReservedSSO_*",
+        "arn:aws:iam::*:role/aws-reserved/sso.amazonaws.com/*"
+      ]
     },
     {
       "Sid": "SecretsManagerPermissions",

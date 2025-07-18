@@ -4,6 +4,7 @@
 
 # Data sources
 data "aws_ssoadmin_instances" "sso" {}
+data "aws_caller_identity" "current" {}
 
 locals {
   identity_store_id = tolist(data.aws_ssoadmin_instances.sso.identity_store_ids)[0]
@@ -102,6 +103,18 @@ resource "aws_identitystore_group" "developers" {
   description  = "Development team"
 }
 
+# Assign the Developers group to the current AWS account with the developer permission set
+resource "aws_ssoadmin_account_assignment" "developers_assignment" {
+  instance_arn       = tolist(data.aws_ssoadmin_instances.sso.arns)[0]
+  permission_set_arn = aws_ssoadmin_permission_set.developer.arn
+
+  principal_id   = aws_identitystore_group.developers.group_id
+  principal_type = "GROUP"
+
+  target_id   = data.aws_caller_identity.current.account_id
+  target_type = "AWS_ACCOUNT"
+}
+
 # Note: Users should be created manually and assigned to groups manually
 # for better security and user lifecycle management
 
@@ -132,4 +145,9 @@ output "developer_group_id" {
 output "sso_instance_arn" {
   description = "ARN of the SSO instance"
   value       = tolist(data.aws_ssoadmin_instances.sso.arns)[0]
+}
+
+output "developers_account_assignment_id" {
+  description = "ID of the Developers group account assignment"
+  value       = aws_ssoadmin_account_assignment.developers_assignment.id
 } 
