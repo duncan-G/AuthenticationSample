@@ -21,7 +21,7 @@ print_header "🗑️  Terraform and CodeDeploy Github Actions Workflow Cleanup 
 get_user_input() {
     print_info "Please provide the following information:"
     
-    prompt_user "Enter your AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
+    prompt_user "Enter your AWS SSO profile name" "AWS_PROFILE" "infra-setup"
 
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"

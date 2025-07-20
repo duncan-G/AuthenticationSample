@@ -1,18 +1,16 @@
+using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.Configuration;
 
 namespace AuthenticationSample.Api.Secrets;
 
 internal sealed class SecretsManagerConfigurationSource(
-    string secretId,
-    string? prefix,
-    TimeSpan? reloadAfter)
+    AWSOptions awsOptions,
+    SecretsManagerOptions secretManagerOptions)
     : IConfigurationSource
 {
-    public string SecretId { get; } = secretId ?? throw new ArgumentNullException(nameof(secretId));
+    public AWSOptions AwsOptions => awsOptions;
 
-    public string? Prefix { get; } = prefix;
-
-    public TimeSpan? ReloadAfter { get; } = reloadAfter;
+    public SecretsManagerOptions SecretManagerOptions => secretManagerOptions;
 
     public IConfigurationProvider Build(IConfigurationBuilder builder)
     {

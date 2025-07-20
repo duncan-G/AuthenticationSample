@@ -1,19 +1,24 @@
 using AuthenticationSample.Api.Cors;
 using AuthenticationSample.Api.Secrets;
 using AuthenticationSample.Authentication.Grpc.Services;
+using AuthenticationSample.Infrastructure;
 using AuthenticationSample.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load secrets into configuration
+// Configure AWS options from environment variables
+var awsOptions = builder.AddAwsOptions("AuthSample-AuthService");
 
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-    .AddSecretsManager( $"auth-sample-secrets-{builder.Environment.EnvironmentName.ToLower()}", "Authentication_");
+    .AddEnvironmentVariables("Authentication_")
+    .AddSecretsManager(
+        awsOptions,
+        options => builder.Configuration.GetSection("Secrets").Bind(options));
 
 // Configure logging
-builder.AddLogging("ApplicationLogging");
+builder.AddLogging(options => builder.Configuration.GetSection("ApplicationLogging").Bind(options));
 
 // Add services to the container.
 builder.Services.AddGrpc();

@@ -11,9 +11,9 @@ source "$UTILS_SCRIPT_DIR/print-utils.sh"
 
 # Function to prompt user for input
 prompt_user() {
-    local prompt="$1"
-    local var_name="$2"
-    local default_value="$3"
+    local prompt="${1:-Enter value}"
+    local var_name="${2:-user_input}"
+    local default_value="${3:-}"
     
     if [ -n "$default_value" ]; then
         read -p "$(echo -e ${WHITE}$prompt ${NC}[${default_value}]: )" input

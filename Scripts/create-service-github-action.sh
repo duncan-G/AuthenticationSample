@@ -9,13 +9,28 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UTILS_DIR="$(cd "$SCRIPT_DIR/utils" && pwd)"
 source "$UTILS_DIR/print-utils.sh"
-source "$UTILS_DIR/validation.sh"
 source "$UTILS_DIR/common.sh"
 
 # Script to create a new service workflow from template
 # Usage: ./Scripts/create-service-github-action.sh <service-name>
 
 set -e
+
+validate_service_name() {
+    local service_name="$1"
+    
+    if [ -z "$service_name" ]; then
+        print_error "Service name is required"
+        return 1
+    fi
+    
+    if [[ ! "$service_name" =~ ^[a-zA-Z0-9-]+$ ]]; then
+        print_error "Service name can only contain letters, numbers, and hyphens"
+        return 1
+    fi
+    
+    return 0
+}
 
 # Function to validate service name and additional checks
 validate_service_name_with_checks() {

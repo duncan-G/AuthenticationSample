@@ -3,28 +3,18 @@ clean_database=false
 working_dir=$(pwd)
 
 # Verify required environment variables
-if [ -z "$PGADMIN_DEFAULT_EMAIL" ]; then
-    echo "Error: PGADMIN_DEFAULT_EMAIL is not set in .env file"
-    exit 1
-fi
-
-if [ -z "$PGADMIN_DEFAULT_PASSWORD" ]; then
-    echo "Error: PGADMIN_DEFAULT_PASSWORD is not set in .env file"
-    exit 1
-fi
-
 if [ -z "$DATABASE_NAME" ]; then
-    echo "Error: DATABASE_NAME is not set in .env file"
+    echo "Error: DATABASE_NAME is not set in environment"
     exit 1
 fi
 
 if [ -z "$DATABASE_USER" ]; then
-    echo "Error: DATABASE_USER is not set in .env file"
+    echo "Error: DATABASE_USER is not set in environment"
     exit 1
 fi
 
 if [ -z "$DATABASE_PASSWORD" ]; then
-    echo "Error: DATABASE_PASSWORD is not set in .env file"
+    echo "Error: DATABASE_PASSWORD is not set in environment"
     exit 1
 fi
 

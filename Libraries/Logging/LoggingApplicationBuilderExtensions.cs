@@ -13,9 +13,25 @@ public static class LoggingApplicationBuilderExtensions
 {
     public static IHostApplicationBuilder AddLogging(
         this IHostApplicationBuilder builder,
-        string configurationSectionName)
+        Action<LoggingOptions> configureOptions)
     {
-        var options = GetOptions(builder.Configuration.GetRequiredSection(configurationSectionName));
+        var options = new LoggingOptions();
+        configureOptions(options);
+
+        if (options == null)
+        {
+            throw new InvalidOperationException("Missing required configuration section 'ApplicationOptions'");
+        }
+
+        if (string.IsNullOrEmpty(options.ServiceName))
+        {
+            throw new InvalidOperationException("ServiceName cannot be null or empty.");
+        }
+
+        if (string.IsNullOrEmpty(options.OtlpEndPoint))
+        {
+            throw new InvalidOperationException("OtlpEndPoint cannot be null or empty.");
+        }
 
         var loggingBuilder = builder.Logging
             .AddOpenTelemetry(otlOptions =>
@@ -29,7 +45,7 @@ public static class LoggingApplicationBuilderExtensions
             AppContext.SetSwitch("Microsoft.SemanticKernel.Experimental.GenAI.EnableOTelDiagnosticsSensitive", true);
         }
 
-        var otelBuilder = builder.Services.AddOpenTelemetry();
+        var otelBuilder = loggingBuilder.Services.AddOpenTelemetry();
 
         otelBuilder.ConfigureResource(r => r
             .AddAttributes([
@@ -96,27 +112,5 @@ public static class LoggingApplicationBuilderExtensions
             new Uri(options.OtlpEndPoint));
 
         return builder;
-    }
-
-    private static LoggingOptions GetOptions(IConfiguration configuration)
-    {
-        var options = configuration.Get<LoggingOptions>();
-
-        if (options == null)
-        {
-            throw new InvalidOperationException("Missing required configuration section 'ApplicationOptions'");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.ServiceName))
-        {
-            throw new InvalidOperationException("ServiceName cannot be null or empty.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.OtlpEndPoint))
-        {
-            throw new InvalidOperationException("OtlpEndPoint cannot be null or empty.");
-        }
-
-        return options;
     }
 }

@@ -30,48 +30,81 @@ done
 # Shift parsed options so remaining arguments can be accessed
 shift $((OPTIND -1))
 
-# Load environment variables from .env.docker
-if [[ "$container" = true ]]; then
-    cd $working_dir/Clients/authentication-sample
-    if [ -f .env.docker ]; then
-        export $(cat .env.docker | xargs)
+# Setup environment files for Next.js
+function setup_client_env() {
+    local client_dir="$working_dir/Clients/authentication-sample"
+    local base_env="$client_dir/.env"
+    local docker_env="$client_dir/.env.docker"
+    
+    # Start with base environment
+    if [ -f "$base_env" ]; then
+        echo "Setting up .env.local from base environment..."
+        # Filter and copy NEXT_PUBLIC_ variables to .env.local
+        grep '^NEXT_PUBLIC_' "$base_env" > "$client_dir/.env.local"
+        echo "Base environment variables copied to .env.local"
     else
-        echo "Warning: .env.docker file not found"
+        echo "Warning: Base environment file $base_env not found"
+        # Create empty .env.local file
+        touch "$client_dir/.env.local"
     fi
-    cd $working_dir
-fi
+    
+    # If container mode, overlay docker environment (overrides base)
+    if [[ "$container" = true ]]; then
+        if [ -f "$docker_env" ]; then
+            echo "Applying docker environment overrides..."
+            # Create temporary file with docker variables
+            local temp_docker="/tmp/docker_env_vars"
+            grep '^NEXT_PUBLIC_' "$docker_env" > "$temp_docker"
+            
+            # For each docker variable, replace or add to .env.local
+            while IFS= read -r line; do
+                if [[ -n "$line" ]]; then
+                    local var_name=$(echo "$line" | cut -d'=' -f1)
+                    # Remove existing variable if it exists
+                    sed -i.bak "/^$var_name=/d" "$client_dir/.env.local"
+                    # Add the new variable
+                    echo "$line" >> "$client_dir/.env.local"
+                fi
+            done < "$temp_docker"
+            
+            # Clean up
+            rm -f "$temp_docker" "$client_dir/.env.local.bak"
+            echo "Docker environment overrides applied"
+        else
+            echo "Warning: Docker environment file $docker_env not found - using base environment only"
+        fi
+    fi
+    
+    echo "Final .env.local created with $(wc -l < "$client_dir/.env.local") variables"
+}
 
 function start_client_macos() {
     echo "Starting client..."
-    if [[ "$container" = true ]]; then
-        # Start the process and capture its PID
-        osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && \
-            NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev && echo \\\$PPID > $PID_DIR/client.pid\""
-    else
-        osascript -e "tell application \"Terminal\" to do script \"cd $working_dir/Clients/authentication-sample && \
-            npm run dev && echo \\\$PPID > $PID_DIR/client.pid\""
-    fi
+    # Next.js will automatically load .env.local file
+    osascript -e "tell application \"Terminal\" to do script \"cd '$working_dir/Clients/authentication-sample' && npm run dev & echo \$! > '$PID_FILE'; wait\""
     echo "Client started. PID saved to $PID_DIR/client.pid"
 }
 
 function start_client_linux() {
     echo "Starting client..."
-    if [[ "$container" = true ]]; then
-        # Start gnome-terminal and capture the PID of the npm process
-        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && \
-            NEXT_PUBLIC_GREETER_SERVICE_URL=$NEXT_PUBLIC_GREETER_SERVICE_URL npm run dev & \
-            echo \$! > $PID_DIR/client.pid; wait"
-    else
-        gnome-terminal -- bash -c "cd $working_dir/Clients/authentication-sample && \
-            npm run dev & \
-            echo \$! > $PID_DIR/client.pid; wait"
-    fi
-    echo "Client started. PID saved to $PID_DIR/client.pid"
+    # Next.js will automatically load .env.local file
+    # Start gnome-terminal and capture its PID
+    gnome-terminal --title="Authentication Sample Client" -- bash -c "cd $working_dir/Clients/authentication-sample && \
+        npm run dev & \
+        echo \$! > $PID_DIR/client.pid; wait" &
+    
+    # Save the terminal PID for later cleanup
+    TERMINAL_PID=$!
+    echo "$TERMINAL_PID" > "$PID_DIR/client_terminal.pid"
+    echo "Client started. PID saved to $PID_DIR/client.pid, Terminal PID: $TERMINAL_PID"
 }
+
+# Setup environment files
+setup_client_env
 
 # Generate Authentication TypeScript services
 echo "Generating grpc services"
-bash Microservices/.builds/protoc-gen/gen-grpc-web.sh \
+bash $working_dir/Scripts/development/gen-grpc-web.sh \
     -i $working_dir/Microservices/Authentication/src/Authentication.Grpc/Protos/greet.proto \
     -o $working_dir/Clients/authentication-sample/src/app/services
 docker container rm protoc-gen-grpc-web

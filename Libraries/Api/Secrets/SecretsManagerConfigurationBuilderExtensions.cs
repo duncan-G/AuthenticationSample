@@ -1,3 +1,4 @@
+using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.Configuration;
 
 namespace AuthenticationSample.Api.Secrets;
@@ -7,19 +8,19 @@ namespace AuthenticationSample.Api.Secrets;
 /// </summary>
 public static class SecretsManagerConfigurationBuilderExtensions
 {
-    /// <param name="builder">Configuration builder</param>
-    /// <param name="secretId">Secret name or full ARN.</param>
-    /// <param name="prefix">Secret prefix.</param>
-    /// <param name="reloadAfter">
-    ///     Optional: if set, the provider polls at this interval and hot‑reloads the configuration.
-    /// </param>
     public static IConfigurationBuilder AddSecretsManager(
         this IConfigurationBuilder builder,
-        string secretId,
-        string? prefix,
-        TimeSpan? reloadAfter = null)
+        AWSOptions awsOptions,
+        Action<SecretsManagerOptions> configureSecretManagerOptions)
     {
-        var source = new SecretsManagerConfigurationSource(secretId, prefix, reloadAfter);
+        var secretManagerOptions = new SecretsManagerOptions();
+        configureSecretManagerOptions(secretManagerOptions);
+        if (string.IsNullOrEmpty(secretManagerOptions.SecretId))
+        {
+            throw new InvalidOperationException("SecretId cannot be null or empty.");
+        }
+
+        var source = new SecretsManagerConfigurationSource(awsOptions, secretManagerOptions);
         builder.Add(source);
         return builder;
     }

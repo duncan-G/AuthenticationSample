@@ -10,10 +10,10 @@ CURRENT_VERSION=$(docker service inspect envoy_app 2>/dev/null | jq -r '.[0].Spe
 VERSION=$((CURRENT_VERSION + 1))
 
 echo "Starting Envoy proxy"
-docker config create envoy_config_$VERSION Infrastructure/envoy/dev/envoy-debug.yaml
-docker config create envoy_clusters_$VERSION Infrastructure/envoy/dev/discovery/envoy.cds.yaml
-docker config create envoy_secrets_$VERSION Infrastructure/envoy/dev/discovery/envoy.sds.yaml
-docker config create envoy_routes_$VERSION Infrastructure/envoy/dev/discovery/envoy.rds.yaml
+docker config create envoy_config_$VERSION Infrastructure/envoy/dev/envoy.yaml
+docker config create envoy_clusters_$VERSION Infrastructure/envoy/dev/envoy.cds.yaml
+docker config create envoy_secrets_$VERSION Infrastructure/envoy/dev/envoy.sds.yaml
+docker config create envoy_routes_$VERSION Infrastructure/envoy/dev/envoy.rds.yaml
 
 echo "Deploying Envoy proxy"
 env VERSION=$VERSION docker stack deploy --compose-file Infrastructure/envoy/dev/envoy.stack.debug.yaml envoy

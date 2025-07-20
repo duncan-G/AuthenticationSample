@@ -51,5 +51,15 @@ require_directory() {
     fi
 }
 
+# Function to check if jq is available (for JSON parsing)
+check_jq() {
+    if ! command_exists jq; then
+        print_warning "jq not found. Some features may not work optimally."
+        print_info "To install jq: sudo apt-get install jq (Ubuntu/Debian) or brew install jq (macOS)"
+        return 1
+    fi
+    return 0
+}
+
 # Export functions so they can be used by other scripts
 export -f get_script_dir get_project_root command_exists require_env_var require_file require_directory

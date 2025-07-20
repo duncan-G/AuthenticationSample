@@ -17,7 +17,7 @@ resources:
       endpoints:
       - lb_endpoints:
         - endpoint:
-            address: { socket_address: { address: authentication_app, port_value: 8000 } }
+            address: { socket_address: { address: authentication_app, port_value: 443 } }
     transport_socket:
       name: envoy.transport_sockets.tls
       typed_config:

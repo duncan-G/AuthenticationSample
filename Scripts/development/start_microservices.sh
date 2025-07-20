@@ -37,62 +37,23 @@ mkdir -p "$LOG_DIR" "$PID_DIR"
 echo "Clearing existing logs..."
 rm -f "$LOG_DIR"/*.log
 
-# Cleanup function to handle service shutdown
-cleanup() {
-    echo -e "\n>> Shutting down services..."
-    for pidfile in "$PID_DIR"/*.pid; do
-        [[ -e $pidfile ]] || continue
-        
-        # Skip client.pid files - they are managed separately
-        if [[ $(basename "$pidfile") == "client.pid" ]]; then
-            continue
-        fi
+# Function to stop microservices using the dedicated script
+stop_microservices() {
+    bash "$working_dir/Scripts/development/stop_microservices.sh"
+}
 
-        pid=$(<"$pidfile")
-        name=$(basename "$pidfile" .pid)
-
-        if kill -0 "$pid" 2>/dev/null; then
-            echo "  • Stopping $name (PID $pid)"
-
-            # 1) Try to SIGINT the entire process group (requires 'setsid' at startup)
-            if kill -0 "-$pid" 2>/dev/null; then
-                kill -INT -- "-$pid"
-            else
-                # fallback: SIGINT watcher, then its children
-                kill -INT "$pid"
-                pkill -INT -P "$pid"
-            fi
-
-            # 2) Wait up to 5s for it to die gracefully
-            for _ in {1..5}; do
-                sleep 1
-                kill -0 "$pid" 2>/dev/null || break
-            done
-
-            # 3) If still alive, force-kill group or individual
-            if kill -0 "$pid" 2>/dev/null; then
-                if kill -0 "-$pid" 2>/dev/null; then
-                    kill -9 -- "-$pid"
-                else
-                    pkill -9 -P "$pid"
-                    kill -9 "$pid" 2>/dev/null || true
-                fi
-            fi
-        fi
-
-        rm -f "$pidfile"
-    done
-
-    echo ">> All services stopped."
+stop_client() {
+    bash "$working_dir/Scripts/development/stop_client.sh"
 }
 
 # Set up trap for cleanup only when not containerized
 if [ "$containerize_microservices" = false ]; then
-    trap cleanup INT TERM EXIT
+    trap stop_microservices INT TERM EXIT
+    trap stop_client INT TERM EXIT
 fi
 
 # Start Postgres
-bash $working_dir/scripts/start_database.sh
+bash $working_dir/Scripts/development/start_database.sh
 
 # Deploy Authentication microservice if containerization is enabled
 if [ "$containerize_microservices" = true ]; then
@@ -101,9 +62,6 @@ if [ "$containerize_microservices" = true ]; then
         echo "Error: Docker Swarm is not active. Please run './start.sh -b' first to initialize the environment"
         exit 1
     fi
-
-    # Start proxy
-    bash $working_dir/scripts/start_proxy.sh
 
     # Build Authentication and deploy to swarm
     image_name="authentication-sample/authentication"
@@ -115,9 +73,7 @@ if [ "$containerize_microservices" = true ]; then
 
     echo "Deploying Authentication service to swarm"
     env IMAGE_NAME=$image_name \
-        CERTIFICATE_PASSWORD=$CERTIFICATE_PASSWORD \
-        ENV_FILE=$working_dir/Microservices/Authentication/src/Authentication.Grpc/.env \
-        OVERRIDE_ENV_FILE=$working_dir/Microservices/Authentication/src/Authentication.Grpc/.env.docker \
+        HOME=$HOME \
         docker stack deploy --compose-file Microservices/.builds/service.stack.debug.yaml authentication
     
 else
@@ -129,7 +85,7 @@ else
 
     (
         cd "$working_dir/Microservices/Authentication"
-        nohup env $DOTNET_ENV_VARS setsid dotnet watch run \
+        nohup env $DOTNET_ENV_VARS dotnet watch run \
             --project src/Authentication.Grpc/Authentication.Grpc.csproj \
             >>"$logfile" 2>&1 &
         echo $! > "$pidfile"

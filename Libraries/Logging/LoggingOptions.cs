@@ -4,7 +4,7 @@ namespace AuthenticationSample.Logging;
 
 public class LoggingOptions
 {
-    public required string ServiceName { get; set; }
+    public string ServiceName { get; set; } = string.Empty;
 
     public bool AddSemanticKernelInstrumentation { get; set; }
 
@@ -16,7 +16,7 @@ public class LoggingOptions
 
     public string[] AdditionalMeters { get; set; } = [];
 
-    public required string OtlpEndPoint { get; set; }
+    public string OtlpEndPoint { get; set; } = string.Empty;
 
-    public required OtlpExportProtocol OtlpProtocol { get; set; }
+    public OtlpExportProtocol OtlpProtocol { get; set; }
 }

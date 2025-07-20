@@ -2,6 +2,7 @@
 
 working_dir=$(pwd)
 generate_new_certificate=false
+
 # Function to check if certificate is valid
 check_certificate() {
     local cert_dir="$1"
@@ -94,12 +95,11 @@ shift $((OPTIND -1))
 
 # Verify required environment variables
 if [ -z "$CERTIFICATE_PASSWORD" ]; then
-    echo "Error: CERTIFICATE_PASSWORD is not set in .env file"
+    print_error "CERTIFICATE_PASSWORD is not set in environment"
     exit 1
 fi
-
 if [ -z "$ASPIRE_BROWSER_TOKEN" ]; then
-    echo "Error: ASPIRE_BROWSER_TOKEN is not set in .env file"
+    print_error "ASPIRE_BROWSER_TOKEN is not set in environment"
     exit 1
 fi
 

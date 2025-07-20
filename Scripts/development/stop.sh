@@ -10,4 +10,5 @@ fi
 
 docker volume prune -f
 
-bash "$working_dir/scripts/stop_client.sh"
+bash "$working_dir/Scripts/development/stop_client.sh"
+bash "$working_dir/Scripts/development/stop_microservices.sh"

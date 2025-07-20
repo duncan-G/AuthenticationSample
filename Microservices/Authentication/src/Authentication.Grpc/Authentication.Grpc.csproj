@@ -19,6 +19,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\..\..\Libraries\Api\Api.csproj"/>
+        <ProjectReference Include="..\..\..\..\Libraries\Infrastructure\Infrastructure.csproj" />
         <ProjectReference Include="..\..\..\..\Libraries\Logging\Logging.csproj"/>
     </ItemGroup>
 
