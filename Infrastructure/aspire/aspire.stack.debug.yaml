@@ -5,8 +5,9 @@ services:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
     ports:
       - "18888:18888"
-      - "4317:18889"
+      - "4317:4317"
     environment:
+      - ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL=http://[::]:4317
       - DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT=100000
       - DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT=100000
       - DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT=100000

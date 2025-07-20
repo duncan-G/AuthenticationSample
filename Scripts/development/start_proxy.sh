@@ -9,11 +9,36 @@ CURRENT_VERSION=$(docker service inspect envoy_app 2>/dev/null | jq -r '.[0].Spe
 # Increment version
 VERSION=$((CURRENT_VERSION + 1))
 
-echo "Starting Envoy proxy"
-docker config create envoy_config_$VERSION Infrastructure/envoy/dev/envoy.yaml
-docker config create envoy_clusters_$VERSION Infrastructure/envoy/dev/envoy.cds.yaml
-docker config create envoy_secrets_$VERSION Infrastructure/envoy/dev/envoy.sds.yaml
-docker config create envoy_routes_$VERSION Infrastructure/envoy/dev/envoy.rds.yaml
+# Set environment variables for RDS config
+export ALLOWED_HOSTS="localhost,localhost:10000"
+export ALLOWED_ORIGINS="https://localhost:3000"
+
+# Process comma-separated origins into YAML format
+IFS=',' read -ra ORIGINS <<< "$ALLOWED_ORIGINS"
+ORIGIN_YAML=""
+for origin in "${ORIGINS[@]}"; do
+    # Trim whitespace and add YAML entry
+    origin=$(echo "$origin" | sed 's/^[ \t]*//;s/[ \t]*$//')
+    ORIGIN_YAML+="          - prefix: \"https://$origin\"\n"
+done
+export PROCESSED_ORIGINS=$(echo -e "$ORIGIN_YAML" | sed '$d') # Remove last newline
+
+echo "Starting Envoy proxy with unified configuration"
+
+# Create temporary directory for config processing
+TEMP_DIR=$(mktemp -d)
+
+# Only envoy.rds.yaml needs environment variable substitution
+envsubst < Infrastructure/envoy/envoy.rds.yaml > "$TEMP_DIR/envoy.rds.yaml"
+
+# Create docker configs - process RDS, directly use others
+docker config create envoy_config_$VERSION Infrastructure/envoy/envoy.yaml
+docker config create envoy_clusters_$VERSION Infrastructure/envoy/envoy.cds.yaml
+docker config create envoy_secrets_$VERSION Infrastructure/envoy/envoy.sds.yaml
+docker config create envoy_routes_$VERSION "$TEMP_DIR/envoy.rds.yaml"
+
+# Clean up temporary files
+rm -rf "$TEMP_DIR"
 
 echo "Deploying Envoy proxy"
 env VERSION=$VERSION docker stack deploy --compose-file Infrastructure/envoy/dev/envoy.stack.debug.yaml envoy

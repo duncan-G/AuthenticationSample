@@ -6,32 +6,24 @@ using Microsoft.Extensions.Configuration;
 
 namespace AuthenticationSample.Api.Secrets;
 
-/// <summary>
-/// Exposes values from an AWS Secrets Manager JSON secret as
-/// <see cref="IConfiguration"/> keys.
-///
-/// • Includes keys that start with <c>Shared_</c> or the configured <c>Prefix</c>.
-/// • Optional: keys with <c>Override_</c> replace earlier values.
-/// • Converts double‑underscores (<c>__</c>) to colons (<c>:</c>).
-/// • Supports periodic reload via <c>ReloadAfter</c>.
-/// </summary>
 internal sealed class SecretsManagerConfigurationProvider(SecretsManagerConfigurationSource source)
     : ConfigurationProvider, IDisposable
 {
     private const string SharedPrefix = "Shared_";
-    private const string OverrideTag = "Override_";
+    private const string SharedOverridePrefix = "SharedOverride_";
+    private const string OverridePrefix = "Override_";
+
+    private readonly CancellationTokenSource _cancellation = new();
 
     private readonly Lazy<IAmazonSecretsManager> _client =
-        new(() => new AmazonSecretsManagerClient(
-            source.AwsOptions.Credentials, source.AwsOptions.Region));
+        new(() => new AmazonSecretsManagerClient(source.AwsOptions.Credentials, source.AwsOptions.Region));
 
-    private readonly CancellationTokenSource _cts = new();
     private PeriodicTimer? _reloadTimer;
 
     public void Dispose()
     {
+        _cancellation.Cancel();
         _reloadTimer?.Dispose();
-        _cts.Cancel();
         if (_client.IsValueCreated)
         {
             _client.Value.Dispose();
@@ -45,94 +37,92 @@ internal sealed class SecretsManagerConfigurationProvider(SecretsManagerConfigur
 
     private async Task LoadAsync()
     {
-        var sm = _client.Value;
+        var secretId = source.SecretManagerOptions.SecretId;
+        var secretJson = (await _client.Value.GetSecretValueAsync(
+                new GetSecretValueRequest { SecretId = secretId }, _cancellation.Token).ConfigureAwait(false))
+            .SecretString ?? "{}";
 
-        var resp = await sm.GetSecretValueAsync(
-            new GetSecretValueRequest { SecretId = source.SecretManagerOptions.SecretId },
-            _cts.Token).ConfigureAwait(false);
+        var entries = JsonSerializer.Deserialize<Dictionary<string, string?>>(secretJson) ??
+                      new Dictionary<string, string?>();
+        var scopedEntries = ApplyScoping(entries, source.SecretManagerOptions);
 
-        var raw = JsonSerializer.Deserialize<Dictionary<string, string?>>(resp.SecretString!)
-                  ?? new Dictionary<string, string?>();
-
-        var keys = BuildKeySet(raw, source.SecretManagerOptions);
-
-        // convert "__" → ":" (only at leaf level)
-        Data = keys.ToDictionary(
-            kvp => kvp.Key.Replace("__", ":", StringComparison.Ordinal),
-            kvp => kvp.Value,
-            StringComparer.OrdinalIgnoreCase);
+        Data = scopedEntries;
 
         OnReload();
-
-        // one‑time timer wiring
-        if (source.SecretManagerOptions.ReloadAfter is { } interval && _reloadTimer is null)
-        {
-            _reloadTimer = new PeriodicTimer(interval);
-            _ = Task.Run(KeepReloadingAsync);
-        }
+        StartReloadTimerOnce();
     }
 
-    private async Task KeepReloadingAsync()
+    private static FrozenDictionary<string, string?> ApplyScoping(
+        IReadOnlyDictionary<string, string?> entries, SecretsManagerOptions options)
     {
-        while (await _reloadTimer!.WaitForNextTickAsync(_cts.Token).ConfigureAwait(false))
+        var appPrefix = options.Prefix;
+        var appOverridePrefix    = appPrefix is null
+            ? null
+            : $"{(appPrefix.EndsWith('_') ? appPrefix[..^1] : appPrefix)}{OverridePrefix}";
+
+        var resolved = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (rawKey, secret) in entries)
         {
-            try
+            if (string.IsNullOrEmpty(secret))
             {
-                await LoadAsync().ConfigureAwait(false);
-            }
-            catch when (_cts.IsCancellationRequested)
-            {
-                /* shutting down */
-            }
-            catch
-            {
-                /* swallow or log; keep timer alive */
-            }
-        }
-    }
-
-    private static FrozenDictionary<string, string?> BuildKeySet(
-        IReadOnlyDictionary<string, string?> all,
-        SecretsManagerOptions opt)
-    {
-        var wanted = opt.Prefix;
-        var useDevOv = opt.UseDevOverrides;
-
-        var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (key, value) in all)
-        {
-            // 1. shared keys
-            if (key.StartsWith(SharedPrefix, StringComparison.Ordinal))
-            {
-                result[key[SharedPrefix.Length..]] = value;
+                continue;
             }
 
-            // 2. scoped keys
-            else if (wanted is { Length: > 0 } &&
-                     key.StartsWith(wanted, StringComparison.Ordinal))
+            if (options.UseDevOverrides &&
+                (TryStripAndReplace(rawKey, SharedOverridePrefix, out var overrideKey) ||
+                 TryStripAndReplace(rawKey, appOverridePrefix, out overrideKey)))
             {
-                result[key[wanted.Length..]] = value;
+                resolved[overrideKey] = secret;
+                continue;
             }
 
-            // 3. overrides (optional)
-            if (useDevOv && IsOverride(key, SharedPrefix) && key.Length > SharedPrefix.Length)
+            if (TryStripAndReplace(rawKey, SharedPrefix, out var key) ||
+                TryStripAndReplace(rawKey, appPrefix, out key))
             {
-                result[key[(SharedPrefix + OverrideTag).Length..]] = value;
-            }
-
-            if (useDevOv && wanted is { Length: > 0 } && IsOverride(key, wanted))
-            {
-                result[key[(wanted.TrimEnd('_') + "_" + OverrideTag).Length..]] = value;
+                resolved.TryAdd(key, secret); // TryAdd so it can be ignored if override key is already present
             }
         }
 
-        return result.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        return resolved.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static bool IsOverride(string key, string prefix)
+    private void StartReloadTimerOnce()
     {
-        return key.StartsWith(prefix, StringComparison.Ordinal)
-               && key.AsSpan(prefix.Length).StartsWith(OverrideTag.AsSpan(), StringComparison.Ordinal);
+        if (_reloadTimer is not null || source.SecretManagerOptions.ReloadAfter is not { } interval)
+        {
+            return;
+        }
+
+        _reloadTimer = new PeriodicTimer(interval);
+        _ = Task.Run(async () =>
+        {
+            while (await _reloadTimer.WaitForNextTickAsync(_cancellation.Token).ConfigureAwait(false))
+            {
+                try
+                {
+                    await LoadAsync().ConfigureAwait(false);
+                }
+                catch when (_cancellation.IsCancellationRequested)
+                {
+                }
+                catch
+                {
+                    /* swallow or log; loop continues */
+                }
+            }
+        });
+    }
+
+    private static bool TryStripAndReplace(string rawKey, string? prefix, out string key)
+    {
+        if (prefix != null && rawKey.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            key = rawKey[prefix.Length..].Replace("__", ":", StringComparison.Ordinal);
+            return true;
+        }
+
+        key = null!;
+        return false;
     }
 }
