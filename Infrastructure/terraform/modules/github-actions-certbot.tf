@@ -42,10 +42,17 @@ resource "aws_iam_policy" "github_actions_certbot_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRAccess"
+        Sid      = "ECRGetAuthorizationToken"
+        Effect   = "Allow"
+        Action   = [
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRRepositoryAccess"
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
