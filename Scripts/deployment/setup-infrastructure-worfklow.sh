@@ -42,7 +42,7 @@ get_route53_hosted_zone_id() {
 get_user_input() {
     print_info "Please provide the following information:"
     
-    prompt_user "Enter AWS SSO profile name" "AWS_PROFILE" "terraform-setup"
+    prompt_user "Enter AWS SSO profile name" "AWS_PROFILE" "infra-setup"
         
     AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
     if [ $? -ne 0 ]; then
@@ -58,7 +58,6 @@ get_user_input() {
     
     prompt_user "Enter domain name (e.g., example.com)" "DOMAIN_NAME"
     prompt_user "Enter API subdomains (comma-separated, e.g., api,admin,portal)" "SUBDOMAINS" "api,internal"
-    prompt_user "Enter email address for domain verification" "ACME_EMAIL"
     
     # Get Route53 hosted zone ID automatically
     get_route53_hosted_zone_id "$DOMAIN_NAME"
@@ -80,7 +79,6 @@ get_user_input() {
     echo "  Domain Name: $DOMAIN_NAME"
     echo "  Route53 Hosted Zone ID: $ROUTE53_HOSTED_ZONE_ID"
     echo "  API Subdomains: $SUBDOMAINS"
-    echo "  Email Address: $ACME_EMAIL"
     
     if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
@@ -219,81 +217,7 @@ create_iam_role() {
     print_success "Policy attached to role"
 }
 
-#######################################################################
-# create_application_secrets
-# --------------------------
-# Build a JSON payload (static + existing secrets) and create or
-# update an AWS Secrets Manager secret named "<APP_NAME>-secrets".
-#######################################################################
-create_application_secrets() {
-  local -r secret_name="${APP_NAME:?}-secrets"
-  local -r aws_opts=(--profile "${AWS_PROFILE:?}")
-  local secret_json
 
-  print_info "Creating/updating AWS secret: $secret_name"
-
-  # ------------------------------------------------------------------
-  # 1. Static JSON – safest to let jq assemble it for proper escaping
-  # ------------------------------------------------------------------
-  local static_json
-  local subdomain_json="{}"
-
-  # --------------------------------------------------------------
-  # 1a. Build flat SUBDOMAIN_<n> entries if SUBDOMAINS is provided
-  # --------------------------------------------------------------
-  if [[ -n "$SUBDOMAINS" ]]; then
-    print_info "Processing subdomains: $SUBDOMAINS"
-    # shellcheck disable=SC2016
-    subdomain_json=$(echo "$SUBDOMAINS" | tr ',' '\n' | jq -Rn --arg DOMAIN_NAME "$DOMAIN_NAME" '
-      # Read each line (sub-domain) into an array
-      [inputs] as $subs
-      # Reduce into {"SUBDOMAIN_NAME_1": "foo.example.com", ...}
-      | reduce range(0; $subs|length) as $i ({}; 
-          . + {("SUBDOMAIN_NAME_" + ($i + 1 | tostring)) : 
-               ($subs[$i] + ( $DOMAIN_NAME    # append ".<domain>" only if set
-                               | if length>0 then "." + . else "" end ))}
-        )
-    ')
-  fi
-
-  # ----------------------------------------------------------------
-  # 1b. Assemble static JSON with sub-domain pairs
-  # ----------------------------------------------------------------
-  secret_json=$(jq -n \
-      --arg APP_NAME "$APP_NAME" \
-      --arg AWS_REGION "$AWS_REGION" \
-      --arg CERTIFICATE_STORE "${APP_NAME}-certificate-store-${BUCKET_SUFFIX}" \
-      --arg ACME_EMAIL "$ACME_EMAIL" \
-      --arg DOMAIN_NAME "$DOMAIN_NAME" \
-      --argjson SUBDOMAIN_PAIRS "$subdomain_json" \
-      '{
-         APP_NAME:         $APP_NAME,
-         AWS_REGION:       $AWS_REGION,
-         CERTIFICATE_STORE:$CERTIFICATE_STORE,
-         DOMAIN_NAME:      $DOMAIN_NAME,
-         ACME_EMAIL:       $ACME_EMAIL
-       } + $SUBDOMAIN_PAIRS')
-
-  # ------------------------------------------------------------------
-  # 2. Create or update the secret
-  # ------------------------------------------------------------------
-  if aws secretsmanager describe-secret --secret-id "$secret_name" "${aws_opts[@]}" &>/dev/null; then
-    print_warning "Secret exists – updating"
-    aws secretsmanager update-secret \
-        --secret-id "$secret_name" \
-        --secret-string "$secret_json" \
-        "${aws_opts[@]}"
-    print_success "Secret $secret_name updated ✔"
-  else
-    print_info "Secret not found – creating"
-    aws secretsmanager create-secret \
-        --name "$secret_name" \
-        --description "Application configuration for $APP_NAME" \
-        --secret-string "$secret_json" \
-        "${aws_opts[@]}"
-    print_success "Secret $secret_name created ✔"
-  fi
-}
 
 # Function to build and push certbot image to ECR
 build_and_push_certbot_image() {
@@ -520,8 +444,7 @@ display_final_instructions() {
     echo -e "${GREEN}   $TF_STATE_BUCKET${NC}"
     echo "Your Terraform IAM Role ARN:"
     echo -e "${GREEN}   arn:aws:iam::${AWS_ACCOUNT_ID}:role/github-actions-terraform${NC}"
-    echo "Your Application Secrets Manager Secret:"
-    echo -e "${GREEN}   ${APP_NAME}-secrets${NC}"
+
     echo "Your ECR Certbot Repository:"
     echo -e "${GREEN}   $ecr_repo_uri${NC}"
     echo "Your EBS Volume for Let's Encrypt:"
@@ -539,9 +462,9 @@ display_final_instructions() {
     echo "   • Automatic: Pull requests will show terraform plans"
     
     print_info "Next steps:"
-    echo "   1. Deploy infrastructure using Terraform workflow"
-    echo "   2. Use CodeDeploy workflows for application deployments"
-    echo "   3. Application services will use the created Secrets Manager secret"
+    echo "   1. Set up application secrets using setup-secrets.sh"
+    echo "   2. Deploy infrastructure using Terraform workflow"
+    echo "   3. Use CodeDeploy workflows for application deployments"
     echo "   4. Certificate renewal will use the ECR certbot image"
 }
 
@@ -553,7 +476,6 @@ show_usage() {
     echo "  - Variable substitution in policy files"
     echo "  - OIDC provider and IAM roles/policies for Terraform and CodeDeploy"
     echo "  - S3 bucket for Terraform state backend"
-    echo "  - AWS Secrets Manager secret for application configuration"
     echo "  - ECR repository creation and certbot image building/pushing"
     echo "  - GitHub repository secrets and variables"
     echo "  - GitHub environments for Terraform and CodeDeploy"
@@ -617,7 +539,6 @@ main() {
     create_certificate_bucket
     create_codedeploy_bucket
     setup_oidc_infrastructure
-    create_application_secrets
     build_and_push_certbot_image
     create_certbot_ebs_volume
     setup_github_workflow

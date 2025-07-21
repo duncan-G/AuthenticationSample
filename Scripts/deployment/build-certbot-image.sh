@@ -2,7 +2,7 @@
 set -euo pipefail
 
 TAG=${1:-latest}
-AWS_PROFILE=${2:-terraform-setup}
+AWS_PROFILE=${2:-infra-setup}
 AWS_REGION=${3:-us-west-1}
 APP_NAME=${4:-auth-sample}
 

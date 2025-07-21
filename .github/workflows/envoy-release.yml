@@ -8,7 +8,7 @@ on:
         description: Target environment
         required: true
         type: choice
-        default: staging
+        default: production
         options: [staging, production]
 
   # ───── Auto-trigger when Envoy config or workflow changes ─────
@@ -83,15 +83,28 @@ jobs:
         SERVICE_NAME='${{ env.SERVICE_NAME }}'
         CERT_PREFIX='${{ steps.vars.outputs.cert_prefix }}'
         DOMAIN='${{ vars.DOMAIN_NAME }}'
+        ALLOWED_ORIGINS='${{ vars.ALLOWED_ORIGINS }}'
+        ALLOWED_HOSTS='${{ vars.ALLOWED_HOSTS }}'
 
-        STACK_FILE='envoy.stack.release.yml'
+        STACK_FILE='envoy.stack.release.yaml'
+
+        # Process comma-separated origins into YAML format
+        IFS=',' read -ra ORIGINS <<< "$ALLOWED_ORIGINS"
+        ORIGIN_YAML=""
+        for origin in "${ORIGINS[@]}"; do
+            # Trim whitespace and add YAML entry
+            origin=$(echo "$origin" | sed 's/^[ \t]*//;s/[ \t]*$//')
+            ORIGIN_YAML+="          - prefix: \"$origin\"\n"
+        done
+        PROCESSED_ORIGINS=$(echo -e "$ORIGIN_YAML" | sed '$d') # Remove last newline
 
         # ========= Create staging area =========
         mkdir -p staging/scripts
         mkdir -p staging/configs
         cp Infrastructure/codedeploy/appspec.yml        staging/
         cp -r Infrastructure/codedeploy/scripts/*       staging/scripts/
-        cp -r Infrastructure/envoy/prod/*               staging/configs/
+        # Copy envoy configs excluding debug files
+        find Infrastructure/envoy -name '*.yaml' | grep -v debug | xargs -I {} cp {} staging/configs/
 
         # Render env.sh (envsubst keeps it POSIX-portable)
         export SERVICE_NAME ENVIRONMENT VERSION APP_NAME CERT_PREFIX \
@@ -109,11 +122,12 @@ jobs:
           staging/appspec.yml
 
         # ========= Copy & template Envoy configs =========
-        find staging/configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
+        find staging/configs -type f -name '*.yaml' -exec sed -i \
           -e "s|\${VERSION}|$VERSION|g" \
           -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
           -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
-          -e "s|\$DOMAIN|${DOMAIN}|g" {} +
+          -e "s|\$PROCESSED_ORIGINS|${PROCESSED_ORIGINS}|g" \
+          -e "s|\$ALLOWED_HOSTS|${ALLOWED_HOSTS}|g" {} +
 
         mv staging/configs/$STACK_FILE staging/
 

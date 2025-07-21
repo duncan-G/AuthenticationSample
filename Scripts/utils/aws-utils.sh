@@ -165,16 +165,6 @@ validate_aws_region() {
     return 0  # Don't fail, just warn
 }
 
-# Function to check if jq is available (for JSON parsing)
-check_jq() {
-    if ! command_exists jq; then
-        print_warning "jq not found. Some features may not work optimally."
-        print_info "To install jq: sudo apt-get install jq (Ubuntu/Debian) or brew install jq (macOS)"
-        return 1
-    fi
-    return 0
-}
-
 # Function to create S3 bucket with standard configuration
 create_s3_bucket_with_config() {
     local bucket_name="$1"
@@ -245,7 +235,57 @@ create_s3_bucket_with_lifecycle() {
     fi
 }
 
+get_secret() {
+    local secret_name="$1"
+    local profile="$2"
+    local region="$3"
+    local prefix="$4"
+
+    # ---------- pre‑flight checks ----------
+    if [[ -z $secret_name ]]; then
+        print_error "Secret name is required"; return 1
+    fi
+    
+    check_jq
+
+    # ---------- retrieve secret ----------
+    local -a cmd=(aws secretsmanager get-secret-value --secret-id "$secret_name" --profile "$profile" --output json)
+    [[ -n $region ]] && cmd+=(--region "$region")
+
+    local secret_json
+    if ! secret_json="$("${cmd[@]}" 2>/dev/null)"; then
+        print_error "Failed to retrieve secret '$secret_name'"; return 1
+    fi
+
+    # ---------- extract value ----------
+    local secret_value
+    secret_value="$(jq -r '.SecretString' <<<"$secret_json")"
+    
+    if [[ $secret_value == "null" || -z $secret_value ]]; then
+        print_error "Secret has no usable value"; return 1
+    fi
+
+    # ---------- optional JSON filtering ----------
+    if [[ -n $prefix ]]; then
+        # First, verify the secret value is valid JSON
+        if ! echo "$secret_value" | jq . >/dev/null 2>&1; then
+            print_error "Secret value is not valid JSON: $secret_value"
+            return 1
+        fi
+        
+        secret_value="$(jq -r --arg p "$prefix" '
+            to_entries
+            | map(select(.key | startswith($p)))
+            | map(.key |= ltrimstr($p))
+            | from_entries' <<<"$secret_value")" || {
+            print_error "Failed to filter secret JSON"; return 1; }
+    fi
+
+    printf '%s\n' "$secret_value"
+}
+
 # Export functions so they can be used by other scripts
 export -f check_aws_cli check_aws_profile check_aws_authentication
 export -f get_aws_account_id validate_aws_region check_jq
-export -f create_s3_bucket_with_config create_s3_bucket_with_lifecycle 
+export -f create_s3_bucket_with_config create_s3_bucket_with_lifecycle
+export -f get_secret 

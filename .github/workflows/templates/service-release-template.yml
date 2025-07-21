@@ -11,7 +11,7 @@ on:
         options:
           - staging
           - production
-        default: 'staging'
+        default: 'production'
 
   # Automatic trigger on service changes
   push:
@@ -30,15 +30,11 @@ permissions:
 jobs:
   deploy:
     name: 'Deploy {{ PASCALCASE_SERVICE_NAME }} Service'
-    runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'staging' }}
-    
-    steps:
-    - name: Deploy Service
-      uses: ./.github/workflows/deploy-microservice.yml
-      with:
-        service_name: ${{ env.SERVICE_NAME }}
-        environment: ${{ github.event.inputs.environment || 'staging' }}
-        AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-        ECR_REPOSITORY_PREFIX: ${{ vars.APP_NAME }}
-        DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }} 
+    uses: ./.github/workflows/templates/deploy-microservice.yml
+    with:
+      service_name: '{{ SERVICE_NAME }}'
+      environment: ${{ github.event.inputs.environment || 'production' }}
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      ECR_REPOSITORY_PREFIX: ${{ vars.APP_NAME }}
+      DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }} 

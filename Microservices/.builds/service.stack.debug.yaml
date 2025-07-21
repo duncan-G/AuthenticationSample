@@ -3,12 +3,17 @@ version: "3.8"
 services:
   app:
     image: $IMAGE_NAME
-    env_file:
-      - ${ENV_FILE}
-      - ${OVERRIDE_ENV_FILE}
     environment:
-      ASPNETCORE_URLS: https://+:8000
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: https://+:443
+      ASPNETCORE_ENVIRONMENT: Development
+      AWS_REGION: us-west-1
+      AWS_PROFILE: developer
+      Authentication_Secrets__UseDevOverrides: 'true'
+      Authentication_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
+    volumes:
+      - type: bind
+        source: $HOME/.aws
+        target: /home/app/.aws
     networks:
       - net
     secrets:

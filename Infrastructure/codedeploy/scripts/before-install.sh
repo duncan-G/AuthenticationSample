@@ -42,8 +42,8 @@ if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
                    --secret-id "$SECRET_NAME" \
                    --query 'SecretString' --output text) || err "Could not retrieve secret '$SECRET_NAME'"
 
-  APP_NAME=$(jq -r '.APP_NAME // empty' <<<"$SECRET_JSON")
-  CERTIFICATE_STORE=$(jq -r '.CERTIFICATE_STORE // empty' <<<"$SECRET_JSON")
+  APP_NAME=$(jq -r '.Infrastructure_APP_NAME // empty' <<<"$SECRET_JSON")
+  CERTIFICATE_STORE=$(jq -r '.Infrastructure_CERTIFICATE_STORE // empty' <<<"$SECRET_JSON")
 
   [[ -n $APP_NAME && -n $CERTIFICATE_STORE ]] \
     || err "Missing 'APP_NAME' or 'CERTIFICATE_STORE' in secret '$SECRET_NAME'"

@@ -1,5 +1,12 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+source "$SCRIPT_DIR/../utils/print-utils.sh"
+source "$SCRIPT_DIR/../utils/aws-utils.sh"
+source "$SCRIPT_DIR/../utils/common.sh"
+
+
 # Exit on error
 set -e
 
@@ -73,134 +80,139 @@ done
 # Shift parsed options so remaining arguments can be accessed
 shift $((OPTIND -1))
 
-# Validate that every key present in .env.template also exists – and is non-empty – in .env
-validate_env_file() {
-  local env_file="${1:-.env}"
-  local template_file="${2:-.env.template}"
+load_secrets() {
+    local secret_name="$1"
+    
+    local profile="developer"
+    local region="us-west-1"
+    local env_template_path="$PROJECT_ROOT/Infrastructure/.env.template.dev"
+    local prefix="Infrastructure_"
 
-  # Fast-fail on missing files
-  if [[ ! -f $env_file ]]; then
-    printf '❌  %s not found – create it from %s\n' "$env_file" "$template_file"
-    return 1
-  fi
+    if ! check_jq; then
+        exit 1
+    fi
 
-  if [[ ! -f $template_file ]]; then
-    printf '⚠️   %s not found – skipping validation\n' "$template_file"
-    return 0
-  fi
+    if ! check_aws_cli; then
+        exit 1
+    fi
 
-  # Grab variable names (ignore blank lines & comments) from each file
-  mapfile -t template_keys < <(grep -Ev '^\s*(#|$)' "$template_file" | cut -d'=' -f1 | sort -u)
-  mapfile -t env_keys      < <(grep -Ev '^\s*(#|$)' "$env_file"      | cut -d'=' -f1 | sort -u)
+    # Check if AWS profile is valid
+    if ! check_aws_profile "$profile"; then
+        exit 1
+    fi
 
-  # Detect missing keys with
-  mapfile -t missing < <(comm -23 <(printf '%s\n' "${template_keys[@]}") \
-                               <(printf '%s\n' "${env_keys[@]}"))
-  
-  # Detect keys that are present but have empty values
-  empty=()
-  for key in "${template_keys[@]}"; do
-    # Skip keys that are already identified as missing
-    if [[ " ${missing[*]} " =~ " ${key} " ]]; then
-      continue
+    if ! check_aws_authentication "$profile"; then
+        exit 1
+    fi
+
+    
+    # Validate required parameters
+    if [[ -z $secret_name ]]; then
+        print_error "Secret name is required"
+        return 1
     fi
     
-    val=$(grep -E "^\s*$key\s*=" "$env_file" | head -n1 | cut -d'=' -f2-)
-    [[ -z $val ]] && empty+=("$key")
-  done
+    print_info "Loading secrets from AWS Secrets Manager..."
+    
+    # Get secrets from AWS Secrets Manager
+    local secret_json
+    if ! secret_json=$(get_secret "$secret_name" "$profile" "$region" "$prefix"); then
+        print_error "Failed to retrieve secrets from AWS Secrets Manager"
+        return 1
+    fi
 
-  # Report & exit
-  if ((${#missing[@]} + ${#empty[@]})); then
-    [[ ${#missing[@]} -gt 0 ]] && {
-      printf '❌  Missing variables:\n'
-      printf '    • %s\n' "${missing[@]}"
-    }
-    [[ ${#empty[@]} -gt 0 ]] && {
-      printf '❌  Empty variables:\n'
-      printf '    • %s\n' "${empty[@]}"
-    }
-    return 1
-  fi
+    # Read template file and verify all required secrets exist
+    print_info "Verifying secrets..."
+    
+    if [ ! -f "$env_template_path" ]; then
+        print_error "Environment template file not found: $env_template_path"
+        return 1
+    fi
+    
+    while IFS= read -r line; do
+        # Skip empty lines and comments
+        if [[ -z "$line" || "$line" =~ ^# ]]; then
+            continue
+        fi
+        
+        # Extract variable name before = sign
+        var_name=$(echo "$line" | cut -d'=' -f1)
 
-  printf '✅  %s is valid\n' "$env_file"
+        # Create prefixed variable name
+        var_name="${var_name#"$prefix"}"
+        
+        # Check if prefixed variable exists in secrets
+        if ! echo "$secret_json" | jq -e --arg key "$var_name" 'has($key)' >/dev/null; then
+            print_error "Required secret not found: $var_name"
+            return 1
+        fi
+    done < "$env_template_path"
+    
+    print_success "✓ All required secrets verified"
+    
+    # Parse JSON secrets and export as environment variables
+    while IFS="=" read -r key value; do
+        if [[ -n $key && -n $value ]]; then
+            # Remove prefix from key if it exists
+            key="${key#"$prefix"}"
+            export "$key"="$value"
+            print_success "✓ Loaded secret: $key"
+        fi
+    done < <(echo "$secret_json" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
+    
+    print_success "Secrets loaded successfully"
+    return 0
+    
 }
 
 # Function to start the client
 start_client() {
-    echo "Starting client application..."
-    script_path="./Scripts/start_client.sh"
+    print_info "Starting client application..."
     if [ "$client_container" = true ]; then
-        "$script_path" --container
+        "$SCRIPT_DIR/start_client.sh" --container
     else
-        "$script_path"
+        "$SCRIPT_DIR/start_client.sh"
     fi
 }
 
 # Function to start the backend environment
 start_backend_environment() {
-    echo "Starting backend environment..."
-    script_path="./Scripts/start_backend_environment.sh"
+    print_info "Starting backend environment..."
     if [ "$generate_certificate" = true ]; then
-        "$script_path" --certificate
+        "$SCRIPT_DIR/start_backend_environment.sh" --certificate
     else
-        "$script_path"
+        "$SCRIPT_DIR/start_backend_environment.sh"
     fi
 }
 
 # Function to handle database
 handle_database() {
-    echo "Starting database..."
-    script_path="./Scripts/start_database.sh"
+    print_info "Starting database..."
     if [ "$clean_database" = true ]; then
-        "$script_path" --clean
+        "$SCRIPT_DIR/start_database.sh" --clean
     else
-        "$script_path"
+        "$SCRIPT_DIR/start_database.sh"
     fi
 }
 
 # Function to start the microservices
 start_microservices() {
-    echo "Starting microservices..."
-    script_path="./Scripts/start_microservices.sh"
+    print_info "Starting microservices..."
     if [ "$containerize_microservices" = true ]; then
-        "$script_path" --containerize
+        "$SCRIPT_DIR/start_microservices.sh" --containerize
     else
-        "$script_path"
+        "$SCRIPT_DIR/start_microservices.sh"
     fi
 }
 
 # Function to start the proxy
 start_proxy() {
-    echo "Starting proxy..."
-    script_path="./Scripts/start_proxy.sh"
-    "$script_path"
+    print_info "Starting proxy..."
+    "$SCRIPT_DIR/start_proxy.sh"
 }
 
 # Main execution
 cd "$working_dir"
-
-# Validate environment file before starting backend
-if ! validate_env_file; then
-    echo "Environment validation failed. Please fix the issues above."
-    exit 1
-fi
-
-# Load environment variables from .env file if it exists
-if [ -f ".env" ]; then
-    echo "Loading environment variables from .env file..."
-    set -a  # automatically export all variables
-    source .env
-    set +a
-else
-    echo "Warning: .env file not found. Please create one with CERTIFICATE_PASSWORD variable."
-    exit 1
-fi
-
-# Verify required environment variables
-if [ -z "$CERTIFICATE_PASSWORD" ]; then
-    echo "Error: CERTIFICATE_PASSWORD is not set in .env file"
-    exit 1
-fi
 
 # If no options are provided, show help
 if [ "$client" = false ] && [ "$backend_environment" = false ] && [ "$database" = false ] && [ "$microservices" = false ] && [ "$proxy" = false ] && [ "$start_all" = false ]; then
@@ -221,6 +233,8 @@ if [ "$start_all" = true ]; then
         containerize_microservices=true
     fi
 fi
+
+load_secrets "auth-sample-secrets-development"
 
 # Start components based on flags
 if [ "$database" = true ]; then

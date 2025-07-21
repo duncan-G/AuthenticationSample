@@ -45,11 +45,11 @@ Terraform is integrated with GitHub Actions for CI/CD. The setup scripts automat
   - Create or assign a user to your AWS account with the permission set
   - Configure AWS CLI with SSO:
     ```bash
-    aws configure sso --profile terraform-setup
+    aws configure sso --profile infra-setup
     # Follow the prompts to configure your SSO profile.
     # Note: You can call your profile whatever you want
 
-    aws sso login --profile terraform-setup
+    aws sso login --profile infra-setup
     ```
 
 ---

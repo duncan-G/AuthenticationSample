@@ -24,10 +24,10 @@ export default function Component() {
   const [inputValue, setInputValue] = useState("")
   const [error, setError] = useState('');
   const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
-  if (!config.greeterServiceUrl) {
-    throw new Error('NEXT_PUBLIC_GREETER_SERVICE_URL is not set')
+  if (!config.authServiceUrl) {
+    throw new Error('NEXT_PUBLIC_AUTH_SERVICE_URL is not set')
   }
-  const client = new GreeterClient(config.greeterServiceUrl);
+  const client = new GreeterClient(config.authServiceUrl);
 
   const removeMessage = (messageId: string) => {
     // Clear timer for this message

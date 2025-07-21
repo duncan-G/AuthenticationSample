@@ -13,10 +13,15 @@ public sealed class ValidationInterceptor(IServiceProvider serviceProvider) : In
     {
         // Try to get a validator for the TRequest type
         if (serviceProvider.GetService(typeof(IValidator<TRequest>)) is not IValidator<TRequest> validator)
+        {
             return await continuation(request, context);
+        }
 
         var result = await validator.ValidateAsync(request);
-        if (result.IsValid) return await continuation(request, context);
+        if (result.IsValid)
+        {
+            return await continuation(request, context);
+        }
 
         // Combine error messages
         var errorMessages = string.Join("; ", result.Errors.Select(e => e.ErrorMessage));

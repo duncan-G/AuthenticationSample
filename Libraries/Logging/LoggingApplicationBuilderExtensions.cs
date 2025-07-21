@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
@@ -14,8 +15,23 @@ public static class LoggingApplicationBuilderExtensions
         this IHostApplicationBuilder builder,
         Action<LoggingOptions> configureOptions)
     {
-        LoggingOptions options = new();
+        var options = new LoggingOptions();
         configureOptions(options);
+
+        if (options == null)
+        {
+            throw new InvalidOperationException("Missing required configuration section 'ApplicationOptions'");
+        }
+
+        if (string.IsNullOrEmpty(options.ServiceName))
+        {
+            throw new InvalidOperationException("ServiceName cannot be null or empty.");
+        }
+
+        if (string.IsNullOrEmpty(options.OtlpEndPoint))
+        {
+            throw new InvalidOperationException("OtlpEndPoint cannot be null or empty.");
+        }
 
         var loggingBuilder = builder.Logging
             .AddOpenTelemetry(otlOptions =>
@@ -27,10 +43,9 @@ public static class LoggingApplicationBuilderExtensions
         if (options is { AddSemanticKernelInstrumentation: true, EnableSemanticKernelSensitiveDiagnostics: true })
         {
             AppContext.SetSwitch("Microsoft.SemanticKernel.Experimental.GenAI.EnableOTelDiagnosticsSensitive", true);
-            loggingBuilder.AddFilter("Microsoft.SemanticKernel", LogLevel.Trace);
         }
 
-        var otelBuilder = builder.Services.AddOpenTelemetry();
+        var otelBuilder = loggingBuilder.Services.AddOpenTelemetry();
 
         otelBuilder.ConfigureResource(r => r
             .AddAttributes([
@@ -55,11 +70,14 @@ public static class LoggingApplicationBuilderExtensions
                     .AddHttpClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation(efiOption => { efiOption.SetDbStatementForText = true; })
                     .AddSource("Npgsql");
-                if (options.AddSemanticKernelInstrumentation) traceBuilder.AddSource("Microsoft.SemanticKernel*");
-
-                if (options.AddAWSInstrumentation)
+                if (options.AddSemanticKernelInstrumentation)
                 {
-                    // traceBuilder.AddAWSInstrumentation();
+                    traceBuilder.AddSource("Microsoft.SemanticKernel*");
+                }
+
+                if (options.AddAwsInstrumentation)
+                {
+                    traceBuilder.AddAWSInstrumentation();
                 }
 
                 traceBuilder.AddSource("AuthenticationSample.*");
@@ -74,11 +92,14 @@ public static class LoggingApplicationBuilderExtensions
                     .AddProcessInstrumentation()
                     .AddMeter("Npgsql");
 
-                if (options.AddSemanticKernelInstrumentation) metricsBuilder.AddMeter("Microsoft.SemanticKernel*");
-
-                if (options.AddAWSInstrumentation)
+                if (options.AddSemanticKernelInstrumentation)
                 {
-                    // metricsBuilder.AddAWSInstrumentation();
+                    metricsBuilder.AddMeter("Microsoft.SemanticKernel*");
+                }
+
+                if (options.AddAwsInstrumentation)
+                {
+                    metricsBuilder.AddAWSInstrumentation();
                 }
 
                 metricsBuilder.AddMeter("AuthenticationSample.*");
@@ -86,8 +107,9 @@ public static class LoggingApplicationBuilderExtensions
             })
             .WithLogging();
 
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-        if (useOtlpExporter) builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        builder.Services.AddOpenTelemetry().UseOtlpExporter(
+            options.OtlpProtocol,
+            new Uri(options.OtlpEndPoint));
 
         return builder;
     }

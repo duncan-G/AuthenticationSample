@@ -1,26 +1,24 @@
 using AuthenticationSample.Api.Cors;
+using AuthenticationSample.Api.Secrets;
 using AuthenticationSample.Authentication.Grpc.Services;
+using AuthenticationSample.Infrastructure;
 using AuthenticationSample.Logging;
-using dotenv.net;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load secrets into configuration
-DotEnv.Load();
+// Configure AWS options from environment variables
+var awsOptions = builder.AddAwsOptions("AuthSample-AuthService");
+
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-    .AddEnvironmentVariables("Authentication_");
+    .AddEnvironmentVariables("Authentication_")
+    .AddSecretsManager(
+        awsOptions,
+        options => builder.Configuration.GetSection("Secrets").Bind(options));
 
 // Configure logging
-builder.AddLogging(options =>
-{
-    options.ServiceName = "Authentication";
-    options.AddAWSInstrumentation = true;
-});
-
-// Add mapping
-builder.Services.AddAutoMapper(typeof(Program));
+builder.AddLogging(options => builder.Configuration.GetSection("ApplicationLogging").Bind(options));
 
 // Add services to the container.
 builder.Services.AddGrpc();

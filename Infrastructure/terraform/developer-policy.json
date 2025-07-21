@@ -1,0 +1,55 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SecretManagerDevAccess",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:CreateSecret",
+        "secretsmanager:UpdateSecret"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:APP_NAME-secrets-development-*"
+      ]
+    },
+    {
+      "Sid": "SecretManagerGeneralRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:ListSecrets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "BasicDeveloperAccess",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "sts:GetSessionToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadOnlyAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "s3:Get*",
+        "s3:List*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*",
+        "cloudwatch:Describe*",
+        "logs:Describe*",
+        "logs:Get*",
+        "logs:List*",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:TestMetricFilter",
+        "logs:FilterLogEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
+} 

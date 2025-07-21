@@ -138,7 +138,7 @@
       ],
       "Condition": {
         "StringEquals": {
-          "aws:RequestTag/Name": "${var.app_name}-letsencrypt-persistent"
+          "aws:RequestTag/Name": "*-letsencrypt-persistent"
         }
       }
     }
