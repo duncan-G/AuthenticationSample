@@ -86,7 +86,7 @@ jobs:
         ALLOWED_ORIGINS='${{ vars.ALLOWED_ORIGINS }}'
         ALLOWED_HOSTS='${{ vars.ALLOWED_HOSTS }}'
 
-        STACK_FILE='envoy.stack.release.yml'
+        STACK_FILE='envoy.stack.release.yaml'
 
         # Process comma-separated origins into YAML format
         IFS=',' read -ra ORIGINS <<< "$ALLOWED_ORIGINS"
