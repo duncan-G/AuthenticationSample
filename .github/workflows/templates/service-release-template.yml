@@ -40,4 +40,4 @@ jobs:
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }}
-      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com'
+      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}'
