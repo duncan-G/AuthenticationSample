@@ -33,6 +33,7 @@ jobs:
     uses: ./.github/workflows/deploy-microservice.yml
     with:
       service_name: '{{ SERVICE_NAME }}'
+      service_path: 'Microservices/{{ PASCALCASE_SERVICE_NAME }}'
       environment: ${{ github.event.inputs.environment || 'production' }}
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}

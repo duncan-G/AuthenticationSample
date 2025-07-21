@@ -13,6 +13,11 @@ on:
         required: true
         type: string
         default: service-staging
+      service_path:
+        description: Path to the microservice directory
+        required: true
+        type: string
+        default: ''
     secrets:
       AWS_ACCOUNT_ID:
         required: true
@@ -106,8 +111,8 @@ jobs:
         echo "Build tag: $BUILD_TAG"
         echo "Image URI: $IMAGE_URI"
         
-        # Navigate to service directory
-        cd "Microservices/$SERVICE_NAME"
+        # Navigate to service directory using provided path
+        cd "${{ inputs.service_path }}"
         
         # Build and publish container
         env ContainerRepository="$ECR_REPOSITORY" \
@@ -140,7 +145,7 @@ jobs:
         # Render env.sh (envsubst keeps it POSIX-portable)
         export SERVICE_NAME ENVIRONMENT IMAGE_URI APP_NAME \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=false
+               REQUIRE_TLS=true
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh

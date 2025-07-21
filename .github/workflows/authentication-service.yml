@@ -33,6 +33,7 @@ jobs:
     uses: ./.github/workflows/deploy-microservice.yml
     with:
       service_name: 'authentication'
+      service_path: 'Microservices/Authentication'
       environment: ${{ github.event.inputs.environment || 'staging' }}
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
