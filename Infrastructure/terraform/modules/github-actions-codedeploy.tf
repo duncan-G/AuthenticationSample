@@ -7,10 +7,17 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRAccess"
+        Sid    = "ECRAuthorizationToken"
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRRepositoryAccess"
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
