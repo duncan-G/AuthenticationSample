@@ -166,7 +166,7 @@ domains_sec=$(make_secret domains_${RUN_ID}       "$SUBDOMAIN_NAMES")
 FORCE_UPLOAD=false
 for d in "${DOMAINS[@]}"; do
   slug=${d//./-}
-  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+  for f in cert.pem privkey.pem fullchain.pem cert.pfx cert.password; do
     docker secret inspect "${slug}-${f}" &>/dev/null || { FORCE_UPLOAD=true; break 2; }
   done
 done
@@ -286,7 +286,7 @@ for d in "${renew_domains[@]}"; do
             || fatal "download failed: $d"
   
   log "downloaded certificates for $d, creating Swarm secrets..."
-  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+  for f in cert.pem privkey.pem fullchain.pem cert.pfx cert.password; do
     [[ -f $dest/$f ]] || continue
     sec="${d//./-}-$f-$RUN_ID"
     docker secret create "$sec" "$dest/$f" &>/dev/null \
@@ -310,11 +310,12 @@ if [[ -n ${SERVICES_BY_DOMAIN:-} && $SERVICES_BY_DOMAIN != "{}" ]]; then
     for svc in "${svcs[@]}"; do
       docker service update --quiet \
         --secret-rm cert.pem --secret-rm privkey.pem \
-        --secret-rm fullchain.pem --secret-rm cert.pfx \
+        --secret-rm fullchain.pem --secret-rm cert.pfx --secret-rm cert.password \
         --secret-add source="${NEW_SECRETS[$d/cert.pem]}",target=cert.pem \
         --secret-add source="${NEW_SECRETS[$d/privkey.pem]}",target=privkey.pem \
         --secret-add source="${NEW_SECRETS[$d/fullchain.pem]}",target=fullchain.pem \
         --secret-add source="${NEW_SECRETS[$d/cert.pfx]}",target=cert.pfx \
+        --secret-add source="${NEW_SECRETS[$d/cert.password]}",target=cert.password \
         "$svc" || fatal "cannot update $svc"
       log " ↻ $svc updated"
     done

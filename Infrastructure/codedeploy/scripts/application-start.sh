@@ -91,6 +91,8 @@ if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
   sed -i \
     -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert.pem-${LATEST_RUN_ID}|g" \
     -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-privkey.pem-${LATEST_RUN_ID}|g" \
+    -e "s|\${CERT_PFX_SECRET_NAME}|${CERT_PREFIX}-cert.pfx-${LATEST_RUN_ID}|g" \
+    -e "s|\${CERT_PASSWORD_SECRET_NAME}|${CERT_PREFIX}-cert.password-${LATEST_RUN_ID}|g" \
     "${ARCHIVE_ROOT}/${STACK_FILE}"
 fi
 

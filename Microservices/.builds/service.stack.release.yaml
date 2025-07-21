@@ -9,7 +9,7 @@ services:
     networks:
       - net
     secrets:
-      - source: aspnetapp.pfx
+      - source: cert_pfx
         target: /https/aspnetapp.pfx
     deploy:
       mode: global
@@ -30,7 +30,7 @@ networks:
     external: true
 
 secrets:
-  aspnetapp.pfx:
+  cert_pfx:
     name: ${CERT_PFX_SECRET_NAME}
     external: true
   cert_password:
