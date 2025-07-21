@@ -180,8 +180,6 @@ for d in "${DOMAINS[@]}"; do
   for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
     docker secret inspect "${slug}-${f}" &>/dev/null || { FORCE_UPLOAD=true; break 2; }
   done
-  # Check certificate password separately
-  docker secret inspect "${slug}-cert.password" &>/dev/null || { FORCE_UPLOAD=true; break; }
 done
 
 ###############################################################################
@@ -291,16 +289,6 @@ fi
 ###############################################################################
 log "downloading cert artefacts…"
 
-# First, retrieve the certificate password from AWS Secrets Manager
-log "retrieving certificate password from AWS Secrets Manager..."
-CERT_PASSWORD=$(aws secretsmanager get-secret-value \
-                 --secret-id "$AWS_SECRET_NAME" \
-                 --query 'SecretString' --output text | \
-                 jq -r '.Infrastructure_CERTIFICATE_PASSWORD // empty') || fatal "failed to retrieve certificate password"
-
-[[ -n "$CERT_PASSWORD" ]] || fatal "certificate password not found in secrets manager"
-log "certificate password retrieved successfully"
-
 for d in "${renew_domains[@]}"; do
   dest="$STAGING_DIR/$d"; mkdir -p "$dest"
   s3_cert_path="s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/$d/"
@@ -320,12 +308,6 @@ for d in "${renew_domains[@]}"; do
     log "created secret: $sec"
   done
   
-  # Handle certificate password separately (create from string value)
-  sec="${d//./-}-cert.password-$RUN_ID"
-  printf '%s' "$CERT_PASSWORD" | docker secret create "$sec" - &>/dev/null \
-    || fatal "secret create failed: $sec"
-  NEW_SECRETS["$d/cert.password"]=$sec
-  log "created secret: $sec"
 done
 log "artefacts ready as Swarm secrets"
 
@@ -342,12 +324,11 @@ if [[ -n ${SERVICES_BY_DOMAIN:-} && $SERVICES_BY_DOMAIN != "{}" ]]; then
     for svc in "${svcs[@]}"; do
       docker service update --quiet \
         --secret-rm cert.pem --secret-rm privkey.pem \
-        --secret-rm fullchain.pem --secret-rm cert.pfx --secret-rm cert.password \
+        --secret-rm fullchain.pem --secret-rm cert.pfx \
         --secret-add source="${NEW_SECRETS[$d/cert.pem]}",target=cert.pem \
         --secret-add source="${NEW_SECRETS[$d/privkey.pem]}",target=privkey.pem \
         --secret-add source="${NEW_SECRETS[$d/fullchain.pem]}",target=fullchain.pem \
         --secret-add source="${NEW_SECRETS[$d/cert.pfx]}",target=cert.pfx \
-        --secret-add source="${NEW_SECRETS[$d/cert.password]}",target=cert.password \
         "$svc" || fatal "cannot update $svc"
       log " ↻ $svc updated"
     done

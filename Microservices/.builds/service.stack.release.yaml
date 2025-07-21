@@ -33,6 +33,3 @@ secrets:
   cert_pfx:
     name: ${CERT_PFX_SECRET_NAME}
     external: true
-  cert_password:
-    name: ${CERT_PASSWORD_SECRET_NAME}
-    external: true
