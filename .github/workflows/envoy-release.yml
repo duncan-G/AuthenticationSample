@@ -8,7 +8,7 @@ on:
         description: Target environment
         required: true
         type: choice
-        default: staging
+        default: production
         options: [staging, production]
 
   # ───── Auto-trigger when Envoy config or workflow changes ─────

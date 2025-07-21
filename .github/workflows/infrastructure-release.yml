@@ -16,7 +16,7 @@ on:
       environment:
         description: 'Target Environment'
         required: true
-        default: 'terraform-staging'
+        default: 'terraform-production'
         type: choice
         options:
           - terraform-staging
