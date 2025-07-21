@@ -35,7 +35,7 @@ jobs:
     
     steps:
     - name: Deploy Service
-      uses: ./.github/workflows/deploy-microservice.yml
+      uses: ./.github/workflows/templates/deploy-microservice.yml
       with:
         service_name: ${{ env.SERVICE_NAME }}
         environment: ${{ github.event.inputs.environment || 'staging' }}
