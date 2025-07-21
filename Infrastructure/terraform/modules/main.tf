@@ -647,6 +647,7 @@ resource "aws_ecr_repository" "microservices" {
   name = "${var.app_name}/${each.key}"
 
   image_tag_mutability = "MUTABLE"
+  force_delete         = true  # Allow deletion even when repository contains images
 
   image_scanning_configuration {
     scan_on_push = true
