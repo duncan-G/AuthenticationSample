@@ -93,7 +93,6 @@ jobs:
         docker build -t "$FULL_ECR_REPO:$VERSION" Infrastructure/certbot/
         
         # Tag with latest for the environment
-        docker tag "$FULL_ECR_REPO:$VERSION" "$FULL_ECR_REPO:latest-$ENVIRONMENT"
         docker tag "$FULL_ECR_REPO:$VERSION" "$FULL_ECR_REPO:latest"
         
         # Push all tags
