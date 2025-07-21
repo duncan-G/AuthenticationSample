@@ -126,7 +126,7 @@ AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account -
 ACME_EMAIL=${ACME_EMAIL:-$(json .Infrastructure_ACME_EMAIL)}
 CERTIFICATE_STORE=${CERTIFICATE_STORE:-$(json .Infrastructure_CERTIFICATE_STORE)}
 DOMAIN_NAME=${DOMAIN_NAME:-$(json .Infrastructure_DOMAIN_NAME)}
-SUBDOMAINS=${SUBDOMAINS:-$(json .Infrastructure_SUBDOMAINS)}
+SUBDOMAINS=${SUBDOMAINS:-$(json .Infrastructure_SUBDOMAIN_NAMES)}
 AWS_ROLE_NAME=${AWS_ROLE_NAME:-${APP_NAME}-ec2-public-instance-role}
 
 
