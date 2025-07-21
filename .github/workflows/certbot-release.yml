@@ -97,7 +97,6 @@ jobs:
         
         # Push all tags
         docker push "$FULL_ECR_REPO:$VERSION"
-        docker push "$FULL_ECR_REPO:latest-$ENVIRONMENT"
         docker push "$FULL_ECR_REPO:latest"
         
         echo "✅ Successfully built and pushed certbot image"
