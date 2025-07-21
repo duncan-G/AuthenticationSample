@@ -4,6 +4,7 @@ working_dir=$(pwd)
 PID_DIR="$working_dir/pids"
 PID_FILE="$PID_DIR/client.pid"
 TERMINAL_PID_FILE="$PID_DIR/client_terminal.pid"
+CLIENT_DIR="$working_dir/Clients/authentication-sample"
 
 echo "Stopping client..."
 
@@ -62,3 +63,7 @@ else
     close_terminal_window
     echo "Attempted to close any open client terminal windows."
 fi 
+
+if [ -f "$CLIENT_DIR/.env.local" ]; then
+    rm -f "$CLIENT_DIR/.env.local"
+fi

@@ -86,7 +86,7 @@ load_secrets() {
     local profile="developer"
     local region="us-west-1"
     local env_template_path="$PROJECT_ROOT/Infrastructure/.env.template.dev"
-    local prefix="InfrastructureDev_"
+    local prefix="Infrastructure_"
 
     if ! check_jq; then
         exit 1

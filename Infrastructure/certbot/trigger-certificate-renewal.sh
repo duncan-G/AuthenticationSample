@@ -120,19 +120,27 @@ secret=$(aws secretsmanager get-secret-value \
 
 json() { jq -r "$1" <<<"$secret"; }
 
-APP_NAME=${APP_NAME:-$(json .APP_NAME)}
-CERTIFICATE_STORE=${CERTIFICATE_STORE:-$(json .CERTIFICATE_STORE)}
-ACME_EMAIL=${ACME_EMAIL:-$(json .ACME_EMAIL)}
-AWS_REGION=${AWS_REGION:-$(json .AWS_REGION)}
+APP_NAME=${APP_NAME:-$(json .Infrastructure_APP_NAME)}
+AWS_REGION=${AWS_REGION:-$(json .Infrastructure_AWS_REGION)}
 AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}
+ACME_EMAIL=${ACME_EMAIL:-$(json .Infrastructure_ACME_EMAIL)}
+CERTIFICATE_STORE=${CERTIFICATE_STORE:-$(json .Infrastructure_CERTIFICATE_STORE)}
+DOMAIN_NAME=${DOMAIN_NAME:-$(json .Infrastructure_DOMAIN_NAME)}
+SUBDOMAINS=${SUBDOMAINS:-$(json .Infrastructure_SUBDOMAINS)}
 AWS_ROLE_NAME=${AWS_ROLE_NAME:-${APP_NAME}-ec2-public-instance-role}
-SUBDOMAIN_NAMES=$(jq -r '
-   to_entries | map(select(.key|test("^SUBDOMAIN_NAME_"))) | sort_by(.key) | .[].value
-' <<<"$secret" | paste -sd, -)
 
-: "${APP_NAME:?} ${CERTIFICATE_STORE:?} ${ACME_EMAIL:?} ${SUBDOMAIN_NAMES:?}"
 
-IFS=',' read -r -a DOMAINS <<<"$SUBDOMAIN_NAMES"
+: "${APP_NAME:?} ${CERTIFICATE_STORE:?} ${ACME_EMAIL:?} ${SUBDOMAINS:?}"
+
+# Split SUBDOMAINS into array and construct full domain names
+IFS=',' read -r -a SUBDOMAIN_ARRAY <<<"$SUBDOMAINS"
+DOMAINS=()
+for s in "${SUBDOMAIN_ARRAY[@]}"; do
+  DOMAINS+=("${s}.${DOMAIN_NAME}")
+done
+
+# Also update SUBDOMAIN_NAMES to be consistent
+SUBDOMAIN_NAMES=$(IFS=,; printf "%s," "${DOMAINS[@]}" | sed 's/,$//')
 
 RENEW_IMAGE=${RENEWAL_IMAGE:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}/certbot:latest}
 

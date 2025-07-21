@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ###############################################################################
 # setup-secrets.sh — Discover *.env.template files and either
-#   • create .env / .env.docker files for client apps (dev) or push to Vercel
+#   • create .env / files for client apps (dev) or push to Vercel
 #   • create / update an AWS Secrets Manager secret for backend apps
 #
 # Usage:   ./setup-secrets.sh [-a APP_NAME] [-p AWS_PROFILE] [-P] [-f] [-h]
@@ -84,13 +84,15 @@ determine_secret_name() {
 ## -----------------------------------------------------------------------------
 ## Template discovery
 ## -----------------------------------------------------------------------------
-readarray -d '' TEMPLATE_FILES < <(
-  if [[ $PROD_MODE == true ]]; then
-    find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.template.prod' \) -print0
-  else
-    find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.docker.template' -o -name '*.env.template.dev' \) -print0
-  fi
-)
+discover_templates() {
+  readarray -d '' TEMPLATE_FILES < <(
+    if [[ $PROD_MODE == true ]]; then
+      find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.template.prod' \) -print0
+    else
+      find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.template.dev' \) -print0
+    fi
+  )
+}
 
 categorise_templates() {
   CLIENT_TEMPLATES=()
@@ -161,7 +163,10 @@ process_client_templates() {
       continue
     fi
 
-    local out_file="$(dirname "$tmpl")/$(basename "${tmpl%.template}")"
+    # Remove .template from filename while preserving environment suffix
+    local basename_tmpl="$(basename "$tmpl")"
+    local out_name="${basename_tmpl/.template/}"
+    local out_file="$(dirname "$tmpl")/$out_name"
     : > "$out_file"
     for k in $(printf '%s\n' "${!values[@]}" | sort); do
       echo "$k=${values[$k]}" >> "$out_file"
@@ -190,7 +195,18 @@ collect_backend_defaults() {
 
 load_existing_secret() {
   if aws secretsmanager describe-secret --secret-id "$SECRET_NAME" --profile "$AWS_PROFILE" &>/dev/null; then
-    EXISTING_JSON=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text --profile "$AWS_PROFILE" 2>/dev/null)
+    # Temporarily disable 'set -e' to handle errors gracefully
+    set +e
+    EXISTING_JSON=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text --profile "$AWS_PROFILE" 2>&1)
+    local get_secret_exit_code=$?
+    set -e
+    
+    if [[ $get_secret_exit_code -ne 0 ]]; then
+      print_error "Failed to retrieve secret value: $EXISTING_JSON"
+      print_error "Please check your AWS credentials and permissions"
+      exit 1
+    fi
+    
     if [[ -n "$EXISTING_JSON" ]] && jq -e . <<<"$EXISTING_JSON" >/dev/null 2>&1; then
       mapfile -t EXISTING_KEYS < <(jq -r 'keys[]' <<<"$EXISTING_JSON" 2>/dev/null)
       for k in "${EXISTING_KEYS[@]}"; do 
@@ -229,12 +245,47 @@ store_secret() {
   SECRETS_JSON=$(jq -n "${jq_args[@]}" "{${jq_entries[*]}}")
 
   if aws secretsmanager describe-secret --secret-id "$SECRET_NAME" --profile "$AWS_PROFILE" &>/dev/null; then
-    aws secretsmanager update-secret --secret-id "$SECRET_NAME" --secret-string "$SECRETS_JSON" --profile "$AWS_PROFILE" >/dev/null
+    # Update existing secret
+    set +e
+    local update_output
+    update_output=$(aws secretsmanager update-secret --secret-id "$SECRET_NAME" --secret-string "$SECRETS_JSON" --profile "$AWS_PROFILE" 2>&1)
+    local update_exit_code=$?
+    set -e
+    
+    if [[ $update_exit_code -ne 0 ]]; then
+      print_error "Failed to update secret: $update_output"
+      print_error "Please check your AWS credentials and permissions"
+      exit 1
+    fi
     print_success "Secret updated"
   else
-    aws secretsmanager create-secret --name "$SECRET_NAME" --secret-string "$SECRETS_JSON" \
-      --description "Secrets for $APP_NAME $([[ $PROD_MODE == true ]] && echo prod || echo dev)" --profile "$AWS_PROFILE" >/dev/null
+    # Create new secret
+    set +e
+    local create_output
+    create_output=$(aws secretsmanager create-secret --name "$SECRET_NAME" --secret-string "$SECRETS_JSON" \
+      --description "Secrets for $APP_NAME $([[ $PROD_MODE == true ]] && echo prod || echo dev)" --profile "$AWS_PROFILE" 2>&1)
+    local create_exit_code=$?
+    set -e
+    
+    if [[ $create_exit_code -ne 0 ]]; then
+      print_error "Failed to create secret: $create_output"
+      print_error "Please check your AWS credentials and permissions"
+      exit 1
+    fi
     print_success "Secret created"
+  fi
+}
+
+display_prod_warning() {
+  if [[ $PROD_MODE == true ]]; then
+    print_warning "These changes will be applied to the production environment"
+    print_warning "Please be careful when making changes"
+    print_warning "You should probably manage secrets in the AWS console"
+    echo
+    if ! prompt_confirmation "Are you sure you want to continue?" "y/N"; then
+      print_info "Operation cancelled by user"
+      exit 0
+    fi
   fi
 }
 
@@ -243,9 +294,23 @@ store_secret() {
 ## -----------------------------------------------------------------------------
 main() {
   parse_args "$@"
-  prompt_for_missing
 
-  check_jq; check_aws_cli; check_aws_profile "$AWS_PROFILE"; check_aws_authentication "$AWS_PROFILE"
+  display_prod_warning
+  prompt_for_missing
+  discover_templates
+
+  if ! check_jq; then
+    exit 1
+  fi
+  if ! check_aws_cli; then
+    exit 1
+  fi
+  if ! check_aws_profile "$AWS_PROFILE"; then
+    exit 1
+  fi
+  if ! check_aws_authentication "$AWS_PROFILE"; then
+    exit 1
+  fi
 
   determine_secret_name
   categorise_templates

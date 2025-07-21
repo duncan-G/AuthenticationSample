@@ -34,7 +34,7 @@ shift $((OPTIND -1))
 function setup_client_env() {
     local client_dir="$working_dir/Clients/authentication-sample"
     local base_env="$client_dir/.env"
-    local docker_env="$client_dir/.env.docker"
+    local override_env="$client_dir/.env.dev"
     
     # Start with base environment
     if [ -f "$base_env" ]; then
@@ -50,11 +50,11 @@ function setup_client_env() {
     
     # If container mode, overlay docker environment (overrides base)
     if [[ "$container" = true ]]; then
-        if [ -f "$docker_env" ]; then
+        if [ -f "$override_env" ]; then
             echo "Applying docker environment overrides..."
             # Create temporary file with docker variables
             local temp_docker="/tmp/docker_env_vars"
-            grep '^NEXT_PUBLIC_' "$docker_env" > "$temp_docker"
+            grep '^NEXT_PUBLIC_' "$override_env" > "$temp_docker"
             
             # For each docker variable, replace or add to .env.local
             while IFS= read -r line; do
@@ -71,7 +71,7 @@ function setup_client_env() {
             rm -f "$temp_docker" "$client_dir/.env.local.bak"
             echo "Docker environment overrides applied"
         else
-            echo "Warning: Docker environment file $docker_env not found - using base environment only"
+            echo "Warning: Docker environment file $override_env not found - using base environment only"
         fi
     fi
     
