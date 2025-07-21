@@ -130,7 +130,7 @@ SUBDOMAINS=${SUBDOMAINS:-$(json .Infrastructure_SUBDOMAIN_NAMES)}
 AWS_ROLE_NAME=${AWS_ROLE_NAME:-${APP_NAME}-ec2-public-instance-role}
 
 
-: "${APP_NAME:?} ${CERTIFICATE_STORE:?} ${ACME_EMAIL:?} ${SUBDOMAINS:?}"
+: "${APP_NAME:?} ${CERTIFICATE_STORE:?} ${ACME_EMAIL:?} ${SUBDOMAINS:?} ${DOMAIN_NAME:?}"
 
 # Split SUBDOMAINS into array and construct full domain names
 IFS=',' read -r -a SUBDOMAIN_ARRAY <<<"$SUBDOMAINS"
@@ -148,7 +148,10 @@ RENEW_IMAGE=${RENEWAL_IMAGE:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.c
 # Define service mappings for certificate rotation
 ###############################################################################
 # Simple static mapping of domains to services for certificate updates
-SERVICES_BY_DOMAIN="{\"api.${DOMAIN_NAME}\": [\"envoy\"], \"internal.${DOMAIN_NAME}\": [\"authentication\"]}"
+SERVICES_BY_DOMAIN=$(jq -n \
+  --arg api_domain "api.${DOMAIN_NAME}" \
+  --arg internal_domain "internal.${DOMAIN_NAME}" \
+  '{($api_domain): ["envoy"], ($internal_domain): ["authentication"]}')
 log "Configured service mappings: $SERVICES_BY_DOMAIN"
 
 ###############################################################################
@@ -173,9 +176,12 @@ domains_sec=$(make_secret domains_${RUN_ID}       "$SUBDOMAIN_NAMES")
 FORCE_UPLOAD=false
 for d in "${DOMAINS[@]}"; do
   slug=${d//./-}
-  for f in cert.pem privkey.pem fullchain.pem cert.pfx cert.password; do
+  # Check certificate files
+  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
     docker secret inspect "${slug}-${f}" &>/dev/null || { FORCE_UPLOAD=true; break 2; }
   done
+  # Check certificate password separately
+  docker secret inspect "${slug}-cert.password" &>/dev/null || { FORCE_UPLOAD=true; break; }
 done
 
 ###############################################################################
@@ -284,6 +290,17 @@ fi
 # Fetch artefacts & create Swarm secrets
 ###############################################################################
 log "downloading cert artefacts…"
+
+# First, retrieve the certificate password from AWS Secrets Manager
+log "retrieving certificate password from AWS Secrets Manager..."
+CERT_PASSWORD=$(aws secretsmanager get-secret-value \
+                 --secret-id "$AWS_SECRET_NAME" \
+                 --query 'SecretString' --output text | \
+                 jq -r '.Infrastructure_CERTIFICATE_PASSWORD // empty') || fatal "failed to retrieve certificate password"
+
+[[ -n "$CERT_PASSWORD" ]] || fatal "certificate password not found in secrets manager"
+log "certificate password retrieved successfully"
+
 for d in "${renew_domains[@]}"; do
   dest="$STAGING_DIR/$d"; mkdir -p "$dest"
   s3_cert_path="s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/$d/"
@@ -293,7 +310,8 @@ for d in "${renew_domains[@]}"; do
             || fatal "download failed: $d"
   
   log "downloaded certificates for $d, creating Swarm secrets..."
-  for f in cert.pem privkey.pem fullchain.pem cert.pfx cert.password; do
+  # Handle certificate files (excluding password)
+  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
     [[ -f $dest/$f ]] || continue
     sec="${d//./-}-$f-$RUN_ID"
     docker secret create "$sec" "$dest/$f" &>/dev/null \
@@ -301,6 +319,13 @@ for d in "${renew_domains[@]}"; do
     NEW_SECRETS["$d/$f"]=$sec
     log "created secret: $sec"
   done
+  
+  # Handle certificate password separately (create from string value)
+  sec="${d//./-}-cert.password-$RUN_ID"
+  printf '%s' "$CERT_PASSWORD" | docker secret create "$sec" - &>/dev/null \
+    || fatal "secret create failed: $sec"
+  NEW_SECRETS["$d/cert.password"]=$sec
+  log "created secret: $sec"
 done
 log "artefacts ready as Swarm secrets"
 
