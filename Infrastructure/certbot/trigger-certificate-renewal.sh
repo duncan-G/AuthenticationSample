@@ -145,6 +145,13 @@ SUBDOMAIN_NAMES=$(IFS=,; printf "%s," "${DOMAINS[@]}" | sed 's/,$//')
 RENEW_IMAGE=${RENEWAL_IMAGE:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}/certbot:latest}
 
 ###############################################################################
+# Define service mappings for certificate rotation
+###############################################################################
+# Simple static mapping of domains to services for certificate updates
+SERVICES_BY_DOMAIN="{\"api.${DOMAIN_NAME}\": [\"envoy\"], \"internal.${DOMAIN_NAME}\": [\"authentication\"]}"
+log "Configured service mappings: $SERVICES_BY_DOMAIN"
+
+###############################################################################
 # Swarm secret helper
 ###############################################################################
 make_secret() {
