@@ -64,7 +64,7 @@ if [ "$containerize_microservices" = true ]; then
     fi
 
     # Build Authentication and deploy to swarm
-    image_name="authentication-sample/authentication"
+    image_name="auth-sample/authentication"
     echo "Building Authentication service"
     cd $working_dir/Microservices/Authentication
     env ContainerRepository=$image_name \

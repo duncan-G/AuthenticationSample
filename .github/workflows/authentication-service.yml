@@ -22,6 +22,7 @@ on:
 
 env:
   SERVICE_NAME: 'authentication'
+  IMAGE_NAME: '${{ vars.APP_NAME }}/authentication'
   
 permissions:
   contents: read
@@ -35,7 +36,8 @@ jobs:
       service_name: 'authentication'
       service_path: 'Microservices/Authentication'
       environment: ${{ github.event.inputs.environment || 'staging' }}
+      image_name: '${{ env.IMAGE_NAME }}'
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      ECR_REPOSITORY_PREFIX: ${{ vars.APP_NAME }}
       DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }} 
+      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com'

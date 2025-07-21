@@ -18,12 +18,17 @@ on:
         required: true
         type: string
         default: ''
+      image_name:
+        description: Image name to use
+        required: true
+        type: string
+        default: ''
     secrets:
       AWS_ACCOUNT_ID:
         required: true
-      ECR_REPOSITORY_PREFIX:
-        required: true
       DEPLOYMENT_BUCKET:
+        required: true
+      ECR_REPOSITORY:
         required: true
 
 # ───── Global defaults ─────
@@ -59,12 +64,11 @@ jobs:
         SHORT_SHA="${GITHUB_SHA::8}"
         VERSION="${SHORT_SHA}"
         
-        # Generate build tag for tracking
-        BUILD_TAG="${SERVICE_NAME}-${ENVIRONMENT}-${SHORT_SHA}"
+        # Generate build tag for tracking  
+        BUILD_TAG="${ENVIRONMENT}-${SHORT_SHA}"
         
-        # ECR repository
-        ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY_PREFIX }}/${SERVICE_NAME}"
-        IMAGE_URI="${ECR_REPOSITORY}:${BUILD_TAG}"
+        # ECR repository and image URI
+        IMAGE_URI="${{ secrets.ECR_REPOSITORY }}/${{ inputs.image_name }}:${BUILD_TAG}"
         
         # Single timestamp for this workflow run (avoids mismatch between upload & deployment)
         TS="$(date +%Y%m%d-%H%M%S)"
@@ -115,7 +119,7 @@ jobs:
         cd "${{ inputs.service_path }}"
         
         # Build and publish container
-        env ContainerRepository="$ECR_REPOSITORY" \
+        env ContainerRepository="$IMAGE_URI" \
           dotnet publish --os linux --arch arm64 /t:PublishContainer
         
         # Tag with build tag and latest
