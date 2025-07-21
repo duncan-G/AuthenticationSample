@@ -75,7 +75,7 @@ jobs:
 
         SHORT_SHA="${GITHUB_SHA::8}"
         VERSION="$SHORT_SHA"
-        BUILD_TAG="${ENVIRONMENT}-${SHORT_SHA}"
+        BUILD_TAG="${SHORT_SHA}"
 
         # ----- ECR -----
         ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY }}"   # full repo URI
@@ -148,8 +148,14 @@ jobs:
         ENVIRONMENT='${{ steps.vars.outputs.environment }}'
         IMAGE_URI='${{ steps.vars.outputs.image_uri }}'
         APP_NAME='${{ steps.vars.outputs.app_name }}'
+        VERSION='${{ steps.vars.outputs.version }}'
 
         STACK_FILE='service.stack.release.yaml'
+        
+        # Certificate prefix for internal subdomain
+        DOMAIN='${{ vars.DOMAIN_NAME }}'
+        CERT_PREFIX="internal.${DOMAIN}"
+        CERT_PREFIX="${CERT_PREFIX//./-}"          # turn dots → dashes
 
         mkdir -p staging/scripts
         cp Infrastructure/codedeploy/appspec.yml  staging/
@@ -159,19 +165,14 @@ jobs:
         cp Microservices/.builds/$STACK_FILE staging/
 
         # Render env.sh with runtime values
-        export SERVICE_NAME ENVIRONMENT IMAGE_URI APP_NAME \
+        export SERVICE_NAME ENVIRONMENT IMAGE_URI APP_NAME VERSION \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=true STACK_FILE
+               REQUIRE_TLS=true STACK_FILE SECRET_NAME="${APP_NAME}-secrets" \
+               CERT_PREFIX
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
 
-        # Template appspec.yml variables
-        sed -i \
-          -e "s|{{ ENVIRONMENT }}|$ENVIRONMENT|g" \
-          -e "s|{{ SERVICE_NAME }}|$SERVICE_NAME|g" \
-          staging/appspec.yml
-        
         tar -czf deployment-package.tar.gz -C staging .
 
     # ───────────────────────────────
