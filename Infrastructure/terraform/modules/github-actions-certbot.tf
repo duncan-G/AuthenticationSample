@@ -42,9 +42,9 @@ resource "aws_iam_policy" "github_actions_certbot_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "ECRGetAuthorizationToken"
-        Effect   = "Allow"
-        Action   = [
+        Sid    = "ECRGetAuthorizationToken"
+        Effect = "Allow"
+        Action = [
           "ecr:GetAuthorizationToken"
         ]
         Resource = "*"
