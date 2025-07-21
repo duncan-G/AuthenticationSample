@@ -30,7 +30,7 @@ permissions:
 jobs:
   deploy:
     name: 'Deploy Authentication Service'
-    uses: ./.github/workflows/templates/deploy-microservice.yml
+    uses: ./.github/workflows/deploy-microservice.yml
     with:
       service_name: 'authentication'
       environment: ${{ github.event.inputs.environment || 'staging' }}
