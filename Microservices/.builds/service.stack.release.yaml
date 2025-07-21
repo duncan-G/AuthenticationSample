@@ -2,12 +2,9 @@ version: "3.8"
 
 services:
   app:
-    image: $IMAGE_NAME
-    env_file:
-      - ${ENV_FILE}
-      - ${OVERRIDE_ENV_FILE}
+    image: $IMAGE_URI
     environment:
-      ASPNETCORE_URLS: https://+:8000
+      ASPNETCORE_URLS: https://+:443
       ASPNETCORE_ENVIRONMENT: Production
     networks:
       - net

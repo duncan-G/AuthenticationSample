@@ -149,24 +149,22 @@ jobs:
         IMAGE_URI='${{ steps.vars.outputs.image_uri }}'
         APP_NAME='${{ steps.vars.outputs.app_name }}'
 
+        STACK_FILE='service.stack.release.yaml'
+
         mkdir -p staging/scripts
         cp Infrastructure/codedeploy/appspec.yml  staging/
         cp -r Infrastructure/codedeploy/scripts/* staging/scripts/
 
+        # Copy the stack file to staging (variables will be replaced by deployment scripts)
+        cp Microservices/.builds/$STACK_FILE staging/
+
         # Render env.sh with runtime values
         export SERVICE_NAME ENVIRONMENT IMAGE_URI APP_NAME \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=true
+               REQUIRE_TLS=true STACK_FILE
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
-
-        # Drop a tiny deployment‑specific env file
-        cat > staging/scripts/deployment.env <<EOF
-        SERVICE_NAME=$SERVICE_NAME
-        ENVIRONMENT=$ENVIRONMENT
-        IMAGE_URI=$IMAGE_URI
-        EOF
 
         # Template appspec.yml variables
         sed -i \
@@ -189,6 +187,7 @@ jobs:
         SERVICE_NAME='${{ steps.vars.outputs.service_name }}'
         ENVIRONMENT='${{ steps.vars.outputs.environment }}'
         APP_NAME='${{ steps.vars.outputs.app_name }}'
+        IMAGE_URI='${{ steps.vars.outputs.image_uri }}'
         TS='${{ steps.vars.outputs.ts }}'
 
         DEPLOY_ID=$(aws deploy create-deployment \
