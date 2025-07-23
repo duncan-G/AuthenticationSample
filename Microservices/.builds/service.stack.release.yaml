@@ -17,6 +17,9 @@ services:
         service: ${SERVICE_NAME}
         environment: ${ENVIRONMENT}
       mode: global
+      placement:
+        constraints:
+          - node.role == manager
       restart_policy:
         condition: on-failure
         delay: 15s
