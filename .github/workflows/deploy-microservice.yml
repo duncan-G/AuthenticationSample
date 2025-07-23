@@ -183,6 +183,7 @@ jobs:
           -e "s|\${VERSION}|$VERSION|g" \
           -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
           -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
+          -e "s|\${AWS_REGION}|$AWS_REGION|g" \
           staging/$STACK_FILE
 
         tar -czf deployment-package.tar.gz -C staging .
