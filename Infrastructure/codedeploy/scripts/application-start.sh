@@ -128,7 +128,7 @@ tmp_stack="/tmp/${SERVICE_NAME}-stack.yml"
 cp "$stack_src" "$tmp_stack"
 
 log "Deploying stack '${SERVICE_NAME}'…"
-docker stack deploy --compose-file "$tmp_stack" "$SERVICE_NAME"
+docker stack deploy --with-registry-auth --compose-file "$tmp_stack" "$SERVICE_NAME"
 
 ####################################
 # Basic health-check
