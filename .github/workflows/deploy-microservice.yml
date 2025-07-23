@@ -175,9 +175,13 @@ jobs:
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
         
-        # Replace variables in stack file
-        envsubst < staging/$STACK_FILE > staging/$STACK_FILE.tmp
-        mv staging/$STACK_FILE.tmp staging/$STACK_FILE
+        # Replace only specific variables in stack file (others processed by deployment script)
+        sed -i \
+          -e "s|\$IMAGE_URI|$IMAGE_URI|g" \
+          -e "s|\${VERSION}|$VERSION|g" \
+          -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
+          -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
+          staging/$STACK_FILE
 
         tar -czf deployment-package.tar.gz -C staging .
 
