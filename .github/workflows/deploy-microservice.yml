@@ -134,12 +134,13 @@ jobs:
           ContainerImageTag="$BUILD_TAG" \
           dotnet publish --os linux --arch arm64 -p:PublishProfile=DefaultContainer
 
-        # Push immutable tag
+        # Push immutable tag first
         docker push "$IMAGE_URI"
 
-        # Optionally (race‑prone) update latest tag
-        docker tag "$IMAGE_URI" "$ECR_REPOSITORY:latest"
-        docker push "$ECR_REPOSITORY:latest"
+        # Create manifest list for better ECR display
+        docker buildx imagetools create \
+          --tag "$ECR_REPOSITORY:latest" \
+          "$IMAGE_URI"
 
     # ───────────────────────────────
     - name: Build deployment package

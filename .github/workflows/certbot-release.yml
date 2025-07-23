@@ -76,6 +76,10 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v2
 
     # ───────────────────────────────
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # ───────────────────────────────
     - name: Build and push Docker image
       run: |
         ENVIRONMENT="${{ steps.vars.outputs.environment }}"
@@ -89,17 +93,15 @@ jobs:
         echo "Building and pushing certbot image for environment: $ENVIRONMENT"
         echo "ECR Repository: $FULL_ECR_REPO"
         
-        # Build the image
-        docker build -t "$FULL_ECR_REPO:$VERSION" Infrastructure/certbot/
+        # Build and push multi-platform image with manifest
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          --push \
+          --tag "$FULL_ECR_REPO:$VERSION" \
+          --tag "$FULL_ECR_REPO:latest" \
+          Infrastructure/certbot/
         
-        # Tag with latest for the environment
-        docker tag "$FULL_ECR_REPO:$VERSION" "$FULL_ECR_REPO:latest"
-        
-        # Push all tags
-        docker push "$FULL_ECR_REPO:$VERSION"
-        docker push "$FULL_ECR_REPO:latest"
-        
-        echo "✅ Successfully built and pushed certbot image"
+        echo "✅ Successfully built and pushed certbot image
         
     # ───────────────────────────────
     - name: Deployment Summary
