@@ -101,7 +101,7 @@ jobs:
           --tag "$FULL_ECR_REPO:latest" \
           Infrastructure/certbot/
         
-        echo "✅ Successfully built and pushed certbot image
+        echo "✅ Successfully built and pushed certbot image"
         
     # ───────────────────────────────
     - name: Deployment Summary
