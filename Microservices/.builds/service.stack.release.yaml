@@ -6,6 +6,7 @@ services:
     environment:
       ASPNETCORE_URLS: https://+:443
       ASPNETCORE_ENVIRONMENT: Production
+      AWS_REGION: ${AWS_REGION}
     networks:
       - net
     secrets:
