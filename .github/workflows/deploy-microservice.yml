@@ -139,6 +139,7 @@ jobs:
 
         # Create manifest list for better ECR display
         docker buildx imagetools create \
+          --tag "$IMAGE_URI" \
           --tag "$ECR_REPOSITORY:latest" \
           "$IMAGE_URI"
 
