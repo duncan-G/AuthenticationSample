@@ -315,8 +315,6 @@ log "artefacts ready as Swarm secrets"
 # (Optional) hot-swap secrets in target services
 ###############################################################################
 if [[ -n ${SERVICES_BY_DOMAIN:-} && $SERVICES_BY_DOMAIN != "{}" ]]; then
-  jq -e empty <<<"$SERVICES_BY_DOMAIN" \
-    || fatal "SERVICES_BY_DOMAIN not valid JSON"
   log "rotating secrets in services…"
   for d in "${renew_domains[@]}"; do
     mapfile -t svcs < <(jq -r --arg d "$d" '.[$d][]?' <<<"$SERVICES_BY_DOMAIN")
