@@ -237,3 +237,4 @@ jobs:
           echo "- **Status**: ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
         else
           echo "- **Status**: ❌ Deployment failed"     >> $GITHUB_STEP_SUMMARY
+        fi
