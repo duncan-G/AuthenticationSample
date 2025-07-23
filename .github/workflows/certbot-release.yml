@@ -95,7 +95,7 @@ jobs:
         
         # Build and push multi-platform image with manifest
         docker buildx build \
-          --platform linux/amd64,linux/arm64 \
+          --platform linux/arm64 \
           --push \
           --tag "$FULL_ECR_REPO:$VERSION" \
           --tag "$FULL_ECR_REPO:latest" \
