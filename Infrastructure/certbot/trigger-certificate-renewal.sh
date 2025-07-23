@@ -151,7 +151,7 @@ RENEW_IMAGE=${RENEWAL_IMAGE:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.c
 SERVICES_BY_DOMAIN=$(jq -n \
   --arg api_domain "api.${DOMAIN_NAME}" \
   --arg internal_domain "internal.${DOMAIN_NAME}" \
-  '{($api_domain): ["envoy"], ($internal_domain): ["authentication"]}')
+  '{($api_domain): ["envoy_app"], ($internal_domain): ["authentication_app"]}')
 log "Configured service mappings: $SERVICES_BY_DOMAIN"
 
 ###############################################################################
@@ -320,6 +320,12 @@ if [[ -n ${SERVICES_BY_DOMAIN:-} && $SERVICES_BY_DOMAIN != "{}" ]]; then
     mapfile -t svcs < <(jq -r --arg d "$d" '.[$d][]?' <<<"$SERVICES_BY_DOMAIN")
     (( ${#svcs[@]} )) || continue
     for svc in "${svcs[@]}"; do
+      # Check if service exists before attempting to update
+      if ! docker service inspect "$svc" &>/dev/null; then
+        log " ⚠ service $svc does not exist, skipping"
+        continue
+      fi
+      
       docker service update --quiet \
         --secret-rm cert.pem --secret-rm privkey.pem \
         --secret-rm fullchain.pem --secret-rm cert.pfx \
