@@ -12,6 +12,10 @@ services:
       - source: cert_pfx
         target: /https/aspnetapp.pfx
     deploy:
+      labels:
+        version: ${VERSION}
+        service: ${SERVICE_NAME}
+        environment: ${ENVIRONMENT}
       mode: global
       restart_policy:
         condition: on-failure

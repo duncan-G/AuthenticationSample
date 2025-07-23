@@ -161,17 +161,23 @@ jobs:
         cp Infrastructure/codedeploy/appspec.yml  staging/
         cp -r Infrastructure/codedeploy/scripts/* staging/scripts/
 
-        # Copy the stack file to staging (variables will be replaced by deployment scripts)
+        # Copy the stack file to staging and replace variables
         cp Microservices/.builds/$STACK_FILE staging/
 
-        # Render env.sh with runtime values
+        # Render env.sh and stack file with runtime values
         export SERVICE_NAME ENVIRONMENT IMAGE_URI APP_NAME VERSION \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
                REQUIRE_TLS=true STACK_FILE SECRET_NAME="${APP_NAME}-secrets" \
                CERT_PREFIX
+        
+        # Replace variables in env.sh
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
+        
+        # Replace variables in stack file
+        envsubst < staging/$STACK_FILE > staging/$STACK_FILE.tmp
+        mv staging/$STACK_FILE.tmp staging/$STACK_FILE
 
         tar -czf deployment-package.tar.gz -C staging .
 
