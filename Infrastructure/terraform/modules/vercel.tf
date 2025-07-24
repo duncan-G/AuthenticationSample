@@ -4,7 +4,7 @@
 
 # Vercel project for the frontend application
 resource "vercel_project" "frontend" {
-  name      = "${var.app_name}"
+  name      = var.app_name
   framework = "nextjs"
 
   git_repository = {
@@ -33,7 +33,7 @@ resource "vercel_project" "frontend" {
 # Deployment configuration
 resource "vercel_deployment" "frontend" {
   project_id = vercel_project.frontend.id
-  
+
   # Use the main branch for production, feature branches for staging
   ref = var.environment == "production" ? "main" : var.environment
 
