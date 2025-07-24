@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    vercel = {
+      source  = "vercel/vercel"
+      version = "~> 2.0"
+    }
   }
   backend "s3" {
     # Partial configuration (because variables are not allowed in backend config) -
@@ -21,6 +25,10 @@ terraform {
 
 provider "aws" {
   region = var.region
+}
+
+provider "vercel" {
+  api_token = var.vercel_api_token
 }
 
 ########################
@@ -106,6 +114,12 @@ variable "route53_hosted_zone_id" {
 variable "bucket_suffix" {
   description = "Suffix to make S3 bucket names unique across environments"
   type        = string
+}
+
+variable "vercel_api_token" {
+  description = "Vercel API token for frontend deployments"
+  type        = string
+  sensitive   = true
 }
 
 ########################
