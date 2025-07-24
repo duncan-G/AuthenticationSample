@@ -4,7 +4,7 @@
 
 # Vercel project for the frontend application
 resource "vercel_project" "frontend" {
-  name      = "${var.app_name}-frontend-${var.environment}"
+  name      = "${var.app_name}"
   framework = "nextjs"
 
   git_repository = {
