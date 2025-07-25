@@ -32,6 +32,7 @@ exporters:
     
   awsemf:
     region: ${AWS_REGION}
+    endpoint: https://logs.${AWS_REGION}.amazonaws.com
     namespace: AuthenticationSample/OpenTelemetry
     dimension_rollup_option: NoDimensionRollup
     metric_declarations:
@@ -40,6 +41,7 @@ exporters:
         
   awscloudwatchlogs:
     region: ${AWS_REGION}
+    endpoint: https://logs.${AWS_REGION}.amazonaws.com
     log_group_name: /aws/otel/application-logs
     log_stream_name: otel-collector
 

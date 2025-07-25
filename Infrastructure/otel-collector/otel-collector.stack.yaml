@@ -14,6 +14,11 @@ services:
         target: /etc/otel/config.yaml
     environment:
       - AWS_REGION=${AWS_REGION}
+    # Add DNS configuration to fix CloudWatch Logs connectivity
+    dns:
+      - "8.8.8.8"
+      - "8.8.4.4"
+      - "1.1.1.1"
     deploy:
       labels:
         service: otel-collector
