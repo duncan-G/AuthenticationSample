@@ -60,11 +60,6 @@ if [[ $HELP_REQUESTED == true ]]; then
   exit 0
 fi
 
-# Log the arguments being passed
-if [[ ${#RENEWAL_ARGS[@]} -gt 0 ]]; then
-  log "Certificate renewal arguments: ${RENEWAL_ARGS[*]}"
-fi
-
 ###############################################################################
 # Constants / defaults
 ###############################################################################
