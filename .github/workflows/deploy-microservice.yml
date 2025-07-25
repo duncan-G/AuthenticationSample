@@ -1,6 +1,6 @@
 name: Deploy Microservice
 
-# This is a reusable workflow that can be called by other workflows
+# ────────── Re‑usable workflow ──────────
 on:
   workflow_call:
     inputs:
@@ -9,31 +9,47 @@ on:
         required: true
         type: string
       environment:
-        description: Target environment (service-staging/service-production)
+        description: Target environment (service‑staging / service‑production)
         required: true
         type: string
-        default: service-staging
+        default: service-production
+      service_path:
+        description: Path to the microservice directory
+        required: true
+        type: string
+        default: ''
+      image_name:
+        description: Image name (repository component) to use
+        required: true
+        type: string
+        default: ''
     secrets:
       AWS_ACCOUNT_ID:
         required: true
-      ECR_REPOSITORY_PREFIX:
-        required: true
       DEPLOYMENT_BUCKET:
         required: true
+      ECR_REPOSITORY:
+        required: true       # <account>.dkr.ecr.<region>.amazonaws.com/<repo>
 
 # ───── Global defaults ─────
 permissions:
-  contents: read            # checkout needs this
-  id-token: write           # OIDC for aws-actions/configure-aws-credentials
+  contents: read
+  id-token: write           # OIDC → aws-actions/configure-aws-credentials
 
 env:
-  AWS_REGION: us-west-1      # overridden if repo/org variable AWS_REGION exists
+  AWS_REGION: us-west-1      # can be overridden by repo/org variable
 
 jobs:
+# ════════════════════════════════════════
   deploy:
-    name: Deploy ${{ inputs.service_name }}
+    name: Deploy ${{ inputs.service_name }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+
+    # Single deployment per svc/env → avoids latest‑tag races
+    concurrency:
+      group: deploy-${{ inputs.service_name }}-${{ inputs.environment }}
+      cancel-in-progress: false
 
     defaults:
       run:
@@ -45,23 +61,26 @@ jobs:
       uses: actions/checkout@v4
 
     # ───────────────────────────────
-    - name: Derive run-time variables
+    - name: Derive run‑time variables
       id: vars
       run: |
         SERVICE_NAME="${{ inputs.service_name }}"
         ENVIRONMENT="${{ inputs.environment }}"
         APP_NAME="${{ vars.APP_NAME }}"
+
+        if [ -z "$APP_NAME" ]; then
+          echo "::error ::Org/Repo variable APP_NAME is not set"
+          exit 1
+        fi
+
         SHORT_SHA="${GITHUB_SHA::8}"
-        VERSION="${SHORT_SHA}"
-        
-        # Generate build tag for tracking
-        BUILD_TAG="${SERVICE_NAME}-${ENVIRONMENT}-${SHORT_SHA}"
-        
-        # ECR repository
-        ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY_PREFIX }}/${SERVICE_NAME}"
+        VERSION="$SHORT_SHA"
+        BUILD_TAG="${SHORT_SHA}"
+
+        # ----- ECR -----
+        ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY }}"   # full repo URI
         IMAGE_URI="${ECR_REPOSITORY}:${BUILD_TAG}"
-        
-        # Single timestamp for this workflow run (avoids mismatch between upload & deployment)
+
         TS="$(date +%Y%m%d-%H%M%S)"
 
         {
@@ -73,6 +92,7 @@ jobs:
           echo "ecr_repository=$ECR_REPOSITORY"
           echo "image_uri=$IMAGE_URI"
           echo "ts=$TS"
+          echo "aws_region=${{ vars.AWS_REGION || env.AWS_REGION }}"
         } >>"$GITHUB_OUTPUT"
 
     # ───────────────────────────────
@@ -84,85 +104,92 @@ jobs:
         aws-region: ${{ vars.AWS_REGION || env.AWS_REGION }}
 
     # ───────────────────────────────
-    - name: Login to Amazon ECR
+    - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
 
+    # (Needed for cross‑arch container publish)
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     # ───────────────────────────────
-    - name: Setup .NET
+    - name: Setup .NET SDK
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '9.0.x'
 
     # ───────────────────────────────
-    - name: Build and push container
+    - name: Build & push container
       run: |
-        SERVICE_NAME='${{ steps.vars.outputs.service_name }}'
-        BUILD_TAG='${{ steps.vars.outputs.build_tag }}'
         ECR_REPOSITORY='${{ steps.vars.outputs.ecr_repository }}'
-        IMAGE_URI='${{ steps.vars.outputs.image_uri }}'
-        
-        echo "Building and pushing $SERVICE_NAME to ECR..."
-        echo "Repository: $ECR_REPOSITORY"
-        echo "Build tag: $BUILD_TAG"
-        echo "Image URI: $IMAGE_URI"
-        
-        # Navigate to service directory
-        cd "Microservices/$SERVICE_NAME"
-        
-        # Build and publish container
-        env ContainerRepository="$ECR_REPOSITORY" \
-          dotnet publish --os linux --arch arm64 /t:PublishContainer
-        
-        # Tag with build tag and latest
-        docker tag "$IMAGE_URI" "${ECR_REPOSITORY}:latest"
-        
-        # Push all tags
+        BUILD_TAG='${{ steps.vars.outputs.build_tag }}'
+        IMAGE_URI="$ECR_REPOSITORY:$BUILD_TAG"
+
+        echo "Building image $IMAGE_URI"
+
+        cd "${{ inputs.service_path }}"
+
+        # Build container image (no push) – repo only, tag via ContainerImageTag
+        env \
+          ContainerRepository="$ECR_REPOSITORY" \
+          ContainerImageTag="$BUILD_TAG" \
+          dotnet publish --os linux --arch arm64 -p:PublishProfile=DefaultContainer
+
+        # Push immutable tag first
         docker push "$IMAGE_URI"
-        docker push "${ECR_REPOSITORY}:latest"
-        
-        echo "Successfully pushed build tag: $BUILD_TAG"
-        echo "Successfully pushed latest tag"
+
+        # Create manifest list for better ECR display
+        docker buildx imagetools create \
+          --tag "$IMAGE_URI" \
+          --tag "$ECR_REPOSITORY:latest" \
+          "$IMAGE_URI"
 
     # ───────────────────────────────
     - name: Build deployment package
       run: |
-        # ========= Prep local vars =========
         SERVICE_NAME='${{ steps.vars.outputs.service_name }}'
         ENVIRONMENT='${{ steps.vars.outputs.environment }}'
         IMAGE_URI='${{ steps.vars.outputs.image_uri }}'
         APP_NAME='${{ steps.vars.outputs.app_name }}'
+        VERSION='${{ steps.vars.outputs.version }}'
+
+        STACK_FILE='service.stack.release.yaml'
         
-        # ========= Create staging area =========
+        # Certificate prefix for internal subdomain
+        DOMAIN='${{ vars.DOMAIN_NAME }}'
+        CERT_PREFIX="internal.${DOMAIN}"
+        CERT_PREFIX="${CERT_PREFIX//./-}"          # turn dots → dashes
+
         mkdir -p staging/scripts
-        cp Infrastructure/codedeploy/appspec.yml        staging/
-        cp -r Infrastructure/codedeploy/scripts/*       staging/scripts/
-        
-        # Render env.sh (envsubst keeps it POSIX-portable)
-        export SERVICE_NAME ENVIRONMENT IMAGE_URI APP_NAME \
+        cp Infrastructure/codedeploy/appspec.yml  staging/
+        cp -r Infrastructure/codedeploy/scripts/* staging/scripts/
+
+        # Copy the stack file to staging and replace variables
+        cp Microservices/.builds/$STACK_FILE staging/
+
+        # Render env.sh and stack file with runtime values
+        export SERVICE_NAME ENVIRONMENT IMAGE_URI APP_NAME VERSION \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=false
+               REQUIRE_TLS=true STACK_FILE SECRET_NAME="${APP_NAME}-secrets" \
+               CERT_PREFIX
+        
+        # Replace variables in env.sh
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
         
-        # Create deployment-specific environment file
-        cat > staging/scripts/deployment.env << EOF
-        # Deployment-specific environment variables
-        SERVICE_NAME=$SERVICE_NAME
-        ENVIRONMENT=$ENVIRONMENT
-        IMAGE_URI=$IMAGE_URI
-        EOF
-        
-        # Template appspec.yml variables
+        # Replace only specific variables in stack file (others processed by deployment script)
         sed -i \
-          -e "s|{{ ENVIRONMENT }}|$ENVIRONMENT|g" \
-          -e "s|{{ SERVICE_NAME }}|$SERVICE_NAME|g" \
-          staging/appspec.yml
-        
+          -e "s|\$IMAGE_URI|$IMAGE_URI|g" \
+          -e "s|\${VERSION}|$VERSION|g" \
+          -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
+          -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
+          -e "s|\${AWS_REGION}|$AWS_REGION|g" \
+          staging/$STACK_FILE
+
         tar -czf deployment-package.tar.gz -C staging .
 
     # ───────────────────────────────
-    - name: Upload artefact to S3
+    - name: Upload artefact to S3
       run: |
         aws s3 cp deployment-package.tar.gz \
           "s3://${{ secrets.DEPLOYMENT_BUCKET }}/deployments/${{ steps.vars.outputs.service_name }}/${{ steps.vars.outputs.environment }}/deployment-${{ steps.vars.outputs.ts }}.tar.gz"
@@ -173,10 +200,10 @@ jobs:
       run: |
         SERVICE_NAME='${{ steps.vars.outputs.service_name }}'
         ENVIRONMENT='${{ steps.vars.outputs.environment }}'
-        IMAGE_URI='${{ steps.vars.outputs.image_uri }}'
         APP_NAME='${{ steps.vars.outputs.app_name }}'
+        IMAGE_URI='${{ steps.vars.outputs.image_uri }}'
         TS='${{ steps.vars.outputs.ts }}'
-        
+
         DEPLOY_ID=$(aws deploy create-deployment \
           --application-name "${APP_NAME}-${SERVICE_NAME}-${ENVIRONMENT}" \
           --deployment-group-name "${APP_NAME}-${SERVICE_NAME}-${ENVIRONMENT}-deployment-group" \
@@ -191,23 +218,24 @@ jobs:
         aws deploy wait deployment-successful --deployment-id ${{ steps.deploy.outputs.id }}
         STATUS=$(aws deploy get-deployment --deployment-id ${{ steps.deploy.outputs.id }} --query 'deploymentInfo.status' --output text)
         echo "Deployment finished with status: $STATUS"
-        [[ "$STATUS" == "Succeeded" ]] || exit 1
+        [[ "$STATUS" == "Succeeded" ]]
 
     # ───────────────────────────────
     - name: Generate deployment summary
       if: always()
       run: |
-        echo "## Microservice Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Service**: ${{ steps.vars.outputs.service_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment**: ${{ steps.vars.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Image**: ${{ steps.vars.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Build Tag**: ${{ steps.vars.outputs.build_tag }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Deployment ID**: ${{ steps.deploy.outputs.id }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-        
+        echo "## Microservice Deployment Summary"            >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**:      ${{ steps.vars.outputs.service_name }}"  >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**:  ${{ steps.vars.outputs.environment }}"  >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**:        ${{ steps.vars.outputs.image_uri }}"   >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Tag**:    ${{ steps.vars.outputs.build_tag }}"   >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployment ID**: ${{ steps.deploy.outputs.id }}"       >> $GITHUB_STEP_SUMMARY
+        echo "- **Trigger**:      ${{ github.event_name }}"              >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**:       ${{ github.sha }}"                     >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**:    $(date -u '+%Y-%m-%d %H:%M:%S UTC')"   >> $GITHUB_STEP_SUMMARY
+
         if [ "${{ job.status }}" == "success" ]; then
           echo "- **Status**: ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
         else
-          echo "- **Status**: ❌ Deployment failed" >> $GITHUB_STEP_SUMMARY 
+          echo "- **Status**: ❌ Deployment failed"     >> $GITHUB_STEP_SUMMARY
+        fi

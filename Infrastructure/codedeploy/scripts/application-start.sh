@@ -91,6 +91,7 @@ if [[ "${REQUIRE_TLS:-false}" == "true" ]]; then
   sed -i \
     -e "s|\${CERT_PEM_SECRET_NAME}|${CERT_PREFIX}-cert.pem-${LATEST_RUN_ID}|g" \
     -e "s|\${CERT_KEY_SECRET_NAME}|${CERT_PREFIX}-privkey.pem-${LATEST_RUN_ID}|g" \
+    -e "s|\${CERT_PFX_SECRET_NAME}|${CERT_PREFIX}-cert.pfx-${LATEST_RUN_ID}|g" \
     "${ARCHIVE_ROOT}/${STACK_FILE}"
 fi
 
@@ -127,7 +128,7 @@ tmp_stack="/tmp/${SERVICE_NAME}-stack.yml"
 cp "$stack_src" "$tmp_stack"
 
 log "Deploying stack '${SERVICE_NAME}'…"
-docker stack deploy --compose-file "$tmp_stack" "$SERVICE_NAME"
+docker stack deploy --with-registry-auth --compose-file "$tmp_stack" "$SERVICE_NAME"
 
 ####################################
 # Basic health-check

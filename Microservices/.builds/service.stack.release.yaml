@@ -2,20 +2,26 @@ version: "3.8"
 
 services:
   app:
-    image: $IMAGE_NAME
-    env_file:
-      - ${ENV_FILE}
-      - ${OVERRIDE_ENV_FILE}
+    image: $IMAGE_URI
     environment:
-      ASPNETCORE_URLS: https://+:8000
+      ASPNETCORE_URLS: https://+:443
       ASPNETCORE_ENVIRONMENT: Production
+      AWS_REGION: ${AWS_REGION}
     networks:
       - net
     secrets:
-      - source: aspnetapp.pfx
+      - source: cert_pfx
         target: /https/aspnetapp.pfx
     deploy:
-      mode: global
+      labels:
+        version: ${VERSION}
+        service: ${SERVICE_NAME}
+        environment: ${ENVIRONMENT}
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
       restart_policy:
         condition: on-failure
         delay: 15s
@@ -33,9 +39,6 @@ networks:
     external: true
 
 secrets:
-  aspnetapp.pfx:
+  cert_pfx:
     name: ${CERT_PFX_SECRET_NAME}
-    external: true
-  cert_password:
-    name: ${CERT_PASSWORD_SECRET_NAME}
     external: true

@@ -226,9 +226,9 @@ update_secret() {
   local json
   if json=$(aws secretsmanager get-secret-value --secret-id "$AWS_SECRET_NAME" \
               --query SecretString --output text 2>/dev/null); then
-    json=$(jq --arg p "$1" '.CERTIFICATE_PASSWORD=$p' <<<"$json")
+    json=$(jq --arg p "$1" '.Infrastructure_CERTIFICATE_PASSWORD=$p | .Shared_Kestrel__Certificates__Default__Password=$p' <<<"$json")
   else
-    json=$(jq -n --arg p "$1" '{CERTIFICATE_PASSWORD:$p}')
+    json=$(jq -n --arg p "$1" '{Infrastructure_CERTIFICATE_PASSWORD:$p, Shared_Kestrel__Certificates__Default__Password:$p}')
   fi
   echo "$json" | \
     aws secretsmanager put-secret-value --secret-id "$AWS_SECRET_NAME" \

@@ -115,12 +115,6 @@ jobs:
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
 
-        # Template appspec.yml variables
-        sed -i \
-          -e "s|{{ ENVIRONMENT }}|$ENVIRONMENT|g" \
-          -e "s|{{ SERVICE_NAME }}|$SERVICE_NAME|g" \
-          staging/appspec.yml
-
         # ========= Copy & template Envoy configs =========
         find staging/configs -type f -name '*.yaml' -exec sed -i \
           -e "s|\${VERSION}|$VERSION|g" \

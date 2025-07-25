@@ -59,6 +59,9 @@ get_user_input() {
     prompt_user "Enter domain name (e.g., example.com)" "DOMAIN_NAME"
     prompt_user "Enter API subdomains (comma-separated, e.g., api,admin,portal)" "SUBDOMAINS" "api,internal"
     
+    # Prompt for Vercel API key for frontend deployments
+    prompt_user "Enter Vercel API key (for frontend deployments)" "VERCEL_API_KEY"
+    
     # Get Route53 hosted zone ID automatically
     get_route53_hosted_zone_id "$DOMAIN_NAME"
     
@@ -79,6 +82,7 @@ get_user_input() {
     echo "  Domain Name: $DOMAIN_NAME"
     echo "  Route53 Hosted Zone ID: $ROUTE53_HOSTED_ZONE_ID"
     echo "  API Subdomains: $SUBDOMAINS"
+    echo "  Vercel API Key: ${VERCEL_API_KEY:0:8}..."
     
     if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
@@ -414,7 +418,8 @@ setup_github_workflow() {
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
         "SUBDOMAINS:$subdomains_list" \
         "CERTBOT_EBS_VOLUME_ID:$CERTBOT_EBS_VOLUME_ID" \
-        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET"
+        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET" \
+        "VERCEL_API_KEY:$VERCEL_API_KEY"
     
     add_github_variables "$GITHUB_REPO_FULL" \
         "AWS_REGION:$AWS_REGION" \

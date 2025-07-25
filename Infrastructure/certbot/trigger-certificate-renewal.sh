@@ -130,7 +130,7 @@ SUBDOMAINS=${SUBDOMAINS:-$(json .Infrastructure_SUBDOMAIN_NAMES)}
 AWS_ROLE_NAME=${AWS_ROLE_NAME:-${APP_NAME}-ec2-public-instance-role}
 
 
-: "${APP_NAME:?} ${CERTIFICATE_STORE:?} ${ACME_EMAIL:?} ${SUBDOMAINS:?}"
+: "${APP_NAME:?} ${CERTIFICATE_STORE:?} ${ACME_EMAIL:?} ${SUBDOMAINS:?} ${DOMAIN_NAME:?}"
 
 # Split SUBDOMAINS into array and construct full domain names
 IFS=',' read -r -a SUBDOMAIN_ARRAY <<<"$SUBDOMAINS"
@@ -143,6 +143,16 @@ done
 SUBDOMAIN_NAMES=$(IFS=,; printf "%s," "${DOMAINS[@]}" | sed 's/,$//')
 
 RENEW_IMAGE=${RENEWAL_IMAGE:-${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}/certbot:latest}
+
+###############################################################################
+# Define service mappings for certificate rotation
+###############################################################################
+# Simple static mapping of domains to services for certificate updates
+SERVICES_BY_DOMAIN=$(jq -n \
+  --arg api_domain "api.${DOMAIN_NAME}" \
+  --arg internal_domain "internal.${DOMAIN_NAME}" \
+  '{($api_domain): ["envoy_app"], ($internal_domain): ["authentication_app"]}')
+log "Configured service mappings: $SERVICES_BY_DOMAIN"
 
 ###############################################################################
 # Swarm secret helper
@@ -166,6 +176,7 @@ domains_sec=$(make_secret domains_${RUN_ID}       "$SUBDOMAIN_NAMES")
 FORCE_UPLOAD=false
 for d in "${DOMAINS[@]}"; do
   slug=${d//./-}
+  # Check certificate files
   for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
     docker secret inspect "${slug}-${f}" &>/dev/null || { FORCE_UPLOAD=true; break 2; }
   done
@@ -277,6 +288,7 @@ fi
 # Fetch artefacts & create Swarm secrets
 ###############################################################################
 log "downloading cert artefacts…"
+
 for d in "${renew_domains[@]}"; do
   dest="$STAGING_DIR/$d"; mkdir -p "$dest"
   s3_cert_path="s3://$CERTIFICATE_STORE/$APP_NAME/$RUN_ID/$d/"
@@ -286,6 +298,7 @@ for d in "${renew_domains[@]}"; do
             || fatal "download failed: $d"
   
   log "downloaded certificates for $d, creating Swarm secrets..."
+  # Handle certificate files (excluding password)
   for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
     [[ -f $dest/$f ]] || continue
     sec="${d//./-}-$f-$RUN_ID"
@@ -294,6 +307,7 @@ for d in "${renew_domains[@]}"; do
     NEW_SECRETS["$d/$f"]=$sec
     log "created secret: $sec"
   done
+  
 done
 log "artefacts ready as Swarm secrets"
 
@@ -301,13 +315,17 @@ log "artefacts ready as Swarm secrets"
 # (Optional) hot-swap secrets in target services
 ###############################################################################
 if [[ -n ${SERVICES_BY_DOMAIN:-} && $SERVICES_BY_DOMAIN != "{}" ]]; then
-  jq -e empty <<<"$SERVICES_BY_DOMAIN" \
-    || fatal "SERVICES_BY_DOMAIN not valid JSON"
   log "rotating secrets in services…"
   for d in "${renew_domains[@]}"; do
     mapfile -t svcs < <(jq -r --arg d "$d" '.[$d][]?' <<<"$SERVICES_BY_DOMAIN")
     (( ${#svcs[@]} )) || continue
     for svc in "${svcs[@]}"; do
+      # Check if service exists before attempting to update
+      if ! docker service inspect "$svc" &>/dev/null; then
+        log " ⚠ service $svc does not exist, skipping"
+        continue
+      fi
+      
       docker service update --quiet \
         --secret-rm cert.pem --secret-rm privkey.pem \
         --secret-rm fullchain.pem --secret-rm cert.pfx \
