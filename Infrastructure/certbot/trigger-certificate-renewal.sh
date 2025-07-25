@@ -11,6 +11,63 @@ set -Eeuo pipefail
 shopt -s inherit_errexit
 
 ###############################################################################
+# Parse command line arguments
+###############################################################################
+RENEWAL_ARGS=()
+HELP_REQUESTED=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --force)
+      RENEWAL_ARGS+=("--force")
+      shift
+      ;;
+    --dry-run)
+      RENEWAL_ARGS+=("--dry-run")
+      shift
+      ;;
+    --staging)
+      RENEWAL_ARGS+=("--staging")
+      shift
+      ;;
+    --help|-h)
+      HELP_REQUESTED=true
+      shift
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      HELP_REQUESTED=true
+      shift
+      ;;
+  esac
+done
+
+if [[ $HELP_REQUESTED == true ]]; then
+  cat <<EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  --force     Renew even if certificates are still valid.
+  --dry-run   Skip certbot, S3 and Secrets Manager writes.
+  --staging   Use Let's Encrypt staging environment.
+  --help, -h  Show this help message.
+
+Environment Variables:
+  AWS_SECRET_NAME              - Required: AWS Secrets Manager secret name
+  TIMEOUT_SECONDS             - Optional: Service timeout (default: 300)
+  WORKER_CONSTRAINT           - Optional: Swarm constraint (default: node.role==worker)
+  RENEWAL_THRESHOLD_DAYS      - Optional: Days before renewal (default: 10)
+
+EOF
+  exit 0
+fi
+
+# Log the arguments being passed
+if [[ ${#RENEWAL_ARGS[@]} -gt 0 ]]; then
+  log "Certificate renewal arguments: ${RENEWAL_ARGS[*]}"
+fi
+
+###############################################################################
 # Constants / defaults
 ###############################################################################
 readonly RUN_ID=$(date +%Y%m%d%H%M%S)
@@ -186,6 +243,10 @@ done
 # Run the renewal task
 ###############################################################################
 log "launching renewal service $SERVICE_NAME"
+log "using image: $RENEW_IMAGE"
+if [[ ${#RENEWAL_ARGS[@]} -gt 0 ]]; then
+  log "with arguments: ${RENEWAL_ARGS[*]}"
+fi
 log "See service logs at cert-renew-${RUN_ID}"
 
 service_id=$(docker service create --detach --quiet --with-registry-auth \
@@ -209,7 +270,8 @@ service_id=$(docker service create --detach --quiet --with-registry-auth \
   --log-opt awslogs-group="/aws/ec2/$APP_NAME-certificate-manager" \
   --log-opt awslogs-stream="$SERVICE_NAME" \
   --log-opt awslogs-region="$AWS_REGION" \
-  "$RENEW_IMAGE") || fatal "service create failed"
+  "$RENEW_IMAGE" \
+  ${RENEWAL_ARGS[@]+"${RENEWAL_ARGS[@]}"}) || fatal "service create failed"
 
 ###############################################################################
 # Wait for completion (timeout $TIMEOUT s)
