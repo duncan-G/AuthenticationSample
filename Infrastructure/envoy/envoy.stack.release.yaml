@@ -18,8 +18,8 @@ services:
       - source: envoy_routes
         target: /etc/envoy/discovery/envoy.rds.yaml
     secrets:
-      - source: cert_pem
-        target: /etc/envoy/certs/cert.pem
+      - source: cert_fullchain
+        target: /etc/envoy/certs/fullchain.pem
       - source: cert_key
         target: /etc/envoy/certs/cert.key
     deploy:
@@ -77,8 +77,8 @@ configs:
     external: true
 
 secrets:
-  cert_pem:
-    name: ${CERT_PEM_SECRET_NAME}
+  cert_fullchain:
+    name: ${CERT_FULLCHAIN_SECRET_NAME}
     external: true
   cert_key:
     name: ${CERT_KEY_SECRET_NAME}
