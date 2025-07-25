@@ -166,9 +166,32 @@ certbot_run() {
   $STAGING && args+=(--test-cert)
   $DRY_RUN && args+=(--dry-run)
 
-  log "Running certbot renew with args: ${args[*]}"
+  # If force renewal, delete existing certificates first for a clean slate
+  if [[ ${FORCE:-false} == true ]]; then
+    log "Force renewal requested - removing existing certificates"
+    for domain in "${DOMAINS[@]}"; do
+      if [[ -d "$LETSENCRYPT_DIR/live/$domain" ]]; then
+        if [[ ${DRY_RUN:-false} != true ]]; then
+          log "Deleting existing certificate for $domain"
+          certbot delete --cert-name "$domain" --non-interactive --quiet || {
+            log "Warning: Failed to delete certificate for $domain, continuing..."
+          }
+        else
+          log "Dry-run: would delete certificate for $domain"
+        fi
+      fi
+    done
+    
+    # For force renewal with deletion, use certonly instead of renew
+    for domain in "${DOMAINS[@]}"; do
+      log "Running certbot certonly with args: ${args[*]} -d $domain"
+      certbot certonly "${args[@]}" -d "$domain" || exit 4
+    done
 
-  certbot renew "${args[@]}" || exit 4
+  else
+    log "Running certbot renew with args: ${args[*]}"
+    certbot renew "${args[@]}" || exit 4
+  fi
 }
 
 make_pfx() {
