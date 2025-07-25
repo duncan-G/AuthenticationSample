@@ -47,10 +47,13 @@ if [[ -d $CONFIG_DIR ]]; then
     base_clean=${base//./_}                     # Replace dots with underscores
     cfg_name="${base_clean}_config_${VERSION}"
 
-    log "Creating Docker config '${cfg_name}' from '${full_path}'"
-    docker config inspect "$cfg_name" &>/dev/null && docker config rm "$cfg_name" || true
-    docker config create "$cfg_name" "$full_path" \
-      || err "Failed to create Docker config '${cfg_name}'"
+    if docker config inspect "$cfg_name" &>/dev/null; then
+      log "Docker config '${cfg_name}' already exists for this version, reusing..."
+    else
+      log "Creating Docker config '${cfg_name}' from '${full_path}'"
+      docker config create "$cfg_name" "$full_path" \
+        || err "Failed to create Docker config '${cfg_name}'"
+    fi
   done
   shopt -u nullglob
 else
