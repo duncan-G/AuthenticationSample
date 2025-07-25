@@ -6,8 +6,9 @@ services:
     networks:
       - net
     ports:
-      - "443:443"   # HTTPS Application Service
-      - "80:80"     # HTTP redirect
+      - "443:443"     # HTTPS Application Service
+      - "443:443/udp" # HTTP3
+      - "80:80"       # HTTP redirect
     configs:
       - source: envoy_config
         target: /etc/envoy/envoy.yaml
