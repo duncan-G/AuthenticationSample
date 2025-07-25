@@ -45,6 +45,7 @@ env:
   TF_VAR_bucket_suffix: ${{ secrets.BUCKET_SUFFIX }}
   TF_VAR_certbot_ebs_volume_id: ${{ secrets.CERTBOT_EBS_VOLUME_ID }}
   TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_KEY }}
+  TF_VAR_vercel_root_directory: "Clients/authentication-sample"
   
 permissions:
   contents: read

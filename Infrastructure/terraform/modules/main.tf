@@ -122,6 +122,11 @@ variable "vercel_api_token" {
   sensitive   = true
 }
 
+variable "vercel_root_directory" {
+  description = "Root directory for the Vercel frontend application"
+  type        = string
+}
+
 ########################
 # Data sources
 ########################
