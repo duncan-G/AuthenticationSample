@@ -36,8 +36,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      HELP_REQUESTED=true
-      shift
+      echo "Use --help for usage information." >&2
+      exit 1
       ;;
   esac
 done
