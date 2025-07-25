@@ -166,6 +166,8 @@ certbot_run() {
   $STAGING && args+=(--test-cert)
   $DRY_RUN && args+=(--dry-run)
 
+  log "Running certbot renew with args: ${args[*]}"
+
   certbot renew "${args[@]}" || exit 4
 }
 
