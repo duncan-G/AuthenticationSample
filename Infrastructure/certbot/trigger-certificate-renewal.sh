@@ -43,22 +43,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ $HELP_REQUESTED == true ]]; then
-  cat <<EOF
-Usage: $0 [OPTIONS]
-
-Options:
-  --force     Renew even if certificates are still valid.
-  --dry-run   Skip certbot, S3 and Secrets Manager writes.
-  --staging   Use Let's Encrypt staging environment.
-  --help, -h  Show this help message.
-
-Environment Variables:
-  AWS_SECRET_NAME              - Required: AWS Secrets Manager secret name
-  TIMEOUT_SECONDS             - Optional: Service timeout (default: 300)
-  WORKER_CONSTRAINT           - Optional: Swarm constraint (default: node.role==worker)
-  RENEWAL_THRESHOLD_DAYS      - Optional: Days before renewal (default: 10)
-
-EOF
+  echo "Usage: $0 [OPTIONS]"
+  echo ""
+  echo "Options:"
+  echo "  --force     Renew even if certificates are still valid."
+  echo "  --dry-run   Skip certbot, S3 and Secrets Manager writes."
+  echo "  --staging   Use Let's Encrypt staging environment."
+  echo "  --help, -h  Show this help message."
+  echo ""
+  echo "Environment Variables:"
+  echo "  AWS_SECRET_NAME              - Required: AWS Secrets Manager secret name"
+  echo "  TIMEOUT_SECONDS             - Optional: Service timeout (default: 300)"
+  echo "  WORKER_CONSTRAINT           - Optional: Swarm constraint (default: node.role==worker)"
+  echo "  RENEWAL_THRESHOLD_DAYS      - Optional: Days before renewal (default: 10)"  
+  echo ""
   exit 0
 fi
 
