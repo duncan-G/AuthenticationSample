@@ -34,7 +34,7 @@ jobs:
     with:
       service_name: 'authentication'
       service_path: 'Microservices/Authentication'
-      environment: ${{ github.event.inputs.environment || 'staging' }}
+      environment: ${{ github.event.inputs.environment || 'production' }}
       image_name: '${{ vars.APP_NAME }}/authentication'
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
