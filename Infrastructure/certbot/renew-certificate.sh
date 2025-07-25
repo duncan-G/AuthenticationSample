@@ -183,13 +183,11 @@ certbot_run() {
     done
     
     # For force renewal with deletion, use certonly instead of renew
-    local domain_args=()
     for domain in "${DOMAINS[@]}"; do
-      domain_args+=(-d "$domain")
+      log "Running certbot certonly with args: ${args[*]} -d $domain"
+      certbot certonly "${args[@]}" -d "$domain" || exit 4
     done
-    
-    log "Running certbot certonly with args: ${args[*]} ${domain_args[*]}"
-    certbot certonly "${args[@]}" "${domain_args[@]}" || exit 4
+
   else
     log "Running certbot renew with args: ${args[*]}"
     certbot renew "${args[@]}" || exit 4
