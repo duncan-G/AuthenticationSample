@@ -22,8 +22,7 @@ processors:
 
   batch:
     timeout: 10s
-    send_batch_size: 512
-    send_batch_max_size: 1024
+    send_batch_max_size: 5000
 
 exporters:
   awsxray:
@@ -40,8 +39,18 @@ exporters:
         
   awscloudwatchlogs:
     region: ${AWS_REGION}
+    num_workers: 2
     log_group_name: /aws/otel/application-logs
     log_stream_name: otel-collector
+    sending_queue:
+      enabled: true
+      queue_size: 2048
+    # Safe retries with exponential back‑off
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 1m
+      max_elapsed_time: 10m
 
   debug:
     verbosity: detailed
