@@ -293,6 +293,14 @@ resource "aws_security_group" "instance" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "HTTPS UDP (QUIC/HTTP3)"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Docker Swarm communication within VPC
   ingress {
     description = "Docker Swarm Management"
