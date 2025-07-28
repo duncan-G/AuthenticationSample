@@ -224,13 +224,29 @@ domains_sec=$(make_secret domains_${RUN_ID}       "$SUBDOMAIN_NAMES")
 # Check for missing secrets to determine if force upload is needed
 ###############################################################################
 FORCE_UPLOAD=false
-for d in "${DOMAINS[@]}"; do
-  slug=${d//./-}
-  # Check certificate files
-  for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
-    docker secret inspect "${slug}-${f}" &>/dev/null || { FORCE_UPLOAD=true; break 2; }
+
+# Try to get the latest run ID from S3 to check for existing secrets
+log "checking for existing certificates..."
+latest_run_id_path="s3://$CERTIFICATE_STORE/$APP_NAME/last-renewal-run-id"
+if LATEST_RUN_ID=$(aws s3 cp "$latest_run_id_path" - 2>/dev/null | tr -d '\n'); then
+  log "found existing certificates with run ID: $LATEST_RUN_ID"
+  # Check if secrets with the latest run ID exist
+  for d in "${DOMAINS[@]}"; do
+    slug=${d//./-}
+    # Check certificate files with run ID
+    for f in cert.pem privkey.pem fullchain.pem cert.pfx; do
+      docker secret inspect "${slug}-${f}-${LATEST_RUN_ID}" &>/dev/null || { 
+        log "missing secret: ${slug}-${f}-${LATEST_RUN_ID}"
+        FORCE_UPLOAD=true
+        break 2
+      }
+    done
   done
-done
+  [[ $FORCE_UPLOAD == false ]] && log "all certificate secrets exist"
+else
+  log "no existing certificates found - will force upload"
+  FORCE_UPLOAD=true
+fi
 
 ###############################################################################
 # Run the renewal task
@@ -369,30 +385,60 @@ log "artefacts ready as Swarm secrets"
 ###############################################################################
 # (Optional) hot-swap secrets in target services
 ###############################################################################
-if [[ -n ${SERVICES_BY_DOMAIN:-} && $SERVICES_BY_DOMAIN != "{}" ]]; then
-  log "rotating secrets in services…"
-  for d in "${renew_domains[@]}"; do
-    mapfile -t svcs < <(jq -r --arg d "$d" '.[$d][]?' <<<"$SERVICES_BY_DOMAIN")
-    (( ${#svcs[@]} )) || continue
-    for svc in "${svcs[@]}"; do
-      # Check if service exists before attempting to update
-      if ! docker service inspect "$svc" &>/dev/null; then
-        log " ⚠ service $svc does not exist, skipping"
-        continue
-      fi
-      
-      docker service update --quiet \
-        --secret-rm cert.pem --secret-rm privkey.pem \
-        --secret-rm fullchain.pem --secret-rm cert.pfx \
-        --secret-add source="${NEW_SECRETS[$d/cert.pem]}",target=cert.pem \
-        --secret-add source="${NEW_SECRETS[$d/privkey.pem]}",target=privkey.pem \
-        --secret-add source="${NEW_SECRETS[$d/fullchain.pem]}",target=fullchain.pem \
-        --secret-add source="${NEW_SECRETS[$d/cert.pfx]}",target=cert.pfx \
-        "$svc" || fatal "cannot update $svc"
-      log " ↻ $svc updated"
-    done
-  done
+# Bail out quickly if nothing to do
+if [[ -z ${SERVICES_BY_DOMAIN:-} || $SERVICES_BY_DOMAIN == "{}" ]]; then
+    log "no services defined, skipping secret rotation"
+    exit 0
 fi
+
+for domain in "${renew_domains[@]}"; do
+    # Get the services that belong to this domain
+    mapfile -t services < <(
+        jq -r --arg domain "$domain" '.[$domain][]?' <<<"$SERVICES_BY_DOMAIN"
+    )
+    (( ${#services[@]} )) || continue   # none for this domain
+
+    for service in "${services[@]}"; do
+        # Verify the service exists
+        if ! docker service inspect "$service" &>/dev/null; then
+            log " ⚠ service $service does not exist, skipping"
+            continue
+        fi
+
+        log "finding existing certificate secrets for service $service…"
+
+        # Collect any cert‑related secrets already attached
+        mapfile -t cert_secrets < <(
+            docker service inspect "$service" \
+                --format '{{range .Spec.TaskTemplate.ContainerSpec.Secrets}}{{.SecretName}} {{.File.Name}}{{"\n"}}{{end}}' |
+            awk '$2 ~ /^(cert\.pem|privkey\.pem|fullchain\.pem|cert\.pfx)$/ {print $1}'
+        )
+
+        # Build --secret-rm flags
+        remove_opts=()
+        for secret in "${cert_secrets[@]}"; do
+            [[ -n $secret ]] && remove_opts+=(--secret-rm "$secret")
+        done
+
+        if (( ${#cert_secrets[@]} )); then
+            log " removing old certificate secrets: ${cert_secrets[*]}"
+        else
+            log " no existing certificate secrets found"
+        fi
+        log " adding new certificate secrets for domain $domain"
+
+        # Update the service
+        docker service update --quiet \
+            "${remove_opts[@]}" \
+            --secret-add "source=${NEW_SECRETS[$domain/cert.pem]},target=cert.pem" \
+            --secret-add "source=${NEW_SECRETS[$domain/privkey.pem]},target=privkey.pem" \
+            --secret-add "source=${NEW_SECRETS[$domain/fullchain.pem]},target=fullchain.pem" \
+            --secret-add "source=${NEW_SECRETS[$domain/cert.pfx]},target=cert.pfx" \
+            "$service" || fatal "cannot update $service"
+
+        log " ↻ $service updated"
+    done
+done
 
 ###############################################################################
 # Done

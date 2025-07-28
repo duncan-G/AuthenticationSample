@@ -25,6 +25,11 @@ export default function SignInPage() {
   ]
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0)
 
+  // Set random initial background after hydration to avoid SSR mismatch
+  useEffect(() => {
+    setCurrentBackgroundIndex(Math.floor(Math.random() * backgroundImages.length))
+  }, [backgroundImages.length])
+
   // Randomly transition backgrounds every 8 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -145,16 +150,16 @@ export default function SignInPage() {
         <div
           key={bgImage}
           className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ease-in-out ${
-            index === currentBackgroundIndex ? 'opacity-100' : 'opacity-0'
+            index === currentBackgroundIndex ? 'opacity-100 animate-fade-in-scale' : 'opacity-0'
           }`}
           style={{ backgroundImage: `url(${bgImage})` }}
         />
       ))}
       
       {/* Enhanced overlay with warm gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-stone-900/30 to-black/60 z-10"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-stone-900/30 to-black/60 z-10 animate-stagger-fade-in"></div>
       
-      <div className="w-full max-w-md relative z-20">
+      <div className="w-full max-w-md relative z-20 animate-slide-in-from-bottom">
         <div className="transition-all duration-300 ease-out">
           {renderCurrentFlow()}
         </div>
