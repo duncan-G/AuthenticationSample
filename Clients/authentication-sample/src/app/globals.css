@@ -133,3 +133,5 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Brand-specific sign-in button compliance styles are handled within their dedicated components */

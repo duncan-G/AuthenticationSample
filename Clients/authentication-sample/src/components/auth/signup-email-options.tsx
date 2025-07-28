@@ -1,0 +1,170 @@
+import { useState, useRef, useCallback } from "react"
+import { AlertCircle } from "lucide-react"
+import { AuthCard } from "./auth-card"
+import { AuthButton } from "./auth-button"
+import { AuthHeader } from "./auth-header"
+import { AuthDivider } from "./auth-divider"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { validateEmail } from "@/lib/validation"
+
+interface SignUpEmailOptionsProps {
+  email: string
+  onEmailChange: (email: string) => void
+  onPasswordFlow: () => void
+  onPasswordlessFlow: () => void
+  onBack: () => void
+  isLoading: boolean
+  serverError?: string
+  signupMethod?: "password" | "passwordless"
+}
+
+export function SignUpEmailOptions({
+  email,
+  onEmailChange,
+  onPasswordFlow,
+  onPasswordlessFlow,
+  onBack,
+  isLoading,
+  serverError: _serverError, // Reserved for future server error handling
+  signupMethod
+}: SignUpEmailOptionsProps) {
+  void _serverError // Reserved for future server error handling
+  
+  const [emailError, setEmailError] = useState<string>("")
+  const [showError, setShowError] = useState<boolean>(false)
+  const isUserTypingRef = useRef<boolean>(false)
+
+  const handleEmailChange = (newEmail: string) => {
+    onEmailChange(newEmail)
+    isUserTypingRef.current = true
+    
+    // Clear errors when user starts typing
+    if (showError) {
+      setShowError(false)
+      setEmailError("")
+    }
+  }
+
+  const validateAndProceed = useCallback((action: () => void) => {
+    if (!email.trim()) {
+      setEmailError("Email address is required")
+      setShowError(true)
+      return
+    }
+    
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address")
+      setShowError(true)
+      return
+    }
+    
+    // Clear any errors and proceed
+    setEmailError("")
+    setShowError(false)
+    action()
+  }, [email])
+
+  const getTitle = () => {
+    switch (signupMethod) {
+      case "password":
+        return "Create account with password"
+      case "passwordless":
+        return "Create passwordless account"
+      default:
+        return "Create your account"
+    }
+  }
+
+  const getButtonText = () => {
+    switch (signupMethod) {
+      case "password":
+        return isLoading ? "Creating account..." : "Continue"
+      case "passwordless":
+        return isLoading ? "Sending verification..." : "Send verification email"
+      default:
+        return isLoading ? "Creating account..." : "Create Account"
+    }
+  }
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (signupMethod === "passwordless") {
+      validateAndProceed(onPasswordlessFlow)
+    } else {
+      validateAndProceed(onPasswordFlow)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-md mx-auto">
+      <AuthHeader
+        title={getTitle()}
+        showBackButton
+        onBack={onBack}
+      />
+
+      <AuthCard>
+        <form onSubmit={handleFormSubmit} noValidate>
+          <div className="space-y-3 mb-6">
+            <Label htmlFor="email" className="text-stone-100 font-medium text-base">
+              Email address
+            </Label>
+            
+            <Input
+              id="email"
+              type="email"
+              placeholder="Enter your email address"
+              value={email}
+              onChange={(e) => handleEmailChange(e.target.value)}
+              onKeyDown={(e) => { 
+                isUserTypingRef.current = true
+                // Allow form submission on Enter
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleFormSubmit(e)
+                }
+              }}
+              onFocus={() => { isUserTypingRef.current = true }}
+              autoFocus
+              required
+              className="h-12 bg-stone-900/70 border-2 border-stone-700/50 text-stone-50 placeholder:text-stone-400/60 focus:border-stone-500/90 focus:ring-stone-500/30 rounded-lg text-base transition-all duration-200"
+            />
+            
+            {/* Reserved space for error message - prevents layout shift */}
+            <div className="h-6 flex items-center">
+              {showError && emailError && (
+                <div className="flex items-center space-x-2 text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{emailError}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <AuthButton
+            type="submit"
+            disabled={!email || isLoading}
+          >
+            {getButtonText()}
+          </AuthButton>
+        </form>
+
+        {/* Only show alternative option if no specific method was chosen */}
+        {!signupMethod && (
+          <>
+            <AuthDivider text="or" />
+
+            <AuthButton
+              variant="secondary"
+              onClick={() => validateAndProceed(onPasswordlessFlow)}
+              disabled={!email || isLoading}
+            >
+              Send verification email
+            </AuthButton>
+          </>
+        )}
+      </AuthCard>
+    </div>
+  )
+} 
