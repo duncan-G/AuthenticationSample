@@ -22,12 +22,8 @@ export default function SignUpPage() {
     "/images/auth-background-05.png",
     "/images/auth-background-06.png",
   ]
-  const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0)
-
-  // Set random initial background after hydration to avoid SSR mismatch
-  useEffect(() => {
-    setCurrentBackgroundIndex(Math.floor(Math.random() * backgroundImages.length))
-  }, [backgroundImages.length])
+  // Start with third image for sign-up page (deterministic for SSR, different from sign-in)
+  const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(2)
 
   // Randomly transition backgrounds every 8 seconds
   useEffect(() => {

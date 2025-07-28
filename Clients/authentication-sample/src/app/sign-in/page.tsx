@@ -23,12 +23,8 @@ export default function SignInPage() {
     "/images/auth-background-05.png",
     "/images/auth-background-06.png",
   ]
+  // Start with first image for sign-in page (deterministic for SSR)
   const [currentBackgroundIndex, setCurrentBackgroundIndex] = useState(0)
-
-  // Set random initial background after hydration to avoid SSR mismatch
-  useEffect(() => {
-    setCurrentBackgroundIndex(Math.floor(Math.random() * backgroundImages.length))
-  }, [backgroundImages.length])
 
   // Randomly transition backgrounds every 8 seconds
   useEffect(() => {
