@@ -9,10 +9,10 @@ on:
         required: true
         type: string
       environment:
-        description: Target environment (service‑staging / service‑production)
+        description: Target environment (staging / production)
         required: true
         type: string
-        default: service-production
+        default: production
       service_path:
         description: Path to the microservice directory
         required: true
