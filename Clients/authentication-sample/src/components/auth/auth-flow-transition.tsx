@@ -11,19 +11,18 @@ interface AuthFlowTransitionProps {
 export function AuthFlowTransition({ 
   children, 
   flowKey, 
-  direction: _direction = "forward", // Reserved for future animation direction logic
+  direction = "forward",
   isLoading = false,
   className = "" 
 }: AuthFlowTransitionProps) {
-  void _direction // Reserved for future animation direction logic
   
   return (
     <div 
       key={flowKey}
       className={`
-        ${isLoading ? 'pointer-events-none opacity-75' : ''}
+        ${isLoading ? 'pointer-events-none opacity-75 transition-opacity duration-200' : ''}
         ${className}
-      `}
+      `.trim()}
     >
       {children}
     </div>
