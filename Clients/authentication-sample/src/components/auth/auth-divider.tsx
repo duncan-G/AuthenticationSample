@@ -9,7 +9,7 @@ export function AuthDivider({ text = "OR" }: AuthDividerProps) {
         <div className="w-full border-t border-stone-600/40"></div>
       </div>
       <div className="relative flex justify-center">
-        <span className="bg-gradient-to-r from-stone-950/60 to-stone-800/50 px-6 py-2 text-sm font-medium text-stone-300/80 rounded-full border border-stone-600/30">
+        <span className="relative z-10 bg-stone-900 px-6 py-2 text-sm font-medium text-stone-300/80 rounded-full border border-stone-600/30">
           {text}
         </span>
       </div>
