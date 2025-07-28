@@ -40,7 +40,7 @@ export default function SignUpPage() {
   }, [backgroundImages.length])
 
   // Helper to determine transition direction based on flow navigation
-  const getFlowDirection = (currentFlow: string): "forward" | "backward" => {
+  const getFlowDirection = (): "forward" | "backward" => {
     // For now, we'll handle back navigation in the individual components
     // This could be enhanced with a flow history state if needed
     return "forward"
@@ -52,7 +52,7 @@ export default function SignUpPage() {
         return (
           <AuthFlowTransition 
             flowKey="signup-main" 
-            direction={getFlowDirection("signup-main")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <MainSignUp
@@ -68,7 +68,7 @@ export default function SignUpPage() {
         return (
           <AuthFlowTransition 
             flowKey="signup-email-options" 
-            direction={getFlowDirection("signup-email-options")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <SignUpEmailOptions
@@ -86,7 +86,7 @@ export default function SignUpPage() {
         return (
           <AuthFlowTransition 
             flowKey="signup-password" 
-            direction={getFlowDirection("signup-password")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <SignUpPassword
@@ -105,7 +105,7 @@ export default function SignUpPage() {
         return (
           <AuthFlowTransition 
             flowKey="signup-passwordless" 
-            direction={getFlowDirection("signup-passwordless")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <SignUpPasswordless
@@ -131,7 +131,7 @@ export default function SignUpPage() {
     if (auth.currentFlow === "main" || !auth.currentFlow.startsWith("signup")) {
       auth.setCurrentFlow("signup-main")
     }
-  }, [])
+  }, [auth])
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">

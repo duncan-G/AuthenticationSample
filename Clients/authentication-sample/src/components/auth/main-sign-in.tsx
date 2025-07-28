@@ -77,7 +77,7 @@ export function MainSignIn({
       {/* Sign-up link */}
       <div className="text-center mt-6">
         <p className="text-stone-300/80 text-sm">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <a 
             href="/sign-up"
             className="text-amber-200/90 hover:text-amber-100 underline font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-1"

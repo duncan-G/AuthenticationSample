@@ -89,7 +89,7 @@ export function SignUpPasswordless({
             Verification email sent
           </h3>
           <p className="text-stone-300/80 text-sm leading-relaxed">
-            We've sent a verification code to{" "}
+            We&apos;ve sent a verification code to{" "}
             <span className="text-stone-200 font-medium">{email}</span>
           </p>
         </div>

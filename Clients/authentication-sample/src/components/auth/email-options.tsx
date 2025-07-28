@@ -107,11 +107,11 @@ export function EmailOptions({
     lastEmailChangeRef.current = email
   }, [email, onPasswordFlow, validateAndProceed])
 
-  // Method to set server validation errors
-  const setServerError = (error: string) => {
-    setEmailError(error)
-    setShowError(true)
-  }
+  // Method to set server validation errors (reserved for future use)
+  // const setServerError = (error: string) => {
+  //   setEmailError(error)
+  //   setShowError(true)
+  // }
 
   return (
     <div className="w-full max-w-md mx-auto">

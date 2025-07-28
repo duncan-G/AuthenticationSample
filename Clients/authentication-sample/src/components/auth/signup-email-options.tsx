@@ -26,9 +26,11 @@ export function SignUpEmailOptions({
   onPasswordlessFlow,
   onBack,
   isLoading,
-  serverError,
+  serverError: _serverError, // Reserved for future server error handling
   signupMethod
 }: SignUpEmailOptionsProps) {
+  void _serverError // Reserved for future server error handling
+  
   const [emailError, setEmailError] = useState<string>("")
   const [showError, setShowError] = useState<boolean>(false)
   const isUserTypingRef = useRef<boolean>(false)

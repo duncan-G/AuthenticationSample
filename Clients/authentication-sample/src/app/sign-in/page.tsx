@@ -41,7 +41,7 @@ export default function SignInPage() {
   }, [backgroundImages.length])
 
   // Helper to determine transition direction based on flow navigation
-  const getFlowDirection = (currentFlow: string): "forward" | "backward" => {
+  const getFlowDirection = (): "forward" | "backward" => {
     // For now, we'll handle back navigation in the individual components
     // This could be enhanced with a flow history state if needed
     return "forward"
@@ -53,7 +53,7 @@ export default function SignInPage() {
         return (
           <AuthFlowTransition 
             flowKey="main" 
-            direction={getFlowDirection("main")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <MainSignIn
@@ -68,7 +68,7 @@ export default function SignInPage() {
         return (
           <AuthFlowTransition 
             flowKey="email-options" 
-            direction={getFlowDirection("email-options")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <EmailOptions
@@ -85,7 +85,7 @@ export default function SignInPage() {
         return (
           <AuthFlowTransition 
             flowKey="password" 
-            direction={getFlowDirection("password")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <PasswordSignIn
@@ -103,7 +103,7 @@ export default function SignInPage() {
         return (
           <AuthFlowTransition 
             flowKey="passwordless" 
-            direction={getFlowDirection("passwordless")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <PasswordlessSignIn
@@ -121,7 +121,7 @@ export default function SignInPage() {
         return (
           <AuthFlowTransition 
             flowKey="passkey" 
-            direction={getFlowDirection("passkey")}
+            direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
             <PasskeySignIn

@@ -11,10 +11,12 @@ interface AuthFlowTransitionProps {
 export function AuthFlowTransition({ 
   children, 
   flowKey, 
-  direction = "forward",
+  direction: _direction = "forward", // Reserved for future animation direction logic
   isLoading = false,
   className = "" 
 }: AuthFlowTransitionProps) {
+  void _direction // Reserved for future animation direction logic
+  
   return (
     <div 
       key={flowKey}

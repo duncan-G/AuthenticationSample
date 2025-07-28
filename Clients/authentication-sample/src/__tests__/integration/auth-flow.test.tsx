@@ -2,6 +2,7 @@ import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useAuth } from '@/hooks/useAuth'
+import { AuthFlow } from '@/types/auth'
 import { MainSignIn } from '@/components/auth/main-sign-in'
 import { MainSignUp } from '@/components/auth/main-sign-up'
 import { SignUpEmailOptions } from '@/components/auth/signup-email-options'
@@ -18,7 +19,7 @@ function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string 
   
   // Set the initial flow immediately
   React.useEffect(() => {
-    auth.setCurrentFlow(initialFlow as any)
+    auth.setCurrentFlow(initialFlow as AuthFlow)
   }, [initialFlow, auth])
 
   const renderCurrentFlow = () => {

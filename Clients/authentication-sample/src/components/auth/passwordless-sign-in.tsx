@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { AuthCard } from "./auth-card"
 import { AuthButton } from "./auth-button"
 import { AuthHeader } from "./auth-header"

@@ -44,11 +44,11 @@ describe('validation utilities', () => {
     })
 
     it('should handle edge cases', () => {
-      expect(validateEmail(null as any)).toBe(false)
-      expect(validateEmail(undefined as any)).toBe(false)
-      expect(validateEmail(123 as any)).toBe(false)
-      expect(validateEmail({} as any)).toBe(false)
-      expect(validateEmail([] as any)).toBe(false)
+      expect(validateEmail(null as unknown as string)).toBe(false)
+      expect(validateEmail(undefined as unknown as string)).toBe(false)
+      expect(validateEmail(123 as unknown as string)).toBe(false)
+      expect(validateEmail({} as unknown as string)).toBe(false)
+      expect(validateEmail([] as unknown as string)).toBe(false)
     })
   })
 
@@ -110,9 +110,9 @@ describe('validation utilities', () => {
 
     it('should handle edge cases', () => {
       expect(validatePassword('')).toBe(false)
-      expect(validatePassword(null as any)).toBe(false)
-      expect(validatePassword(undefined as any)).toBe(false)
-      expect(validatePassword(123 as any)).toBe(false)
+      expect(validatePassword(null as unknown as string)).toBe(false)
+      expect(validatePassword(undefined as unknown as string)).toBe(false)
+      expect(validatePassword(123 as unknown as string)).toBe(false)
     })
   })
 

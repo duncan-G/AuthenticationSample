@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react"
 import { AuthCard } from "./auth-card"
 import { AuthButton } from "./auth-button"
 import { AuthHeader } from "./auth-header"
-import { AuthDivider } from "./auth-divider"
+// import { AuthDivider } from "./auth-divider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { validatePassword, validatePasswordConfirmation, getPasswordErrors } from "@/lib/validation"
@@ -73,7 +73,7 @@ export function SignUpPassword({
     }
   }
 
-  const isFormValid = validatePassword(password) && validatePasswordConfirmation(password, passwordConfirmation)
+  // const isFormValid = validatePassword(password) && validatePasswordConfirmation(password, passwordConfirmation)
 
   return (
     <div className="w-full max-w-md mx-auto">
