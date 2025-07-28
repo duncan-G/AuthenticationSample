@@ -408,9 +408,11 @@ for domain in "${renew_domains[@]}"; do
         log "finding existing certificate secrets for service $service…"
 
         # Collect any cert‑related secrets already attached
+        # Build the format string to avoid Terraform interpolation conflicts  
+        format_string='{{range .Spec.TaskTemplate.ContainerSpec.Secrets}}{{.SecretName}} {{.File.Name}}{{"\\n"}}{{'"end"'}}'
         mapfile -t cert_secrets < <(
             docker service inspect "$service" \
-                --format '{{range .Spec.TaskTemplate.ContainerSpec.Secrets}}{{.SecretName}} {{.File.Name}}{{"\n"}}{{end}}' |
+                --format "$format_string" |
             awk '$2 ~ /^(cert\.pem|privkey\.pem|fullchain\.pem|cert\.pfx)$/ {print $1}'
         )
 
