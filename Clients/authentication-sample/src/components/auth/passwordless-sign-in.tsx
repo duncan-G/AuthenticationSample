@@ -112,7 +112,7 @@ export function PasswordlessSignIn({
         {/* Resend code link with timeout */}
         <div className="text-center mt-6">
           <p className="text-stone-300/80 text-sm">
-            Didn't receive the code?{" "}
+            Didn&apos;t receive the code?{" "}
             {resendCooldown > 0 ? (
               <span className="text-stone-400/60">
                 Resend in {resendCooldown}s
