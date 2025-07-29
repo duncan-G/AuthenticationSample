@@ -136,19 +136,19 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background images with smooth transitions - extended for mobile bounce effect */}
+      {/* Background images with smooth transitions */}
       {backgroundImages.map((bgImage, index) => (
         <div
           key={bgImage}
-          className={`absolute -top-20 -bottom-20 -left-4 -right-4 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ease-in-out ${
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ease-in-out ${
             index === currentBackgroundIndex ? 'opacity-100' : 'opacity-0'
           }`}
           style={{ backgroundImage: `url(${bgImage})` }}
         />
       ))}
 
-      {/* Enhanced overlay with warm gradient - extended for mobile bounce effect */}
-      <div className="absolute -top-20 -bottom-20 -left-4 -right-4 bg-gradient-to-br from-black/70 via-stone-900/30 to-black/60 z-10"></div>
+      {/* Enhanced overlay with warm gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-stone-900/30 to-black/60 z-10"></div>
 
       <div className="w-full max-w-md relative z-20 animate-slide-in-from-bottom">
         <div className="transition-all duration-300 ease-out">

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import { AuthCard } from "./auth-card"
 import { AuthButton } from "./auth-button"
 import { AuthHeader } from "./auth-header"
-import { AuthDivider } from "./auth-divider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Mail, Check } from "lucide-react"
@@ -110,18 +109,26 @@ export function PasswordlessSignIn({
           </AuthButton>
         </form>
 
-        <AuthDivider text="or" />
-
-        <AuthButton
-          variant="secondary"
-          onClick={handleResendClick}
-          disabled={resendCooldown > 0 || isLoading}
-        >
-          {resendCooldown > 0 
-            ? `Resend code (${resendCooldown}s)` 
-            : isLoading ? "Sending..." : "Resend Code"
-          }
-        </AuthButton>
+        {/* Resend code link with timeout */}
+        <div className="text-center mt-6">
+          <p className="text-stone-300/80 text-sm">
+            Didn't receive the code?{" "}
+            {resendCooldown > 0 ? (
+              <span className="text-stone-400/60">
+                Resend in {resendCooldown}s
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResendClick}
+                disabled={isLoading}
+                className="text-stone-200 hover:text-stone-100 underline underline-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? "Sending..." : "Resend code"}
+              </button>
+            )}
+          </p>
+        </div>
         
         {/* Reserved space for success message - prevents layout shift */}
         <div className="h-6 mt-4 flex items-center justify-center">
