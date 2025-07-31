@@ -178,8 +178,9 @@ data "aws_ecr_repository" "certbot" {
 ########################
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
+  cidr_block                       = "10.0.0.0/16"
+  assign_generated_ipv6_cidr_block = true
+  enable_dns_hostnames             = true
   tags = {
     Name = "${var.app_name}-vpc"
   }
@@ -193,10 +194,12 @@ resource "aws_internet_gateway" "igw" {
 }
 
 resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  map_public_ip_on_launch = true
-  availability_zone       = data.aws_availability_zones.available.names[0]
+  vpc_id                          = aws_vpc.main.id
+  cidr_block                      = "10.0.1.0/24"
+  ipv6_cidr_block                 = cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, 1)
+  map_public_ip_on_launch         = true
+  assign_ipv6_address_on_creation = true
+  availability_zone               = data.aws_availability_zones.available.names[0]
   tags = {
     Name = "${var.app_name}-public-subnet"
   }
@@ -218,6 +221,11 @@ resource "aws_route_table" "public" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
+  }
+
+  route {
+    ipv6_cidr_block = "::/0"
+    gateway_id      = aws_internet_gateway.igw.id
   }
 
   tags = {
@@ -277,74 +285,101 @@ resource "aws_security_group" "instance" {
   description = "Allow HTTP, HTTPS, and Docker Swarm communication"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS UDP (QUIC/HTTP3)"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Docker Swarm communication within VPC
-  ingress {
-    description = "Docker Swarm Management"
-    from_port   = 2377
-    to_port     = 2377
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Docker Swarm Node Communication TCP"
-    from_port   = 7946
-    to_port     = 7946
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Docker Swarm Node Communication UDP"
-    from_port   = 7946
-    to_port     = 7946
-    protocol    = "udp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Docker Overlay Network"
-    from_port   = 4789
-    to_port     = 4789
-    protocol    = "udp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  egress {
-    description = "All outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags = {
     Name = "${var.app_name}-instance-sg"
   }
+}
+
+# HTTP ingress rule (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_http_ingress" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "HTTP"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
+}
+
+# HTTPS TCP ingress rule (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_https_tcp_ingress" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "HTTPS TCP"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
+}
+
+# HTTPS UDP ingress rule (QUIC/HTTP3) (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_https_udp_ingress" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "HTTPS UDP (QUIC/HTTP3)"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "udp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
+}
+
+# Docker Swarm Management
+resource "aws_security_group_rule" "instance_docker_swarm_mgmt" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Swarm Management"
+  from_port         = 2377
+  to_port           = 2377
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# Docker Swarm Node Communication TCP
+resource "aws_security_group_rule" "instance_docker_swarm_tcp" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Swarm Node Communication TCP"
+  from_port         = 7946
+  to_port           = 7946
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# Docker Swarm Node Communication UDP
+resource "aws_security_group_rule" "instance_docker_swarm_udp" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Swarm Node Communication UDP"
+  from_port         = 7946
+  to_port           = 7946
+  protocol          = "udp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# Docker Overlay Network
+resource "aws_security_group_rule" "instance_docker_overlay" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Overlay Network"
+  from_port         = 4789
+  to_port           = 4789
+  protocol          = "udp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# All outbound traffic (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_all_egress" {
+  type              = "egress"
+  security_group_id = aws_security_group.instance.id
+  description       = "All outbound traffic"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
 }
 
 ########################
@@ -612,6 +647,7 @@ resource "aws_instance" "public" {
   instance_type               = var.public_instance_type
   subnet_id                   = aws_subnet.public.id
   associate_public_ip_address = true
+  ipv6_address_count          = 1
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
 
@@ -625,7 +661,8 @@ resource "aws_instance" "public" {
     aws_iam_instance_profile.public_instance_profile,
     aws_iam_role_policy_attachment.public_session_manager,
     aws_iam_role_policy_attachment.public_cloudwatch_agent,
-    aws_iam_role_policy_attachment.public_worker_core
+    aws_iam_role_policy_attachment.public_worker_core,
+    aws_subnet.public # Ensure subnet IPv6 configuration is ready
   ]
 }
 
@@ -660,6 +697,11 @@ resource "aws_instance" "private" {
 output "public_instance_ip" {
   value       = aws_instance.public.public_ip
   description = "Public IP of the public subnet instance"
+}
+
+output "public_instance_ipv6" {
+  value       = aws_instance.public.ipv6_addresses
+  description = "IPv6 addresses of the public subnet instance"
 }
 
 output "private_instance_ip" {
