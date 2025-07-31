@@ -662,7 +662,7 @@ resource "aws_instance" "public" {
     aws_iam_role_policy_attachment.public_session_manager,
     aws_iam_role_policy_attachment.public_cloudwatch_agent,
     aws_iam_role_policy_attachment.public_worker_core,
-    aws_subnet.public  # Ensure subnet IPv6 configuration is ready
+    aws_subnet.public # Ensure subnet IPv6 configuration is ready
   ]
 }
 
