@@ -193,11 +193,6 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-# IPv6 CIDR block for VPC (AWS will automatically assign one)
-resource "aws_vpc_ipv6_cidr_block" "main" {
-  vpc_id = aws_vpc.main.id
-}
-
 resource "aws_subnet" "public" {
   vpc_id                          = aws_vpc.main.id
   cidr_block                      = "10.0.1.0/24"
@@ -208,8 +203,6 @@ resource "aws_subnet" "public" {
   tags = {
     Name = "${var.app_name}-public-subnet"
   }
-  
-  depends_on = [aws_vpc_ipv6_cidr_block.main]
 }
 
 resource "aws_subnet" "private" {
@@ -292,106 +285,101 @@ resource "aws_security_group" "instance" {
   description = "Allow HTTP, HTTPS, and Docker Swarm communication"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description = "HTTP IPv4"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description      = "HTTP IPv6"
-    from_port        = 80
-    to_port          = 80
-    protocol         = "tcp"
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description = "HTTPS IPv4"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description      = "HTTPS IPv6"
-    from_port        = 443
-    to_port          = 443
-    protocol         = "tcp"
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description = "HTTPS UDP (QUIC/HTTP3) IPv4"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description      = "HTTPS UDP (QUIC/HTTP3) IPv6"
-    from_port        = 443
-    to_port          = 443
-    protocol         = "udp"
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  # Docker Swarm communication within VPC
-  ingress {
-    description = "Docker Swarm Management"
-    from_port   = 2377
-    to_port     = 2377
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Docker Swarm Node Communication TCP"
-    from_port   = 7946
-    to_port     = 7946
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Docker Swarm Node Communication UDP"
-    from_port   = 7946
-    to_port     = 7946
-    protocol    = "udp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    description = "Docker Overlay Network"
-    from_port   = 4789
-    to_port     = 4789
-    protocol    = "udp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  egress {
-    description = "All outbound IPv4"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description      = "All outbound IPv6"
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
   tags = {
     Name = "${var.app_name}-instance-sg"
   }
+}
+
+# HTTP ingress rule (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_http_ingress" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "HTTP"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
+}
+
+# HTTPS TCP ingress rule (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_https_tcp_ingress" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "HTTPS TCP"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
+}
+
+# HTTPS UDP ingress rule (QUIC/HTTP3) (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_https_udp_ingress" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "HTTPS UDP (QUIC/HTTP3)"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "udp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
+}
+
+# Docker Swarm Management
+resource "aws_security_group_rule" "instance_docker_swarm_mgmt" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Swarm Management"
+  from_port         = 2377
+  to_port           = 2377
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# Docker Swarm Node Communication TCP
+resource "aws_security_group_rule" "instance_docker_swarm_tcp" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Swarm Node Communication TCP"
+  from_port         = 7946
+  to_port           = 7946
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# Docker Swarm Node Communication UDP
+resource "aws_security_group_rule" "instance_docker_swarm_udp" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Swarm Node Communication UDP"
+  from_port         = 7946
+  to_port           = 7946
+  protocol          = "udp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# Docker Overlay Network
+resource "aws_security_group_rule" "instance_docker_overlay" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  description       = "Docker Overlay Network"
+  from_port         = 4789
+  to_port           = 4789
+  protocol          = "udp"
+  cidr_blocks       = ["10.0.0.0/16"]
+}
+
+# All outbound traffic (IPv4 + IPv6)
+resource "aws_security_group_rule" "instance_all_egress" {
+  type              = "egress"
+  security_group_id = aws_security_group.instance.id
+  description       = "All outbound traffic"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  ipv6_cidr_blocks  = ["::/0"]
 }
 
 ########################
