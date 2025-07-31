@@ -178,8 +178,9 @@ data "aws_ecr_repository" "certbot" {
 ########################
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
+  cidr_block                       = "10.0.0.0/16"
+  assign_generated_ipv6_cidr_block = true
+  enable_dns_hostnames             = true
   tags = {
     Name = "${var.app_name}-vpc"
   }
@@ -192,14 +193,23 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
+# IPv6 CIDR block for VPC (AWS will automatically assign one)
+resource "aws_vpc_ipv6_cidr_block" "main" {
+  vpc_id = aws_vpc.main.id
+}
+
 resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  map_public_ip_on_launch = true
-  availability_zone       = data.aws_availability_zones.available.names[0]
+  vpc_id                          = aws_vpc.main.id
+  cidr_block                      = "10.0.1.0/24"
+  ipv6_cidr_block                 = cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, 1)
+  map_public_ip_on_launch         = true
+  assign_ipv6_address_on_creation = true
+  availability_zone               = data.aws_availability_zones.available.names[0]
   tags = {
     Name = "${var.app_name}-public-subnet"
   }
+  
+  depends_on = [aws_vpc_ipv6_cidr_block.main]
 }
 
 resource "aws_subnet" "private" {
@@ -218,6 +228,11 @@ resource "aws_route_table" "public" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
+  }
+
+  route {
+    ipv6_cidr_block = "::/0"
+    gateway_id      = aws_internet_gateway.igw.id
   }
 
   tags = {
@@ -278,7 +293,7 @@ resource "aws_security_group" "instance" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP"
+    description = "HTTP IPv4"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -286,7 +301,15 @@ resource "aws_security_group" "instance" {
   }
 
   ingress {
-    description = "HTTPS"
+    description      = "HTTP IPv6"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description = "HTTPS IPv4"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -294,11 +317,27 @@ resource "aws_security_group" "instance" {
   }
 
   ingress {
-    description = "HTTPS UDP (QUIC/HTTP3)"
+    description      = "HTTPS IPv6"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description = "HTTPS UDP (QUIC/HTTP3) IPv4"
     from_port   = 443
     to_port     = 443
     protocol    = "udp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description      = "HTTPS UDP (QUIC/HTTP3) IPv6"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "udp"
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   # Docker Swarm communication within VPC
@@ -335,11 +374,19 @@ resource "aws_security_group" "instance" {
   }
 
   egress {
-    description = "All outbound"
+    description = "All outbound IPv4"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description      = "All outbound IPv6"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   tags = {
@@ -612,6 +659,7 @@ resource "aws_instance" "public" {
   instance_type               = var.public_instance_type
   subnet_id                   = aws_subnet.public.id
   associate_public_ip_address = true
+  ipv6_address_count          = 1
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.public_instance_profile.name
 
@@ -625,7 +673,8 @@ resource "aws_instance" "public" {
     aws_iam_instance_profile.public_instance_profile,
     aws_iam_role_policy_attachment.public_session_manager,
     aws_iam_role_policy_attachment.public_cloudwatch_agent,
-    aws_iam_role_policy_attachment.public_worker_core
+    aws_iam_role_policy_attachment.public_worker_core,
+    aws_subnet.public  # Ensure subnet IPv6 configuration is ready
   ]
 }
 
@@ -660,6 +709,11 @@ resource "aws_instance" "private" {
 output "public_instance_ip" {
   value       = aws_instance.public.public_ip
   description = "Public IP of the public subnet instance"
+}
+
+output "public_instance_ipv6" {
+  value       = aws_instance.public.ipv6_addresses
+  description = "IPv6 addresses of the public subnet instance"
 }
 
 output "private_instance_ip" {
