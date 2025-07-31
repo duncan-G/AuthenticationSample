@@ -3,7 +3,6 @@ import { Mail, CheckCircle2 } from "lucide-react"
 import { AuthCard } from "./auth-card"
 import { AuthButton } from "./auth-button"
 import { AuthHeader } from "./auth-header"
-import { AuthDivider } from "./auth-divider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -119,18 +118,26 @@ export function SignUpPasswordless({
           </AuthButton>
         </form>
 
-        <AuthDivider text="or" />
-
-        <AuthButton
-          variant="secondary"
-          onClick={handleResend}
-          disabled={resendCooldown > 0 || isLoading}
-        >
-          {resendCooldown > 0 
-            ? `Resend code (${resendCooldown}s)` 
-            : "Resend Code"
-          }
-        </AuthButton>
+        {/* Resend code link with timeout */}
+        <div className="text-center mt-6">
+          <p className="text-stone-300/80 text-sm">
+            Didn&apos;t receive the code?{" "}
+            {resendCooldown > 0 ? (
+              <span className="text-stone-400/60">
+                Resend in {resendCooldown}s
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={isLoading}
+                className="text-stone-200 hover:text-stone-100 underline underline-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? "Sending..." : "Resend code"}
+              </button>
+            )}
+          </p>
+        </div>
       </AuthCard>
     </div>
   )
