@@ -1,28 +1,8 @@
 ########################
-# CloudWatch Resources for OpenTelemetry
+# IAM Resources for OpenTelemetry
 ########################
 
-# CloudWatch Log Group for OpenTelemetry Application Logs
-resource "aws_cloudwatch_log_group" "otel_application_logs" {
-  name              = "/aws/otel/application-logs"
-  retention_in_days = 30
 
-  tags = {
-    Name        = "${var.app_name}-otel-application-logs"
-    Environment = var.environment
-  }
-}
-
-# CloudWatch Log Group for OpenTelemetry Collector Logs
-resource "aws_cloudwatch_log_group" "otel_collector_logs" {
-  name              = "/aws/otel/collector"
-  retention_in_days = 14
-
-  tags = {
-    Name        = "${var.app_name}-otel-collector-logs"
-    Environment = var.environment
-  }
-}
 
 # IAM Role for OpenTelemetry Collector
 resource "aws_iam_role" "otel_collector_role" {
@@ -44,13 +24,14 @@ resource "aws_iam_role" "otel_collector_role" {
   tags = {
     Name        = "${var.app_name}-otel-collector-role"
     Environment = var.environment
+    Purpose     = "OpenTelemetry Collector IAM Role"
   }
 }
 
 # IAM Policy for OpenTelemetry Collector CloudWatch Access
 resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
   name        = "${var.app_name}-otel-collector-cloudwatch-policy"
-  description = "Policy for OpenTelemetry Collector to write to CloudWatch"
+  description = "Policy for OpenTelemetry Collector to create and write to CloudWatch log groups"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -65,10 +46,8 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
           "logs:DescribeLogStreams"
         ]
         Resource = [
-          aws_cloudwatch_log_group.otel_application_logs.arn,
-          "${aws_cloudwatch_log_group.otel_application_logs.arn}:*",
-          aws_cloudwatch_log_group.otel_collector_logs.arn,
-          "${aws_cloudwatch_log_group.otel_collector_logs.arn}:*"
+          "arn:aws:logs:*:*:log-group:/aws/otel/*",
+          "arn:aws:logs:*:*:log-group:/aws/otel/*:*"
         ]
       },
       {
@@ -79,7 +58,7 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
         Resource = "*"
         Condition = {
           StringEquals = {
-            "cloudwatch:namespace" = "AuthenticationSample/OpenTelemetry"
+            "cloudwatch:namespace" = "${var.app_name}/OpenTelemetry"
           }
         }
       }
@@ -89,6 +68,7 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
   tags = {
     Name        = "${var.app_name}-otel-collector-cloudwatch-policy"
     Environment = var.environment
+    Purpose     = "OpenTelemetry CloudWatch Permissions"
   }
 }
 
@@ -114,7 +94,9 @@ resource "aws_iam_policy" "otel_collector_xray_policy" {
   tags = {
     Name        = "${var.app_name}-otel-collector-xray-policy"
     Environment = var.environment
+    Purpose     = "OpenTelemetry X-Ray Permissions"
   }
+
 }
 
 # Attach CloudWatch policy to role
@@ -137,16 +119,18 @@ resource "aws_iam_instance_profile" "otel_collector_instance_profile" {
   tags = {
     Name        = "${var.app_name}-otel-collector-instance-profile"
     Environment = var.environment
+    Purpose     = "OpenTelemetry Collector Instance Profile"
   }
 }
 
-# Update the existing instance profile to include OpenTelemetry permissions
+# Update the existing private instance role to include OpenTelemetry permissions
 resource "aws_iam_role_policy_attachment" "private_instance_otel_cloudwatch_attachment" {
-  role       = aws_iam_role.private_instance_role.name
+  role       = aws_iam_role.private.name
   policy_arn = aws_iam_policy.otel_collector_cloudwatch_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "private_instance_otel_xray_attachment" {
-  role       = aws_iam_role.private_instance_role.name
+  role       = aws_iam_role.private.name
   policy_arn = aws_iam_policy.otel_collector_xray_policy.arn
+} 
 } 

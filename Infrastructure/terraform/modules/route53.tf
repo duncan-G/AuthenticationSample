@@ -8,27 +8,27 @@ locals {
   hosted_zone_name = data.aws_route53_zone.existing.name
 }
 
-# A record for the main domain pointing to the public instance
+# A record for the main domain pointing to the first public worker instance
 resource "aws_route53_record" "main_domain" {
   zone_id = local.hosted_zone_id
   name    = var.domain_name
   type    = "A"
   ttl     = "300"
 
-  records = [aws_instance.public.public_ip]
+  records = [aws_instance.public_workers[0].public_ip]
 }
 
-# AAAA record for the main domain pointing to the public instance (IPv6)
+# AAAA record for the main domain pointing to the first public worker instance (IPv6)
 resource "aws_route53_record" "main_domain_ipv6" {
   zone_id = local.hosted_zone_id
   name    = var.domain_name
   type    = "AAAA"
   ttl     = "300"
 
-  records = aws_instance.public.ipv6_addresses
+  records = aws_instance.public_workers[0].ipv6_addresses
 }
 
-# A records for each subdomain pointing to the public instance
+# A records for each subdomain pointing to the first public worker instance
 resource "aws_route53_record" "subdomains" {
   for_each = toset(var.subdomains)
 
@@ -37,10 +37,10 @@ resource "aws_route53_record" "subdomains" {
   type    = "A"
   ttl     = "300"
 
-  records = [aws_instance.public.public_ip]
+  records = [aws_instance.public_workers[0].public_ip]
 }
 
-# AAAA records for each subdomain pointing to the public instance (IPv6)
+# AAAA records for each subdomain pointing to the first public worker instance (IPv6)
 resource "aws_route53_record" "subdomains_ipv6" {
   for_each = toset(var.subdomains)
 
@@ -49,7 +49,7 @@ resource "aws_route53_record" "subdomains_ipv6" {
   type    = "AAAA"
   ttl     = "300"
 
-  records = aws_instance.public.ipv6_addresses
+  records = aws_instance.public_workers[0].ipv6_addresses
 }
 
 # CNAME record for www subdomain (optional)

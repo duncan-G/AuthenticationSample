@@ -67,7 +67,7 @@ resource "aws_iam_policy" "ssl_certificates_bucket_access_policy" {
 
 # Attach SSL certificate bucket policy to public instance role
 resource "aws_iam_role_policy_attachment" "public_ssl_certificates_bucket_access" {
-  role       = aws_iam_role.public_instance_role.name
+  role       = aws_iam_role.public.name
   policy_arn = aws_iam_policy.ssl_certificates_bucket_access_policy.arn
 }
 
@@ -101,7 +101,7 @@ resource "aws_iam_policy" "ssl_certificates_bucket_readonly_policy" {
 
 # Attach SSL certificate bucket read-only policy to private instance role
 resource "aws_iam_role_policy_attachment" "private_ssl_certificates_bucket_readonly" {
-  role       = aws_iam_role.private_instance_role.name
+  role       = aws_iam_role.private.name
   policy_arn = aws_iam_policy.ssl_certificates_bucket_readonly_policy.arn
 }
 
@@ -148,7 +148,7 @@ resource "aws_iam_policy" "certbot_route53_dns_challenge_policy" {
 
 # Attach certbot Route53 DNS challenge policy to public instance role
 resource "aws_iam_role_policy_attachment" "public_certbot_route53_dns_challenge" {
-  role       = aws_iam_role.public_instance_role.name
+  role       = aws_iam_role.public.name
   policy_arn = aws_iam_policy.certbot_route53_dns_challenge_policy.arn
 }
 
@@ -239,7 +239,7 @@ resource "aws_iam_policy" "ebs_volume_access" {
 
 # Attach EBS volume access policy to public instance role
 resource "aws_iam_role_policy_attachment" "public_ebs_volume_access" {
-  role       = aws_iam_role.public_instance_role.name
+  role       = aws_iam_role.public.name
   policy_arn = aws_iam_policy.ebs_volume_access.arn
 }
 

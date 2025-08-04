@@ -2,57 +2,10 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "EC2DataSources",
+      "Sid": "EC2FullAccess",
       "Effect": "Allow",
       "Action": [
-        "ec2:DescribeAvailabilityZones",
-        "ec2:DescribeImages",
-        "ec2:DescribeRegions"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "EC2ReadOperations",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:Describe*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "EC2WriteOperations",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:Create*",
-        "ec2:Delete*",
-        "ec2:Attach*",
-        "ec2:Detach*",
-        "ec2:Modify*",
-        "ec2:Associate*",
-        "ec2:Disassociate*",
-        "ec2:RunInstances",
-        "ec2:TerminateInstances",
-        "ec2:StartInstances",
-        "ec2:StopInstances",
-        "ec2:Revoke*",
-        "ec2:Authorize*"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "VPCManagement",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:Describe*",
-        "ec2:Create*",
-        "ec2:Delete*",
-        "ec2:Modify*",
-        "ec2:AllocateAddress",
-        "ec2:ReleaseAddress",
-        "ec2:AssociateAddress",
-        "ec2:DisassociateAddress",
-        "ec2:AcceptVpcPeeringConnection",
-        "ec2:RejectVpcPeeringConnection"
+        "ec2:*"
       ],
       "Resource": "*"
     },
@@ -60,20 +13,7 @@
       "Sid": "SSMParameterManagement",
       "Effect": "Allow",
       "Action": [
-        "ssm:PutParameter",
-        "ssm:GetParameter",
-        "ssm:GetParameters",
-        "ssm:DeleteParameter",
-        "ssm:DeleteParameters",
-        "ssm:CreateDocument",
-        "ssm:UpdateDocument",
-        "ssm:DeleteDocument",
-        "ssm:DescribeDocument",
-        "ssm:ListDocuments",
-        "ssm:GetDocument",
-        "ssm:AddTagsToResource",
-        "ssm:DescribeDocumentPermission",
-        "ssm:UpdateDocumentDefaultVersion"
+        "ssm:*"
       ],
       "Resource": [
         "arn:aws:ssm:*:*:parameter/docker/swarm/*",
@@ -81,27 +21,11 @@
       ]
     },
     {
-      "Sid": "SSMParameterDiscovery",
+      "Sid": "SSMDiscovery",
       "Effect": "Allow",
       "Action": [
         "ssm:DescribeParameters",
         "ssm:GetParametersByPath"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "SSMAssociationManagement",
-      "Effect": "Allow",
-      "Action": [
-        "ssm:CreateAssociation",
-        "ssm:UpdateAssociation",
-        "ssm:DeleteAssociation",
-        "ssm:DescribeAssociation",
-        "ssm:ListAssociations",
-        "ssm:ListTagsForResource",
-        "ssm:GetAutomationExecution",
-        "ssm:StartAutomationExecution",
-        "ssm:StopAutomationExecution"
       ],
       "Resource": "*"
     },
@@ -184,19 +108,7 @@
       "Sid": "CloudWatchLogsPermissions",
       "Effect": "Allow",
       "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-        "logs:DescribeLogGroups",
-        "logs:DescribeLogStreams",
-        "logs:DeleteLogGroup",
-        "logs:DeleteLogStream",
-        "logs:PutRetentionPolicy",
-        "logs:DeleteRetentionPolicy",
-        "logs:GetLogEvents",
-        "logs:FilterLogEvents",
-        "logs:TagResource",
-        "logs:ListTagsForResource"
+        "logs:*"
       ],
       "Resource": "*"
     },
@@ -204,16 +116,7 @@
       "Sid": "Route53Permissions",
       "Effect": "Allow",
       "Action": [
-        "route53:CreateHostedZone",
-        "route53:DeleteHostedZone",
-        "route53:GetHostedZone",
-        "route53:ListHostedZones",
-        "route53:ListHostedZonesByName",
-        "route53:ChangeResourceRecordSets",
-        "route53:GetChange",
-        "route53:ListResourceRecordSets",
-        "route53:ListTagsForResource",
-        "route53:ListTagsForResources"
+        "route53:*"
       ],
       "Resource": "*"
     },
@@ -221,15 +124,7 @@
       "Sid": "ECRPermissions",
       "Effect": "Allow",
       "Action": [
-        "ecr:Create*",
-        "ecr:Delete*",
-        "ecr:Describe*",
-        "ecr:List*",
-        "ecr:Tag*",
-        "ecr:Untag*",
-        "ecr:Get*",
-        "ecr:Set*",
-        "ecr:Put*"
+        "ecr:*"
       ],
       "Resource": [
         "arn:aws:ecr:*:${AWS_ACCOUNT_ID}:repository/${APP_NAME}/*"
@@ -239,23 +134,7 @@
       "Sid": "SSOAdminPermissions",
       "Effect": "Allow",
       "Action": [
-        "sso:CreatePermissionSet",
-        "sso:DeletePermissionSet",
-        "sso:DescribePermissionSet",
-        "sso:ListPermissionSets",
-        "sso:ProvisionPermissionSet",
-        "sso:PutInlinePolicyToPermissionSet",
-        "sso:DeleteInlinePolicyFromPermissionSet",
-        "sso:GetInlinePolicyForPermissionSet",
-        "sso:AttachManagedPolicyToPermissionSet",
-        "sso:DetachManagedPolicyFromPermissionSet",
-        "sso:ListManagedPoliciesInPermissionSet",
-        "sso:TagResource",
-        "sso:UntagResource",
-        "sso:ListTagsForResource",
-        "sso:ListInstances",
-        "sso:DescribeInstance",
-        "sso:DescribePermissionSetProvisioningStatus"
+        "sso:*"
       ],
       "Resource": "*"
     },
@@ -263,11 +142,7 @@
       "Sid": "SSOIdentityStoreGroupPermissions",
       "Effect": "Allow",
       "Action": [
-        "identitystore:CreateGroup",
-        "identitystore:DeleteGroup",
-        "identitystore:DescribeGroup",
-        "identitystore:ListGroups",
-        "identitystore:UpdateGroup"
+        "identitystore:*"
       ],
       "Resource": "*"
     },
@@ -290,21 +165,22 @@
       "Sid": "SecretsManagerPermissions",
       "Effect": "Allow",
       "Action": [
-        "secretsmanager:CreateSecret",
-        "secretsmanager:DeleteSecret",
-        "secretsmanager:DescribeSecret",
-        "secretsmanager:GetSecretValue",
-        "secretsmanager:UpdateSecretVersionStage",
-        "secretsmanager:ListSecrets",
-        "secretsmanager:TagResource",
-        "secretsmanager:UntagResource",
-        "secretsmanager:ListSecretVersionIds",
-        "secretsmanager:GetResourcePolicy",
-        "secretsmanager:PutResourcePolicy",
-        "secretsmanager:DeleteResourcePolicy"
+        "secretsmanager:*"
       ],
       "Resource": [
         "arn:aws:secretsmanager:*:${AWS_ACCOUNT_ID}:secret:${APP_NAME}-secrets-development*"
+      ]
+    },
+    {
+      "Sid": "CognitoPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:*",
+        "cognito-identity:*"
+      ],
+      "Resource": [
+        "arn:aws:cognito-idp:*:${AWS_ACCOUNT_ID}:userpool/*",
+        "arn:aws:cognito-identity:*:${AWS_ACCOUNT_ID}:identitypool/*"
       ]
     }
   ]

@@ -8,7 +8,7 @@ resource "aws_ssm_document" "docker_manager_setup" {
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Bootstrap Docker Swarm manager with CloudWatch logging"
+    description   = "Bootstrap Docker Swarm manager"
     mainSteps = [{
       name   = "RunManagerSetup"
       action = "aws:runShellScript"
@@ -159,7 +159,7 @@ resource "aws_ssm_document" "docker_worker_setup" {
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Bootstrap Docker Swarm worker with CloudWatch logging"
+    description   = "Bootstrap Docker Swarm worker"
     mainSteps = [{
       name   = "RunWorkerSetup"
       action = "aws:runShellScript"
@@ -190,7 +190,7 @@ resource "aws_ssm_document" "docker_worker_setup" {
   }
 }
 
-# CloudWatch Agent Setup SSM Document for Manager
+# CloudWatch Agent Setup SSM Document for Manager (Logs Only)
 resource "aws_ssm_document" "cloudwatch_agent_setup_manager" {
   name            = "${var.app_name}-cloudwatch-agent-setup-manager"
   document_type   = "Command"
@@ -198,7 +198,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_manager" {
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Install and configure CloudWatch agent for manager"
+    description   = "Install and configure CloudWatch agent for manager (logs only)"
     mainSteps = [{
       name   = "InstallCloudWatchAgent"
       action = "aws:runShellScript"
@@ -225,7 +225,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_manager" {
   }
 }
 
-# CloudWatch Agent Setup SSM Document for Worker
+# CloudWatch Agent Setup SSM Document for Worker (Logs Only)
 resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
   name            = "${var.app_name}-cloudwatch-agent-setup-worker"
   document_type   = "Command"
@@ -233,7 +233,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
 
   content = jsonencode({
     schemaVersion = "2.2"
-    description   = "Install and configure CloudWatch agent for worker"
+    description   = "Install and configure CloudWatch agent for worker (logs only)"
     mainSteps = [{
       name   = "InstallCloudWatchAgent"
       action = "aws:runShellScript"
@@ -261,7 +261,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
 }
 
 # SSM Associations for Manager Instance
-# First: Install CloudWatch agent
+# First: Install CloudWatch agent (logs only)
 resource "aws_ssm_association" "cloudwatch_agent_manager" {
   name = aws_ssm_document.cloudwatch_agent_setup_manager.name
 
@@ -298,7 +298,7 @@ resource "aws_ssm_association" "certificate_manager_setup" {
 }
 
 # SSM Associations for Worker Instance
-# First: Install CloudWatch agent
+# First: Install CloudWatch agent (logs only)
 resource "aws_ssm_association" "cloudwatch_agent_worker" {
   name = aws_ssm_document.cloudwatch_agent_setup_worker.name
 

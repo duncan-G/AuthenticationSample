@@ -42,7 +42,7 @@ resource "aws_iam_policy" "github_actions_certbot_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRGetAuthorizationToken"
+        Sid    = "ECRAuthorizationToken"
         Effect = "Allow"
         Action = [
           "ecr:GetAuthorizationToken"
@@ -62,8 +62,7 @@ resource "aws_iam_policy" "github_actions_certbot_policy" {
           "ecr:PutImage"
         ]
         Resource = [
-          "arn:aws:ecr:*:*:repository/${var.app_name}*",
-          "arn:aws:ecr:*:*:repository/${var.app_name}/certbot"
+          "arn:aws:ecr:*:*:repository/${var.app_name}*"
         ]
       },
       {
