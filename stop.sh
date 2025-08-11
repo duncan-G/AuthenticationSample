@@ -6,7 +6,7 @@
 # Purpose:
 #   This script is a simple entry point for stopping the development environment.
 #   It delegates execution to the main script located at:
-#     Scripts/development/stop.sh
+#     scripts/development/stop.sh
 #
 # Usage:
 #   ./stop.sh [options]
@@ -14,4 +14,4 @@
 # ------------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-"$SCRIPT_DIR/Scripts/development/stop.sh" "$@"
+"$SCRIPT_DIR/scripts/development/stop.sh" "$@"

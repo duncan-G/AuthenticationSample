@@ -6,7 +6,7 @@
 # Purpose:
 #   This script is a simple entry point for setting up the development environment.
 #   It delegates execution to the main script located at:
-#     Scripts/development/setup.sh
+#     scripts/development/setup.sh
 #
 # Usage:
 #   ./setup.sh [options]
@@ -14,4 +14,4 @@
 # ------------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-"$SCRIPT_DIR/Scripts/development/setup.sh" "$@"
+"$SCRIPT_DIR/scripts/development/setup.sh" "$@"

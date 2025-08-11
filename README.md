@@ -36,9 +36,9 @@ cd AuthenticationSample
 ```bash
 # Copy and configure environment files
 cp .env.template .env
-cp Microservices/Authentication/src/Authentication.Grpc/.env.template Microservices/Authentication/src/Authentication.Grpc/.env
-cp Microservices/Authentication/src/Authentication.Grpc/.env.docker.template Microservices/Authentication/src/Authentication.Grpc/.env.docker
-cp Clients/authentication-sample/.env.docker.template Clients/authentication-sample/.env.docker
+cp microservices/Authentication/src/Authentication.Grpc/.env.template microservices/Authentication/src/Authentication.Grpc/.env
+cp microservices/Authentication/src/Authentication.Grpc/.env.docker.template microservices/Authentication/src/Authentication.Grpc/.env.docker
+cp clients/authentication-sample/.env.docker.template clients/authentication-sample/.env.docker
 
 # Edit all .env files with your configuration values
 ```

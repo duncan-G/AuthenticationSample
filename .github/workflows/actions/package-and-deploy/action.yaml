@@ -1,0 +1,115 @@
+name: "Package and deploy via CodeDeploy"
+description: "Create tarball, upload to S3, trigger CodeDeploy, and wait"
+inputs:
+  service_name: { required: true }
+  environment:  { required: true }
+  app_name:     { required: true }
+  image_uri:
+    required: false
+    default: ""
+  version:      { required: true }
+  aws_region:   { required: true }
+  s3_bucket:    { required: true }
+  stack_file:
+    default: "service.stack.release.yaml"
+  stack_file_path:
+    description: "Optional absolute or repo-relative path to the stack file; when set, copied and renamed to 'stack_file' in staging."
+    default: ""
+  configs_dir:
+    description: "Optional directory of config files to include and template (YAML only)."
+    default: ""
+outputs:
+  deployment_id:
+    value: ${{ steps.deploy.outputs.id }}
+runs:
+  using: "composite"
+  steps:
+    - name: Build deployment package
+      id: pkg
+      shell: bash
+      run: |
+        set -euo pipefail
+        TS="$(date +%Y%m%d-%H%M%S)"
+        echo "ts=$TS" >> "$GITHUB_OUTPUT"
+
+        mkdir -p staging/scripts
+        cp Infrastructure/codedeploy/appspec.yml  staging/
+        cp -r Infrastructure/codedeploy/scripts/* staging/scripts/
+
+        # Determine stack file source and destination name
+        if [[ -n "${{ inputs.stack_file_path }}" ]]; then
+          cp "${{ inputs.stack_file_path }}" "staging/${{ inputs.stack_file }}"
+        else
+          cp "Microservices/.builds/${{ inputs.stack_file }}" "staging/${{ inputs.stack_file }}"
+        fi
+
+        export SERVICE_NAME="${{ inputs.service_name }}"
+        export ENVIRONMENT="${{ inputs.environment }}"
+        export IMAGE_URI="${{ inputs.image_uri }}"
+        export APP_NAME="${{ inputs.app_name }}"
+        export VERSION="${{ inputs.version }}"
+        export AWS_REGION="${{ inputs.aws_region }}"
+        export STACK_FILE="${{ inputs.stack_file }}"
+
+        envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
+        mv staging/scripts/env.sh.tmp staging/scripts/env.sh
+        chmod +x staging/scripts/env.sh
+
+        # Dynamically build sed args so IMAGE_URI is optional
+        declare -a sed_args
+        if [[ -n "$IMAGE_URI" ]]; then
+          sed_args+=( -e "s|\\$IMAGE_URI|$IMAGE_URI|g" )
+        fi
+        sed_args+=( -e "s|\${VERSION}|$VERSION|g" )
+        sed_args+=( -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" )
+        sed_args+=( -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" )
+        sed_args+=( -e "s|\${AWS_REGION}|$AWS_REGION|g" )
+        sed -i "${sed_args[@]}" "staging/${{ inputs.stack_file }}"
+
+        # Optionally include and template a configs directory (excluding the stack file itself)
+        if [[ -n "${{ inputs.configs_dir }}" && -d "${{ inputs.configs_dir }}" ]]; then
+          mkdir -p staging/configs
+          stack_base_name="$(basename "${{ inputs.stack_file_path }}")"
+          find "${{ inputs.configs_dir }}" -type f \( -name '*.yml' -o -name '*.yaml' \) | while read -r f; do
+            base="$(basename "$f")"
+            if [[ -n "$stack_base_name" && "$base" == "$stack_base_name" ]]; then
+              continue
+            fi
+            cp "$f" staging/configs/
+          done
+
+          if compgen -G "staging/configs/*" > /dev/null; then
+            find staging/configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
+              -e "s|\${AWS_REGION}|$AWS_REGION|g" \
+              -e "s|\${VERSION}|$VERSION|g" \
+              -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" {} +
+          fi
+        fi
+
+        tar -czf deployment-package.tar.gz -C staging .
+
+    - name: Upload to S3
+      shell: bash
+      run: |
+        set -euo pipefail
+        aws s3 cp deployment-package.tar.gz \
+          "s3://${{ inputs.s3_bucket }}/deployments/${{ inputs.service_name }}/${{ inputs.environment }}/deployment-${{ steps.pkg.outputs.ts }}.tar.gz"
+
+    - name: Trigger CodeDeploy
+      id: deploy
+      shell: bash
+      run: |
+        set -euo pipefail
+        DEPLOY_ID=$(aws deploy create-deployment \
+          --application-name "${{ inputs.app_name }}-${{ inputs.service_name }}-${{ inputs.environment }}" \
+          --deployment-group-name "${{ inputs.app_name }}-${{ inputs.service_name }}-${{ inputs.environment }}-deployment-group" \
+          --s3-location bucket=${{ inputs.s3_bucket }},key=deployments/${{ inputs.service_name }}/${{ inputs.environment }}/deployment-${{ steps.pkg.outputs.ts }}.tar.gz,bundleType=tgz \
+          --description "Deploy ${{ inputs.service_name }} to ${{ inputs.environment }}" \
+          --query deploymentId --output text)
+        echo "id=$DEPLOY_ID" >> "$GITHUB_OUTPUT"
+
+    - name: Wait for completion
+      shell: bash
+      run: |
+        set -euo pipefail
+        aws deploy wait deployment-successful --deployment-id "${{ steps.deploy.outputs.id }}"

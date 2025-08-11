@@ -1,0 +1,42 @@
+name: '{{ PASCALCASE_SERVICE_NAME }} Service Deployment'
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: 'production'
+
+  # Automatic trigger on service changes
+  push:
+    branches: [ main ]
+    paths:
+      - 'Microservices/{{ PASCALCASE_SERVICE_NAME }}/**'
+      - '.github/workflows/{{ SERVICE_NAME }}-service.yml'
+
+env:
+  SERVICE_NAME: '{{ SERVICE_NAME }}'
+  
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: 'Deploy {{ PASCALCASE_SERVICE_NAME }} Service'
+    uses: ./.github/workflows/deploy-dotnet-microservice.yml
+    with:
+      service_name: '{{ SERVICE_NAME }}'
+      service_path: 'Microservices/{{ PASCALCASE_SERVICE_NAME }}'
+      environment: ${{ github.event.inputs.environment || 'production' }}
+      image_name: '${{ vars.APP_NAME }}/{{ SERVICE_NAME }}'
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }}
+      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.APP_NAME }}/{{ SERVICE_NAME }}'

@@ -1,0 +1,121 @@
+name: Deploy Microservice
+
+on:
+  workflow_call:
+    inputs:
+
+      service_name:
+        description: Name of the microservice to deploy
+        required: true
+        type: string
+
+      environment:
+        description: Target environment
+        required: true
+        type: string
+        default: production
+
+      service_path:
+        description: Path to the microservice directory
+        required: true
+        type: string
+        default: ''
+
+      image_name:
+        description: Image name to use
+        required: true
+        type: string
+        default: ''
+
+    secrets:
+      AWS_ACCOUNT_ID: { required: true }
+      DEPLOYMENT_BUCKET: { required: true }
+      ECR_REPOSITORY: { required: true }
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.service_name }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.service_name }}-${{ inputs.environment }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive variables
+        id: vars
+        shell: bash
+        run: |
+          APP_NAME="${{ vars.APP_NAME }}"
+          if [ -z "$APP_NAME" ]; then
+            echo "::error ::Org/Repo variable APP_NAME is not set"
+            exit 1
+          fi
+
+          AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}"
+          if [ -z "$AWS_REGION" ]; then
+            echo "::error ::AWS_REGION variable is not set"
+            exit 1
+          fi
+
+          SHORT_SHA="${GITHUB_SHA::8}"
+          echo "app_name=$APP_NAME"        >> "$GITHUB_OUTPUT"
+          echo "build_tag=$SHORT_SHA"      >> "$GITHUB_OUTPUT"
+          echo "image_uri=${{ secrets.ECR_REPOSITORY }}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "aws_region=$AWS_REGION"  >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-role-codedeploy
+          role-session-name: gha-codedeploy-${{ github.run_id }}
+          aws-region: ${{ steps.vars.outputs.aws_region }}
+
+      - name: Build & push image
+        uses: ./.github/actions/build-and-push-dotnet
+        with:
+          context:        ${{ inputs.service_path }}
+          ecr_repository: ${{ secrets.ECR_REPOSITORY }}
+          build_tag:      ${{ steps.vars.outputs.build_tag }}
+          dotnet_version: "9.0.x"
+
+      - name: Package & deploy
+        id: deploy
+        uses: ./.github/actions/package-and-deploy
+        with:
+          service_name: ${{ inputs.service_name }}
+          environment:  ${{ inputs.environment }}
+          app_name:     ${{ steps.vars.outputs.app_name }}
+          image_uri:    ${{ steps.vars.outputs.image_uri }}
+          version:      ${{ steps.vars.outputs.build_tag }}
+          aws_region:   ${{ steps.vars.outputs.aws_region }}
+          s3_bucket:    ${{ secrets.DEPLOYMENT_BUCKET }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Microservice Deployment Summary"  >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**:      ${{ inputs.service_name }}"     >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**:  ${{ inputs.environment }}"      >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**:        ${{ steps.vars.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Tag**:    ${{ steps.vars.outputs.build_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment ID**: ${{ steps.deploy.outputs.deployment_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**:      ${{ github.event_name }}"       >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**:       ${{ github.sha }}"              >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**:    $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "- **Status**: ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ❌ Deployment failed"     >> $GITHUB_STEP_SUMMARY
+          fi

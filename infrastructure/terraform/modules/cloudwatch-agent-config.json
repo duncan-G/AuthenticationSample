@@ -1,0 +1,67 @@
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/docker-manager-setup.log",
+            "log_group_name": "/aws/ec2/${project_name}-docker-manager",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/docker-worker-setup.log",
+            "log_group_name": "/aws/ec2/${project_name}-docker-worker",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          
+          {
+            "file_path": "/tmp/docker-manager-setup.status",
+            "log_group_name": "/aws/ec2/${project_name}-docker-manager",
+            "log_stream_name": "{instance_id}-status",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/tmp/docker-worker-setup.status",
+            "log_group_name": "/aws/ec2/${project_name}-docker-worker",
+            "log_stream_name": "{instance_id}-status",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/home/ec2-user/.ecr/log/*.log",
+            "log_group_name": "/aws/ec2/${project_name}-ecr-cred-helper",
+            "log_stream_name": "{instance_id}-cred-helper",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/aws/codedeploy-agent/codedeploy-agent.log",
+            "log_group_name": "/aws/codedeploy/${project_name}-authentication-${environment}",
+            "log_stream_name": "{instance_id}-agent",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/aws/codedeploy-agent/codedeploy-agent.log",
+            "log_group_name": "/aws/codedeploy/${project_name}-envoy-${environment}",
+            "log_stream_name": "{instance_id}-agent",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/opt/codedeploy-agent/deployment-root/*/deployment-archive/logs/scripts.log",
+            "log_group_name": "/aws/codedeploy/${project_name}-authentication-${environment}",
+            "log_stream_name": "{instance_id}-scripts",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/opt/codedeploy-agent/deployment-root/*/deployment-archive/logs/scripts.log",
+            "log_group_name": "/aws/codedeploy/${project_name}-envoy-${environment}",
+            "log_stream_name": "{instance_id}-scripts",
+            "timezone": "UTC"
+          }
+        ]
+      }
+    }
+  }
+} 

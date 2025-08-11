@@ -6,7 +6,7 @@
 # Purpose:
 #   This script is a simple entry point for installing dependencies for the
 #   development environment. It delegates execution to the main script located at:
-#     Scripts/development/install.sh
+#     scripts/development/install.sh
 #
 # Usage:
 #   ./install.sh [options]
@@ -14,4 +14,4 @@
 # ------------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-"$SCRIPT_DIR/Scripts/development/install.sh" "$@"
+"$SCRIPT_DIR/scripts/development/install.sh" "$@"
