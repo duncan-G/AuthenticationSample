@@ -1,12 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AuthenticationSample.Api.Cors;
+namespace AuthSample.Api.Cors;
 
 public static class CorsExtensions
 {
     public const string CorsPolicyName = "AllowClient";
 
-    public static IServiceCollection AddAuthenticationSampleCors(
+    public static IServiceCollection AddAuthSampleCors(
         this IServiceCollection services,
         Action<CorsOptions> configureOptions)
     {

@@ -3,7 +3,7 @@ using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace AuthenticationSample.Infrastructure;
+namespace AuthSample.Infrastructure;
 
 /// <summary>
 ///     Extension methods for configuring AWS options

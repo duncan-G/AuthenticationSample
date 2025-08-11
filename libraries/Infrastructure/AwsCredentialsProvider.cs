@@ -3,7 +3,7 @@ using Amazon.Extensions.NETCore.Setup;
 using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 
-namespace AuthenticationSample.Infrastructure;
+namespace AuthSample.Infrastructure;
 
 /// <summary>
 ///     Provides AWS credentials for application infrastructure services

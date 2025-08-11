@@ -1,4 +1,4 @@
-namespace AuthenticationSample.Api.Secrets;
+namespace AuthSample.Api.Secrets;
 
 public sealed class SecretsManagerOptions
 {

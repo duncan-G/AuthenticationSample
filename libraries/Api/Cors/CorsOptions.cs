@@ -1,4 +1,4 @@
-namespace AuthenticationSample.Api.Cors;
+namespace AuthSample.Api.Cors;
 
 public record CorsOptions
 {

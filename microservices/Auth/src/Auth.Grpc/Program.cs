@@ -1,8 +1,8 @@
-using AuthenticationSample.Api.Cors;
-using AuthenticationSample.Api.Secrets;
-using AuthenticationSample.Authentication.Grpc.Services;
-using AuthenticationSample.Infrastructure;
-using AuthenticationSample.Logging;
+using AuthSample.Api.Cors;
+using AuthSample.Api.Secrets;
+using AuthSample.Auth.Grpc.Services;
+using AuthSample.Infrastructure;
+using AuthSample.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +12,7 @@ var awsOptions = builder.AddAwsOptions("AuthSample-AuthService");
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-    .AddEnvironmentVariables("Authentication_")
+    .AddEnvironmentVariables("Auth_")
     .AddSecretsManager(
         awsOptions,
         options => builder.Configuration.GetSection("Secrets").Bind(options));
@@ -26,7 +26,7 @@ builder.Services.AddGrpc();
 // Add CORS policy
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddAuthenticationSampleCors(options => builder.Configuration.GetSection("Cors").Bind(options));
+    builder.Services.AddAuthSampleCors(options => builder.Configuration.GetSection("Cors").Bind(options));
 }
 
 // Add health checks

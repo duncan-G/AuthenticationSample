@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
-        <RootNamespace>AuthenticationSample.Authentication.UnitTests</RootNamespace>
+        <RootNamespace>AuthSample.Auth.IntegrationTests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

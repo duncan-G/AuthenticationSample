@@ -1,6 +1,6 @@
 using OpenTelemetry.Exporter;
 
-namespace AuthenticationSample.Logging;
+namespace AuthSample.Logging;
 
 public class LoggingOptions
 {

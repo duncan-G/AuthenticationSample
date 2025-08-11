@@ -4,21 +4,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D0D920DF-B6E
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F9446962-6147-483E-B261-9E6BEBB1F626}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.Grpc", "src\Authentication.Grpc\Authentication.Grpc.csproj", "{8AEC190A-95D7-49E7-A5E1-98F82712FA0B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.Grpc", "src\Auth.Grpc\Auth.Grpc.csproj", "{8AEC190A-95D7-49E7-A5E1-98F82712FA0B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.Core", "src\Authentication.Core\Authentication.Core.csproj", "{C4A86C69-E442-49F1-87F7-2B1D97590EFD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.Core", "src\Auth.Core\Auth.Core.csproj", "{C4A86C69-E442-49F1-87F7-2B1D97590EFD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.Infrastructure", "src\Authentication.Infrastructure\Authentication.Infrastructure.csproj", "{98DA3283-3499-4820-95C4-537BECD3D674}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.Infrastructure", "src\Auth.Infrastructure\Auth.Infrastructure.csproj", "{98DA3283-3499-4820-95C4-537BECD3D674}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.UnitTests", "tests\Authentication.UnitTests\Authentication.UnitTests.csproj", "{A3048E23-249C-40F5-957F-CD79116E4CE6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.UnitTests", "tests\Auth.UnitTests\Auth.UnitTests.csproj", "{A3048E23-249C-40F5-957F-CD79116E4CE6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.IntegrationTests", "tests\Authentication.IntegrationTests\Authentication.IntegrationTests.csproj", "{6E77C544-DEFA-4F1D-9E23-694A4DF4E9BA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.IntegrationTests", "tests\Auth.IntegrationTests\Auth.IntegrationTests.csproj", "{6E77C544-DEFA-4F1D-9E23-694A4DF4E9BA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libraries", "libraries", "{40D54F45-125A-4C06-84E1-71C46C0F677C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication", "..\..\libraries\Authentication\Authentication.csproj", "{F5709DBB-90D6-4944-B8DC-E6C1A6780932}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication.SchemaBuilder", "src\Authentication.SchemaBuilder\Authentication.SchemaBuilder.csproj", "{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.SchemaBuilder", "src\Auth.SchemaBuilder\Auth.SchemaBuilder.csproj", "{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{55CAEFE5-AC55-4769-823D-1DFCE45F77C5}"
 EndProject

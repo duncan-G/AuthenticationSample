@@ -7,7 +7,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
-namespace AuthenticationSample.Logging;
+namespace AuthSample.Logging;
 
 public static class LoggingApplicationBuilderExtensions
 {
@@ -80,7 +80,7 @@ public static class LoggingApplicationBuilderExtensions
                     traceBuilder.AddAWSInstrumentation();
                 }
 
-                traceBuilder.AddSource("AuthenticationSample.*");
+                traceBuilder.AddSource("AuthSample.*");
                 traceBuilder.AddSource(options.AdditionalTraceSources);
             })
             .WithMetrics(metricsBuilder =>
@@ -102,7 +102,7 @@ public static class LoggingApplicationBuilderExtensions
                     metricsBuilder.AddAWSInstrumentation();
                 }
 
-                metricsBuilder.AddMeter("AuthenticationSample.*");
+                metricsBuilder.AddMeter("AuthSample.*");
                 metricsBuilder.AddMeter(options.AdditionalMeters);
             })
             .WithLogging();

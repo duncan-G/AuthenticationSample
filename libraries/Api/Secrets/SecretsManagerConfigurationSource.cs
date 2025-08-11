@@ -1,7 +1,7 @@
 using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.Configuration;
 
-namespace AuthenticationSample.Api.Secrets;
+namespace AuthSample.Api.Secrets;
 
 internal sealed class SecretsManagerConfigurationSource(
     AWSOptions awsOptions,

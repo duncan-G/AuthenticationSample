@@ -4,7 +4,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>AuthenticationSample.Api</RootNamespace>
+        <RootNamespace>AuthSample.Api</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

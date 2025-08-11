@@ -2,7 +2,7 @@ using FluentValidation;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
-namespace AuthenticationSample.Api.Validation;
+namespace AuthSample.Api.Validation;
 
 public sealed class ValidationInterceptor(IServiceProvider serviceProvider) : Interceptor
 {
@@ -14,13 +14,13 @@ public sealed class ValidationInterceptor(IServiceProvider serviceProvider) : In
         // Try to get a validator for the TRequest type
         if (serviceProvider.GetService(typeof(IValidator<TRequest>)) is not IValidator<TRequest> validator)
         {
-            return await continuation(request, context);
+            return await continuation(request, context).ConfigureAwait(false);
         }
 
-        var result = await validator.ValidateAsync(request);
+        var result = await validator.ValidateAsync(request).ConfigureAwait(false);
         if (result.IsValid)
         {
-            return await continuation(request, context);
+            return await continuation(request, context).ConfigureAwait(false);
         }
 
         // Combine error messages

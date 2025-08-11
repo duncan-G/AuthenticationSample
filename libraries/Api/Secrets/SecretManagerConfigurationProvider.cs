@@ -4,7 +4,7 @@ using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
 
-namespace AuthenticationSample.Api.Secrets;
+namespace AuthSample.Api.Secrets;
 
 internal sealed class SecretsManagerConfigurationProvider(SecretsManagerConfigurationSource source)
     : ConfigurationProvider, IDisposable

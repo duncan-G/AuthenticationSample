@@ -1,7 +1,7 @@
 using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.Configuration;
 
-namespace AuthenticationSample.Api.Secrets;
+namespace AuthSample.Api.Secrets;
 
 /// <summary>
 ///     Extension method to wire the provider into any IConfigurationBuilder.
