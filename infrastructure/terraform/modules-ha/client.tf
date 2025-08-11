@@ -6,7 +6,7 @@ locals {
 }
 
 resource "vercel_project" "client" {
-  name = var.vercel_project_name
+  name      = var.vercel_project_name
   framework = "nextjs"
 }
 

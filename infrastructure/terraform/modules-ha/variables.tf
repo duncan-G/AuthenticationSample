@@ -75,7 +75,7 @@ variable "enable_origin_shield" {
 }
 
 variable "waf_rule_set" {
-  type    = list(string)
+  type = list(string)
   default = [
     "AWSManagedRulesCommonRuleSet",
     "AWSManagedRulesKnownBadInputsRuleSet",

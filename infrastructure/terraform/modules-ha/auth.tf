@@ -1,7 +1,7 @@
 locals {
-  cognito_domain     = var.cognito_domain_prefix == "" ? null : "${var.cognito_domain_prefix}-${var.bucket_suffix}"
-  auth_environments  = toset([var.env, "dev"]) 
-  social_idp_names   = length(var.idps) > 0 ? [for k in keys(var.idps) : k == "google" ? "Google" : "SignInWithApple"] : []
+  cognito_domain    = var.cognito_domain_prefix == "" ? null : "${var.cognito_domain_prefix}-${var.bucket_suffix}"
+  auth_environments = toset([var.env, "dev"])
+  social_idp_names  = length(var.idps) > 0 ? [for k in keys(var.idps) : k == "google" ? "Google" : "SignInWithApple"] : []
 }
 
 # =============================================================================
@@ -48,8 +48,8 @@ resource "aws_cognito_user_pool" "this" {
 }
 
 resource "aws_cognito_user_pool_domain" "this" {
-  for_each    = local.auth_environments 
-  domain      = "${var.project_name}-${each.value}-${var.bucket_suffix}"
+  for_each     = local.auth_environments
+  domain       = "${var.project_name}-${each.value}-${var.bucket_suffix}"
   user_pool_id = aws_cognito_user_pool.this[each.value].id
 }
 
@@ -57,7 +57,7 @@ resource "aws_cognito_user_pool_domain" "this" {
 # Cognito User Pool Clients (web + backend)
 # =============================================================================
 resource "aws_cognito_user_pool_client" "web" {
-  for_each = local.auth_environments 
+  for_each = local.auth_environments
 
   name         = "${var.project_name}-web-${each.value}"
   user_pool_id = aws_cognito_user_pool.this[each.value].id
@@ -85,7 +85,7 @@ resource "aws_cognito_user_pool_client" "web" {
 }
 
 resource "aws_cognito_user_pool_client" "backend" {
-  for_each = local.auth_environments 
+  for_each = local.auth_environments
 
   name         = "${var.project_name}-backend-${each.value}"
   user_pool_id = aws_cognito_user_pool.this[each.value].id

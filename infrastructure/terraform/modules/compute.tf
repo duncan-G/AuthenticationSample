@@ -71,12 +71,12 @@ data "aws_caller_identity" "current" {}
 
 # Locals for IAM ARNs
 locals {
-  account_id          = data.aws_caller_identity.current.account_id
-  swarm_param_arns    = [
+  account_id = data.aws_caller_identity.current.account_id
+  swarm_param_arns = [
     "arn:aws:ssm:${var.region}:${local.account_id}:parameter/docker/swarm/*",
     "arn:aws:ssm:${var.region}:${local.account_id}:parameter/swarm/*"
   ]
-  secrets_prefix_arn  = "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project_name}-secrets*"
+  secrets_prefix_arn = "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project_name}-secrets*"
 }
 
 #endregion
@@ -383,9 +383,9 @@ resource "aws_launch_template" "manager" {
 
 # Auto Scaling Group for Workers (single group)
 resource "aws_autoscaling_group" "workers" {
-  name                = "${var.project_name}-workers-asg"
-  vpc_zone_identifier = [aws_subnet.public.id]
-  target_group_arns   = [aws_lb_target_group.public_workers.arn]
+  name                      = "${var.project_name}-workers-asg"
+  vpc_zone_identifier       = [aws_subnet.public.id]
+  target_group_arns         = [aws_lb_target_group.public_workers.arn]
   health_check_type         = "ELB"
   health_check_grace_period = 300
 
