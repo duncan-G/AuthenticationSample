@@ -47,7 +47,7 @@ jobs:
       id: vars
       run: |
         ENVIRONMENT="${{ github.event.inputs.environment || 'production' }}"
-        APP_NAME="${{ vars.APP_NAME }}"            # Org / repo variable
+        PROJECT_NAME="${{ vars.PROJECT_NAME }}"            # Org / repo variable
         SHORT_SHA="${GITHUB_SHA::8}"
         VERSION="${SHORT_SHA}"
         DOMAIN="${{ vars.DOMAIN_NAME }}"
@@ -69,7 +69,7 @@ jobs:
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-role-codedeploy
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-github-actions-role-codedeploy
         role-session-name: gha-codedeploy-${{ github.run_id }}
         aws-region: ${{ vars.AWS_REGION || env.AWS_REGION }}
 
@@ -79,7 +79,7 @@ jobs:
         # ========= Prep local vars =========
         ENVIRONMENT='${{ steps.vars.outputs.environment }}'
         VERSION='${{ steps.vars.outputs.version }}'
-        APP_NAME='${{ vars.APP_NAME }}'
+        PROJECT_NAME='${{ vars.PROJECT_NAME }}'
         SERVICE_NAME='${{ env.SERVICE_NAME }}'
         CERT_PREFIX='${{ steps.vars.outputs.cert_prefix }}'
         DOMAIN='${{ vars.DOMAIN_NAME }}'
@@ -107,8 +107,8 @@ jobs:
         find Infrastructure/envoy -name '*.yaml' | grep -v debug | xargs -I {} cp {} staging/configs/
 
         # Render env.sh (envsubst keeps it POSIX-portable)
-        export SERVICE_NAME ENVIRONMENT VERSION APP_NAME CERT_PREFIX \
-               STACK_FILE SECRET_NAME="${APP_NAME}-secrets" \
+        export SERVICE_NAME ENVIRONMENT VERSION PROJECT_NAME CERT_PREFIX \
+               STACK_FILE SECRET_NAME="${PROJECT_NAME}-secrets" \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
                REQUIRE_TLS=true
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
@@ -138,8 +138,8 @@ jobs:
       id: deploy
       run: |
         DEPLOY_ID=$(aws deploy create-deployment \
-          --application-name "${{ vars.APP_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}" \
-          --deployment-group-name "${{ vars.APP_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}-deployment-group" \
+          --application-name "${{ vars.PROJECT_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}" \
+          --deployment-group-name "${{ vars.PROJECT_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}-deployment-group" \
           --s3-location bucket=${{ secrets.DEPLOYMENT_BUCKET }},key=deployments/${{ env.SERVICE_NAME }}/${{ steps.vars.outputs.environment }}/deployment-${{ steps.vars.outputs.ts }}.tar.gz,bundleType=tgz \
           --description "Deploy ${{ steps.vars.outputs.version }}" \
           --query deploymentId --output text)

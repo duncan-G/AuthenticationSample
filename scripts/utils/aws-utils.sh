@@ -171,7 +171,7 @@ create_s3_bucket_with_config() {
     local region="$2"
     local profile="$3"
     local environment="$4"
-    local app_name="$5"
+    local project_name="$5"
     
     print_info "Creating S3 bucket: $bucket_name"
 
@@ -206,7 +206,7 @@ create_s3_bucket_with_config() {
         BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
     
     # Add tags (idempotent)
-    aws s3api put-bucket-tagging --bucket "$bucket_name" --profile "$profile" --tagging "TagSet=[{Key=Name,Value=${app_name}-bucket},{Key=Environment,Value=${environment}}]"
+    aws s3api put-bucket-tagging --bucket "$bucket_name" --profile "$profile" --tagging "TagSet=[{Key=Name,Value=${project_name}-bucket},{Key=Environment,Value=${environment}}]"
     
     if [ "$bucket_exists" = true ]; then
         print_success "Bucket $bucket_name configuration verified."
@@ -221,11 +221,11 @@ create_s3_bucket_with_lifecycle() {
     local region="$2"
     local profile="$3"
     local environment="$4"
-    local app_name="$5"
+    local project_name="$5"
     local lifecycle_config="$6"
     
     # Create bucket with standard config
-    create_s3_bucket_with_config "$bucket_name" "$region" "$profile" "$environment" "$app_name"
+    create_s3_bucket_with_config "$bucket_name" "$region" "$profile" "$environment" "$project_name"
     
     # Configure custom lifecycle policy (idempotent)
     if [ -n "$lifecycle_config" ]; then

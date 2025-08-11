@@ -19,12 +19,12 @@ docker pull mcp/aws-terraform:latest
 docker build -t protoc-gen-grpc-web:latest ./infrastructure/protoc-gen
 
 # Install npm dependencies
-cd "clients/authentication-sample"
+cd "clients/auth-sample"
 npm ci
 cd $working_dir
 
 # Build Postgres Image
-postgres_image_name="authentication-sample/postgres"
+postgres_image_name="auth-sample/postgres"
 cd "infrastructure/postgres"
 docker build -t $postgres_image_name:latest .
 cd $working_dir

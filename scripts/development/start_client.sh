@@ -32,7 +32,7 @@ shift $((OPTIND -1))
 
 # Setup environment files for Next.js
 function setup_client_env() {
-    local client_dir="$working_dir/clients/authentication-sample"
+    local client_dir="$working_dir/clients/auth-sample"
     local base_env="$client_dir/.env"
     local override_env="$client_dir/.env.dev"
     
@@ -81,7 +81,7 @@ function setup_client_env() {
 function start_client_macos() {
     echo "Starting client..."
     # Next.js will automatically load .env.local file
-    osascript -e "tell application \"Terminal\" to do script \"cd '$working_dir/clients/authentication-sample' && npm run dev & echo \$! > '$PID_FILE'; wait\""
+    osascript -e "tell application \"Terminal\" to do script \"cd '$working_dir/clients/auth-sample' && npm run dev & echo \$! > '$PID_FILE'; wait\""
     echo "Client started. PID saved to $PID_DIR/client.pid"
 }
 
@@ -89,7 +89,7 @@ function start_client_linux() {
     echo "Starting client..."
     # Next.js will automatically load .env.local file
     # Start gnome-terminal and capture its PID
-    gnome-terminal --title="Authentication Sample Client" -- bash -c "cd $working_dir/clients/authentication-sample && \
+    gnome-terminal --title="Auth Sample Client" -- bash -c "cd $working_dir/clients/auth-sample && \
         npm run dev & \
         echo \$! > $PID_DIR/client.pid; wait" &
     
@@ -102,11 +102,11 @@ function start_client_linux() {
 # Setup environment files
 setup_client_env
 
-# Generate Authentication TypeScript services
+# Generate Auth TypeScript services
 echo "Generating grpc services"
 bash $working_dir/scripts/development/gen-grpc-web.sh \
-    -i $working_dir/microservices/Authentication/src/Authentication.Grpc/Protos/greet.proto \
-    -o $working_dir/clients/authentication-sample/src/app/services
+    -i $working_dir/microservices/Auth/src/Auth.Grpc/Protos/greet.proto \
+    -o $working_dir/clients/auth-sample/src/app/services
 docker container rm protoc-gen-grpc-web
 
 # Start Next.js application

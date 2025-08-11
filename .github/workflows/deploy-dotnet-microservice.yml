@@ -56,9 +56,9 @@ jobs:
         id: vars
         shell: bash
         run: |
-          APP_NAME="${{ vars.APP_NAME }}"
-          if [ -z "$APP_NAME" ]; then
-            echo "::error ::Org/Repo variable APP_NAME is not set"
+          PROJECT_NAME="${{ vars.PROJECT_NAME }}"
+          if [ -z "$PROJECT_NAME" ]; then
+            echo "::error ::Org/Repo variable PROJECT_NAME is not set"
             exit 1
           fi
 
@@ -69,7 +69,7 @@ jobs:
           fi
 
           SHORT_SHA="${GITHUB_SHA::8}"
-          echo "app_name=$APP_NAME"        >> "$GITHUB_OUTPUT"
+          echo "project_name=$PROJECT_NAME"        >> "$GITHUB_OUTPUT"
           echo "build_tag=$SHORT_SHA"      >> "$GITHUB_OUTPUT"
           echo "image_uri=${{ secrets.ECR_REPOSITORY }}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "aws_region=$AWS_REGION"  >> "$GITHUB_OUTPUT"
@@ -77,7 +77,7 @@ jobs:
       - name: Configure AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-role-codedeploy
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-github-actions-role-codedeploy
           role-session-name: gha-codedeploy-${{ github.run_id }}
           aws-region: ${{ steps.vars.outputs.aws_region }}
 
@@ -95,7 +95,7 @@ jobs:
         with:
           service_name: ${{ inputs.service_name }}
           environment:  ${{ inputs.environment }}
-          app_name:     ${{ steps.vars.outputs.app_name }}
+          project_name:     ${{ steps.vars.outputs.project_name }}
           image_uri:    ${{ steps.vars.outputs.image_uri }}
           version:      ${{ steps.vars.outputs.build_tag }}
           aws_region:   ${{ steps.vars.outputs.aws_region }}

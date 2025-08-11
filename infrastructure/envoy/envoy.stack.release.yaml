@@ -7,7 +7,6 @@ services:
       - net
     ports:
       - "80:80"       # HTTP Application Service
-      - "80:80/udp"   # HTTP/3 Application Service
     configs:
       - source: envoy_config
         target: /etc/envoy/envoy.yaml

@@ -56,11 +56,11 @@ get_user_input() {
     prompt_user "Enter runtime stage environment label" "RUNTIME_STAGE_ENV" "stage"
     prompt_user "Enter runtime prod environment label" "RUNTIME_PROD_ENV" "prod"
     
-    prompt_user "Enter domain name (e.g., example.com)" "DOMAIN_NAME"
-    prompt_user "Enter API subdomains (comma-separated, e.g., api,admin,portal)" "SUBDOMAINS" "api,internal"
+    prompt_user "Enter backend domain name (e.g., example.com)" "DOMAIN_NAME"
+    prompt_user "Enter API subdomains (comma-separated, e.g., api,admin,portal)" "SUBDOMAINS" "api"
     
-    # Prompt for Vercel API key for frontend deployments
-    prompt_user "Enter Vercel API key (for frontend deployments)" "VERCEL_API_KEY"
+    # Prompt for Vercel API key for frontend deployments (optional)
+    prompt_user_optional "Enter Vercel API key (for frontend deployments, leave blank to skip)" "VERCEL_API_KEY"
     
     # Get Route53 hosted zone ID automatically
     get_route53_hosted_zone_id "$DOMAIN_NAME"
@@ -82,7 +82,11 @@ get_user_input() {
     echo "  Domain Name: $DOMAIN_NAME"
     echo "  Route53 Hosted Zone ID: $ROUTE53_HOSTED_ZONE_ID"
     echo "  API Subdomains: $SUBDOMAINS"
-    echo "  Vercel API Key: ${VERCEL_API_KEY:0:8}..."
+    if [ -n "${VERCEL_API_KEY}" ]; then
+        echo "  Vercel API Key: ${VERCEL_API_KEY:0:8}..."
+    else
+        echo "  Vercel API Key: (not provided)"
+    fi
     
     if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
@@ -212,7 +216,6 @@ setup_oidc_infrastructure() {
         -e "s|\${PROJECT_NAME}|$PROJECT_NAME|g" \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${TF_STATE_BUCKET}|$TF_STATE_BUCKET|g" \
-        -e "s|\${CERTIFICATE_BUCKET}|$CERTIFICATE_BUCKET|g" \
         -e "s|\${DEPLOYMENT_BUCKET}|$DEPLOYMENT_BUCKET|g" \
         "$ORIGINAL_POLICY_FILE_PATH" > "$PROCESSED_POLICY_FILE_PATH"
     
@@ -249,15 +252,22 @@ setup_github_workflow() {
         print_warning "No subdomains provided, using empty list"
     fi
 
+    # Base secrets
     add_github_secrets "$GITHUB_REPO_FULL" \
         "AWS_ACCOUNT_ID:$AWS_ACCOUNT_ID" \
         "TF_STATE_BUCKET:$TF_STATE_BUCKET" \
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
         "EDGE_SHARED_SECRET:$(openssl rand -hex 16)" \
-        "CERTBOT_EBS_VOLUME_ID:$CERTBOT_EBS_VOLUME_ID" \
-        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET" \
-        "VERCEL_API_KEY:$VERCEL_API_KEY"
+        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET"
+
+    # Conditionally add Vercel secret only if provided
+    if [ -n "${VERCEL_API_KEY}" ]; then
+        add_github_secrets "$GITHUB_REPO_FULL" \
+            "VERCEL_API_KEY:$VERCEL_API_KEY"
+    else
+        print_info "Skipping VERCEL_API_KEY secret (not provided)"
+    fi
     
     add_github_variables "$GITHUB_REPO_FULL" \
         "AWS_REGION:$AWS_REGION" \
@@ -294,10 +304,6 @@ display_final_instructions() {
 
     echo "Your ECR Certbot Repository:"
     echo -e "${GREEN}   $ecr_repo_uri${NC}"
-    echo "Your EBS Volume for Let's Encrypt:"
-    echo -e "${GREEN}   Volume Name: ${PROJECT_NAME}-letsencrypt-persistent${NC}"
-    echo -e "${GREEN}   Volume ID: $CERTBOT_EBS_VOLUME_ID${NC}"
-    echo -e "${GREEN}   Device: /dev/sdf (will be attached to public instance)${NC}"
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
     echo -e "${GREEN}   API Subdomains: $SUBDOMAINS${NC}"

@@ -1,3 +1,13 @@
+//#region Configuration
+
+variable "enable_ssm_associations" {
+  description = "Enable SSM associations to bootstrap docker and cloudwatch on instances"
+  type        = bool
+  default     = false
+}
+
+//#endregion
+
 # SSM Documents for Docker Swarm Setup
 
 # Docker Manager Setup SSM Document
@@ -96,7 +106,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_manager" {
           "yum install -y amazon-cloudwatch-agent",
           # Write the CloudWatch agent configuration
           "cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json",
-          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${app_name}", "${var.project_name}"), "$${environment}", "${var.environment}"))}",
+          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${project_name}", "${var.project_name}"), "$${environment}", "${var.environment}"))}",
           "EOF",
           # Start and enable the agent
           "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json",
@@ -131,7 +141,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
           "yum install -y amazon-cloudwatch-agent",
           # Write the CloudWatch agent configuration
           "cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json",
-          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${app_name}", "${var.project_name}"), "$${environment}", "${var.environment}"))}",
+          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${project_name}", "${var.project_name}"), "$${environment}", "${var.environment}"))}",
           "EOF",
           # Start and enable the agent
           "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json",
@@ -151,19 +161,19 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
 # SSM Associations for Manager Instance
 # First: Install CloudWatch agent (logs only)
 resource "aws_ssm_association" "cloudwatch_agent_manager" {
-  name = aws_ssm_document.cloudwatch_agent_setup_manager.name
+  count = var.enable_ssm_associations ? 1 : 0
+  name  = aws_ssm_document.cloudwatch_agent_setup_manager.name
 
   targets {
     key    = "tag:Role"
     values = ["manager"]
   }
-
-  # Target managers by tag; instances are managed by ASG
 }
 
 # Then: Run Docker manager setup (depends on CloudWatch agent)
 resource "aws_ssm_association" "docker_manager_setup" {
-  name = aws_ssm_document.docker_manager_setup.name
+  count = var.enable_ssm_associations ? 1 : 0
+  name  = aws_ssm_document.docker_manager_setup.name
 
   targets {
     key    = "tag:Role"
@@ -176,19 +186,19 @@ resource "aws_ssm_association" "docker_manager_setup" {
 # SSM Associations for Worker Instance
 # First: Install CloudWatch agent (logs only)
 resource "aws_ssm_association" "cloudwatch_agent_worker" {
-  name = aws_ssm_document.cloudwatch_agent_setup_worker.name
+  count = var.enable_ssm_associations ? 1 : 0
+  name  = aws_ssm_document.cloudwatch_agent_setup_worker.name
 
   targets {
     key    = "tag:Role"
     values = ["worker"]
   }
-
-  # Target workers by tag; instances are managed by ASG
 }
 
 # Then: Run Docker worker setup (depends on CloudWatch agent and Docker manager setup)
 resource "aws_ssm_association" "docker_worker_setup" {
-  name = aws_ssm_document.docker_worker_setup.name
+  count = var.enable_ssm_associations ? 1 : 0
+  name  = aws_ssm_document.docker_worker_setup.name
 
   targets {
     key    = "tag:Role"

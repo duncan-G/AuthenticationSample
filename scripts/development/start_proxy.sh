@@ -11,7 +11,7 @@ VERSION=$((CURRENT_VERSION + 1))
 
 # Set environment variables for RDS config
 export ALLOWED_HOSTS="localhost,localhost:10000"
-export ALLOWED_ORIGINS="https://localhost:3000"
+export ALLOWED_ORIGINS="http://localhost:3000"
 
 # Process comma-separated origins into YAML format
 IFS=',' read -ra ORIGINS <<< "$ALLOWED_ORIGINS"
@@ -40,7 +40,7 @@ docker config create envoy_routes_$VERSION "$TEMP_DIR/envoy.rds.yaml"
 rm -rf "$TEMP_DIR"
 
 echo "Deploying Envoy proxy"
-env VERSION=$VERSION docker stack deploy --compose-file infrastructure/envoy/dev/envoy.stack.debug.yaml envoy
+env VERSION=$VERSION docker stack deploy --compose-file infrastructure/envoy/envoy.stack.debug.yaml envoy
 
 # Wait for deployment
 if ! wait_for_deployment "envoy_app" "$VERSION"; then

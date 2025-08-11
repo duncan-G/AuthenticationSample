@@ -114,13 +114,13 @@ variable "vercel_api_token" {
 variable "vercel_project_name" {
   description = "Vercel project name for the Next.js app"
   type        = string
-  default     = "authentication-sample"
+  default     = "auth-sample"
 }
 
 variable "vercel_root_directory" {
   description = "Relative path to the Next.js app root"
   type        = string
-  default     = "clients/authentication-sample"
+  default     = "clients/auth-sample"
 }
 
 variable "bucket_suffix" {
@@ -143,6 +143,32 @@ variable "auth_logout" {
 
 variable "cognito_domain_prefix" {
   description = "Optional domain prefix for Cognito Hosted UI (leave empty to skip)"
+  type        = string
+  default     = ""
+}
+
+
+# Optional Social IdPs (google | apple)
+variable "idps" {
+  description = "SOCIAL / OIDC IdPs (keys: google | apple)"
+  type = map(object({
+    client_id     = string
+    client_secret = string
+    scopes        = string
+    provider_name = string
+    provider_type = string
+  }))
+  default = {}
+
+  validation {
+    condition     = alltrue([for k, _ in var.idps : contains(["google", "apple"], k)])
+    error_message = "Only 'google' and 'apple' providers are supported"
+  }
+}
+
+# Optional policy to attach to the authenticated Cognito role
+variable "authenticated_policy_arn" {
+  description = "If provided, attaches this policy ARN to the authenticated Cognito role"
   type        = string
   default     = ""
 }

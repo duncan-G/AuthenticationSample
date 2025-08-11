@@ -35,8 +35,8 @@ jobs:
       service_name: '{{ SERVICE_NAME }}'
       service_path: 'Microservices/{{ PASCALCASE_SERVICE_NAME }}'
       environment: ${{ github.event.inputs.environment || 'production' }}
-      image_name: '${{ vars.APP_NAME }}/{{ SERVICE_NAME }}'
+      image_name: '${{ vars.PROJECT_NAME }}/{{ SERVICE_NAME }}'
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }}
-      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.APP_NAME }}/{{ SERVICE_NAME }}'
+      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.PROJECT_NAME }}/{{ SERVICE_NAME }}'

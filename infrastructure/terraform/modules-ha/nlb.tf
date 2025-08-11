@@ -2,17 +2,17 @@ locals {
   name_prefix = "${var.project_name}-${var.env}"
 }
 
-# Target group in instance mode pointing to proxy (Envoy) 8443 on instances
+# Target group in instance mode pointing to proxy (Envoy) 8080 on instances
 resource "aws_lb_target_group" "proxy" {
   name        = substr(replace("${local.name_prefix}-proxy", "/", "-"), 0, 32)
-  port        = 8443
+  port        = 8080
   protocol    = "TCP"
   target_type = "instance"
   vpc_id      = aws_vpc.this.id
 
   health_check {
     enabled             = true
-    port                = "8443"
+    port                = "8080"
     protocol            = "TCP"
     healthy_threshold   = 2
     unhealthy_threshold = 2
@@ -39,7 +39,8 @@ resource "aws_lb" "this" {
 resource "aws_lb_listener" "tls_443" {
   load_balancer_arn = aws_lb.this.arn
   port              = 443
-  protocol          = "TCP"
+  protocol          = "TLS"
+  certificate_arn   = var.acm_certificate_arn
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.proxy.arn

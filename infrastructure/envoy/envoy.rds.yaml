@@ -16,13 +16,9 @@ $PROCESSED_ORIGINS
           allow_headers: "keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,authorization,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout"
           expose_headers: "grpc-status,grpc-message"
           max_age: "1728000"
-      response_headers_to_add:
-        - header:
-            key: "alt-svc"
-            value: 'h3=":443"; ma=86400'
       routes:
         - match:
-            prefix: "/authentication/" 
+            prefix: "/auth/" 
           route:
             cluster: authentication_cluster
             prefix_rewrite: "/"

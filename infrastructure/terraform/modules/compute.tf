@@ -5,72 +5,47 @@
 # 
 # • IAM roles and policies for EC2 instances
 # • Instance profiles for role attachment
-# • EC2 instances (public workers, private workers, managers)
+# • EC2 instances (workers, managers)
 # • Dependencies and security configurations
 # 
 # Instance Types:
-# - Public Workers: Handle external traffic, certificate renewal
-# - Private Workers: Internal application workloads
+# - Workers: Application workloads (internet-facing via NLB)
 # - Managers: Docker Swarm management and orchestration
 # =============================================================================
 
 #region Configuration
 
-# Variables
-variable "public_worker_instance_type" {
-  description = "EC2 instance type for public worker nodes"
-  type        = string
-  default     = "t4g.micro"
-}
-
-variable "private_worker_instance_type" {
-  description = "EC2 instance type for private worker nodes"
+variable "instance_type_managers" {
+  description = "EC2 instance type for Swarm managers"
   type        = string
   default     = "t4g.small"
 }
 
-variable "manager_instance_type" {
-  description = "EC2 instance type for manager nodes"
-  type        = string
-  default     = "t4g.micro"
+variable "instance_types_workers" {
+  description = "List of instance types for workers"
+  type        = list(string)
+  default     = ["t4g.small", "m6g.medium"]
 }
 
-# ASG Configuration Variables
-variable "public_worker_min_size" {
-  description = "Minimum number of public worker instances"
-  type        = number
-  default     = 1
-}
-
-variable "public_worker_max_size" {
-  description = "Maximum number of public worker instances"
+variable "desired_workers" {
+  description = "Desired number of worker nodes"
   type        = number
   default     = 3
 }
 
-variable "public_worker_desired_capacity" {
-  description = "Desired number of public worker instances"
+variable "min_workers" {
+  description = "Minimum number of worker nodes"
   type        = number
-  default     = 1
+  default     = 3
 }
 
-variable "private_worker_min_size" {
-  description = "Minimum number of private worker instances"
+variable "max_workers" {
+  description = "Maximum number of worker nodes"
   type        = number
-  default     = 1
+  default     = 9
 }
 
-variable "private_worker_max_size" {
-  description = "Maximum number of private worker instances"
-  type        = number
-  default     = 5
-}
-
-variable "private_worker_desired_capacity" {
-  description = "Desired number of private worker instances"
-  type        = number
-  default     = 2
-}
+# ASG Configuration Variables (Managers)
 
 variable "manager_min_size" {
   description = "Minimum number of manager instances (should be odd for quorum)"
@@ -96,18 +71,21 @@ data "aws_caller_identity" "current" {}
 
 # Locals for IAM ARNs
 locals {
-  account_id         = data.aws_caller_identity.current.account_id
-  swarm_param_arn    = "arn:aws:ssm:${var.region}:${local.account_id}:parameter/docker/swarm/*"
-  secrets_prefix_arn = "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project_name}-secrets*"
+  account_id          = data.aws_caller_identity.current.account_id
+  swarm_param_arns    = [
+    "arn:aws:ssm:${var.region}:${local.account_id}:parameter/docker/swarm/*",
+    "arn:aws:ssm:${var.region}:${local.account_id}:parameter/swarm/*"
+  ]
+  secrets_prefix_arn  = "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project_name}-secrets*"
 }
 
 #endregion
 
 #region IAM Roles
 
-# Public worker role
-resource "aws_iam_role" "public_worker" {
-  name = "${var.project_name}-ec2-public-worker-role"
+# Worker role
+resource "aws_iam_role" "worker" {
+  name = "${var.project_name}-ec2-worker-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -119,22 +97,8 @@ resource "aws_iam_role" "public_worker" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-public-worker-role"
+    Name        = "${var.project_name}-ec2-worker-role"
     Environment = var.environment
-    Tier        = "public"
-  }
-}
-
-# Private worker role
-resource "aws_iam_role" "private_worker" {
-  name = "${var.project_name}-ec2-private-worker-role"
-
-  assume_role_policy = aws_iam_role.public_worker.assume_role_policy
-
-  tags = {
-    Name        = "${var.project_name}-ec2-private-worker-role"
-    Environment = var.environment
-    Tier        = "private"
   }
 }
 
@@ -142,7 +106,14 @@ resource "aws_iam_role" "private_worker" {
 resource "aws_iam_role" "manager" {
   name = "${var.project_name}-ec2-manager-role"
 
-  assume_role_policy = aws_iam_role.public_worker.assume_role_policy
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Action    = "sts:AssumeRole",
+      Effect    = "Allow",
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
 
   tags = {
     Name        = "${var.project_name}-ec2-manager-role"
@@ -152,26 +123,14 @@ resource "aws_iam_role" "manager" {
 }
 
 # Public Worker Instance Profile
-resource "aws_iam_instance_profile" "public_worker" {
-  name = "${var.project_name}-ec2-public-worker-profile"
-  role = aws_iam_role.public_worker.name
+resource "aws_iam_instance_profile" "worker" {
+  name = "${var.project_name}-ec2-worker-profile"
+  role = aws_iam_role.worker.name
 
   tags = {
-    Name        = "${var.project_name}-ec2-public-worker-profile"
+    Name        = "${var.project_name}-ec2-worker-profile"
     Environment = var.environment
-    Purpose     = "Public Worker EC2 Instance Profile"
-  }
-}
-
-# Private Worker Instance Profile
-resource "aws_iam_instance_profile" "private_worker" {
-  name = "${var.project_name}-ec2-private-worker-profile"
-  role = aws_iam_role.private_worker.name
-
-  tags = {
-    Name        = "${var.project_name}-ec2-private-worker-profile"
-    Environment = var.environment
-    Purpose     = "Private Worker EC2 Instance Profile"
+    Purpose     = "Worker EC2 Instance Profile"
   }
 }
 
@@ -212,7 +171,7 @@ resource "aws_iam_policy" "worker_core" {
       {
         Effect   = "Allow",
         Action   = ["ssm:GetParameter", "ssm:GetParameters"],
-        Resource = local.swarm_param_arn
+        Resource = local.swarm_param_arns
       },
       {
         Effect   = "Allow",
@@ -247,6 +206,11 @@ resource "aws_iam_policy" "manager_core" {
     Statement = concat(
       jsondecode(aws_iam_policy.worker_core.policy).Statement,
       [
+        {
+          Effect   = "Allow",
+          Action   = ["ssm:PutParameter"],
+          Resource = local.swarm_param_arns
+        },
         {
           Effect = "Allow",
           Action = [
@@ -288,23 +252,13 @@ resource "aws_iam_policy" "manager_core" {
 #region IAM Policy Attachments
 
 # Managed policy attachments (SSM + CloudWatch)
-resource "aws_iam_role_policy_attachment" "ssm_public_worker" {
-  role       = aws_iam_role.public_worker.name
+resource "aws_iam_role_policy_attachment" "ssm_worker" {
+  role       = aws_iam_role.worker.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-resource "aws_iam_role_policy_attachment" "cw_public_worker" {
-  role       = aws_iam_role.public_worker.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "ssm_private_worker" {
-  role       = aws_iam_role.private_worker.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_role_policy_attachment" "cw_private_worker" {
-  role       = aws_iam_role.private_worker.name
+resource "aws_iam_role_policy_attachment" "cw_worker" {
+  role       = aws_iam_role.worker.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
@@ -319,13 +273,8 @@ resource "aws_iam_role_policy_attachment" "cw_manager" {
 }
 
 # Custom policy attachments
-resource "aws_iam_role_policy_attachment" "worker_core_public" {
-  role       = aws_iam_role.public_worker.name
-  policy_arn = aws_iam_policy.worker_core.arn
-}
-
-resource "aws_iam_role_policy_attachment" "worker_core_private" {
-  role       = aws_iam_role.private_worker.name
+resource "aws_iam_role_policy_attachment" "worker_core" {
+  role       = aws_iam_role.worker.name
   policy_arn = aws_iam_policy.worker_core.arn
 }
 
@@ -361,75 +310,38 @@ resource "aws_cloudwatch_log_group" "worker" {
   }
 }
 
-# Launch Template for Public Workers
-resource "aws_launch_template" "public_worker" {
-  name_prefix   = "${var.project_name}-public-worker-"
-  description   = "Launch template for public worker nodes"
+# Launch Template for Workers (no user_data; bootstrap via SSM associations)
+resource "aws_launch_template" "worker" {
+  name_prefix   = "${var.project_name}-worker-"
+  description   = "Launch template for worker nodes"
   image_id      = data.aws_ami.amazon_linux.id
-  instance_type = var.public_worker_instance_type
+  instance_type = element(var.instance_types_workers, 0)
 
   vpc_security_group_ids = [aws_security_group.instance.id]
 
   iam_instance_profile {
-    name = aws_iam_instance_profile.public_worker.name
+    name = aws_iam_instance_profile.worker.name
   }
 
-  network_interfaces {
-    associate_public_ip_address = true
-    delete_on_termination       = true
-    device_index                = 0
-    ipv6_address_count          = 1
-    security_groups             = [aws_security_group.instance.id]
-  }
-
-  user_data = base64encode(file("${path.module}/../install-docker-worker.sh"))
+  # Bootstrap using userdata (modules-ha methodology)
+  user_data = base64encode(templatefile("${path.module}/userdata/worker.sh", {
+    region       = var.region,
+    project_name = var.project_name
+  }))
 
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "${var.project_name}-public-worker"
+      Name        = "${var.project_name}-worker"
       Environment = var.environment
       Role        = "worker"
-      Type        = "public"
     }
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.ssm_public_worker,
-    aws_iam_role_policy_attachment.cw_public_worker,
-    aws_iam_role_policy_attachment.worker_core_public
-  ]
-}
-
-# Launch Template for Private Workers
-resource "aws_launch_template" "private_worker" {
-  name_prefix   = "${var.project_name}-private-worker-"
-  description   = "Launch template for private worker nodes"
-  image_id      = data.aws_ami.amazon_linux.id
-  instance_type = var.private_worker_instance_type
-
-  vpc_security_group_ids = [aws_security_group.instance.id]
-
-  iam_instance_profile {
-    name = aws_iam_instance_profile.private_worker.name
-  }
-
-  user_data = base64encode(file("${path.module}/../install-docker-worker.sh"))
-
-  tag_specifications {
-    resource_type = "instance"
-    tags = {
-      Name        = "${var.project_name}-private-worker"
-      Environment = var.environment
-      Role        = "worker"
-      Type        = "private"
-    }
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.ssm_private_worker,
-    aws_iam_role_policy_attachment.cw_private_worker,
-    aws_iam_role_policy_attachment.worker_core_private
+    aws_iam_role_policy_attachment.ssm_worker,
+    aws_iam_role_policy_attachment.cw_worker,
+    aws_iam_role_policy_attachment.worker_core
   ]
 }
 
@@ -438,7 +350,7 @@ resource "aws_launch_template" "manager" {
   name_prefix   = "${var.project_name}-manager-"
   description   = "Launch template for manager nodes"
   image_id      = data.aws_ami.amazon_linux.id
-  instance_type = var.manager_instance_type
+  instance_type = var.instance_type_managers
 
   vpc_security_group_ids = [aws_security_group.instance.id]
 
@@ -446,7 +358,11 @@ resource "aws_launch_template" "manager" {
     name = aws_iam_instance_profile.manager.name
   }
 
-  user_data = base64encode(file("${path.module}/../install-docker-manager.sh"))
+  # Bootstrap using userdata (modules-ha methodology)
+  user_data = base64encode(templatefile("${path.module}/userdata/manager.sh", {
+    region       = var.region,
+    project_name = var.project_name
+  }))
 
   tag_specifications {
     resource_type = "instance"
@@ -465,29 +381,26 @@ resource "aws_launch_template" "manager" {
   ]
 }
 
-# Auto Scaling Group for Public Workers
-resource "aws_autoscaling_group" "public_workers" {
-  name                = "${var.project_name}-public-workers-asg"
+# Auto Scaling Group for Workers (single group)
+resource "aws_autoscaling_group" "workers" {
+  name                = "${var.project_name}-workers-asg"
   vpc_zone_identifier = [aws_subnet.public.id]
-  target_group_arns = [
-    aws_lb_target_group.public_workers.arn,
-    aws_lb_target_group.public_workers_https.arn
-  ]
+  target_group_arns   = [aws_lb_target_group.public_workers.arn]
   health_check_type         = "ELB"
   health_check_grace_period = 300
 
-  min_size         = var.public_worker_min_size
-  max_size         = var.public_worker_max_size
-  desired_capacity = var.public_worker_desired_capacity
+  min_size         = var.min_workers
+  max_size         = var.max_workers
+  desired_capacity = var.desired_workers
 
   launch_template {
-    id      = aws_launch_template.public_worker.id
+    id      = aws_launch_template.worker.id
     version = "$Latest"
   }
 
   tag {
     key                 = "Name"
-    value               = "${var.project_name}-public-worker-asg"
+    value               = "${var.project_name}-worker-asg"
     propagate_at_launch = false
   }
 
@@ -500,60 +413,6 @@ resource "aws_autoscaling_group" "public_workers" {
   tag {
     key                 = "Role"
     value               = "worker"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Type"
-    value               = "public"
-    propagate_at_launch = true
-  }
-
-  instance_refresh {
-    strategy = "Rolling"
-    preferences {
-      min_healthy_percentage = 50
-    }
-  }
-}
-
-# Auto Scaling Group for Private Workers
-resource "aws_autoscaling_group" "private_workers" {
-  name                      = "${var.project_name}-private-workers-asg"
-  vpc_zone_identifier       = [aws_subnet.private.id]
-  health_check_type         = "EC2"
-  health_check_grace_period = 300
-
-  min_size         = var.private_worker_min_size
-  max_size         = var.private_worker_max_size
-  desired_capacity = var.private_worker_desired_capacity
-
-  launch_template {
-    id      = aws_launch_template.private_worker.id
-    version = "$Latest"
-  }
-
-  tag {
-    key                 = "Name"
-    value               = "${var.project_name}-private-worker-asg"
-    propagate_at_launch = false
-  }
-
-  tag {
-    key                 = "Environment"
-    value               = var.environment
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Role"
-    value               = "worker"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Type"
-    value               = "private"
     propagate_at_launch = true
   }
 
@@ -614,23 +473,20 @@ resource "aws_autoscaling_group" "managers" {
   }
 }
 
-# Target Group for Public Workers (for Load Balancer)
+# Target Group for Workers (for Load Balancer)
 resource "aws_lb_target_group" "public_workers" {
   name     = "${var.project_name}-public-workers-tg"
   port     = 80
-  protocol = "HTTP"
+  protocol = "TCP"
   vpc_id   = aws_vpc.main.id
 
   health_check {
     enabled             = true
-    healthy_threshold   = 2
     interval            = 30
-    matcher             = "200"
-    path                = "/health"
-    port                = "traffic-port"
-    protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
+    port                = 80
+    protocol            = "TCP"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
   }
 
   tags = {
@@ -639,42 +495,26 @@ resource "aws_lb_target_group" "public_workers" {
   }
 }
 
-# Auto Scaling Policies
-resource "aws_autoscaling_policy" "public_worker_scale_up" {
-  name                   = "${var.project_name}-public-worker-scale-up"
+# Auto Scaling Policies (Workers)
+resource "aws_autoscaling_policy" "worker_scale_up" {
+  name                   = "${var.project_name}-worker-scale-up"
   scaling_adjustment     = 1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
-  autoscaling_group_name = aws_autoscaling_group.public_workers.name
+  autoscaling_group_name = aws_autoscaling_group.workers.name
 }
 
-resource "aws_autoscaling_policy" "public_worker_scale_down" {
-  name                   = "${var.project_name}-public-worker-scale-down"
+resource "aws_autoscaling_policy" "worker_scale_down" {
+  name                   = "${var.project_name}-worker-scale-down"
   scaling_adjustment     = -1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
-  autoscaling_group_name = aws_autoscaling_group.public_workers.name
-}
-
-resource "aws_autoscaling_policy" "private_worker_scale_up" {
-  name                   = "${var.project_name}-private-worker-scale-up"
-  scaling_adjustment     = 1
-  adjustment_type        = "ChangeInCapacity"
-  cooldown               = 300
-  autoscaling_group_name = aws_autoscaling_group.private_workers.name
-}
-
-resource "aws_autoscaling_policy" "private_worker_scale_down" {
-  name                   = "${var.project_name}-private-worker-scale-down"
-  scaling_adjustment     = -1
-  adjustment_type        = "ChangeInCapacity"
-  cooldown               = 300
-  autoscaling_group_name = aws_autoscaling_group.private_workers.name
+  autoscaling_group_name = aws_autoscaling_group.workers.name
 }
 
 # CloudWatch Alarms for Auto Scaling
-resource "aws_cloudwatch_metric_alarm" "public_worker_cpu_high" {
-  alarm_name          = "${var.project_name}-public-worker-cpu-high"
+resource "aws_cloudwatch_metric_alarm" "worker_cpu_high" {
+  alarm_name          = "${var.project_name}-worker-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -683,15 +523,15 @@ resource "aws_cloudwatch_metric_alarm" "public_worker_cpu_high" {
   statistic           = "Average"
   threshold           = "80"
   alarm_description   = "This metric monitors ec2 cpu utilization"
-  alarm_actions       = [aws_autoscaling_policy.public_worker_scale_up.arn]
+  alarm_actions       = [aws_autoscaling_policy.worker_scale_up.arn]
 
   dimensions = {
-    AutoScalingGroupName = aws_autoscaling_group.public_workers.name
+    AutoScalingGroupName = aws_autoscaling_group.workers.name
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "public_worker_cpu_low" {
-  alarm_name          = "${var.project_name}-public-worker-cpu-low"
+resource "aws_cloudwatch_metric_alarm" "worker_cpu_low" {
+  alarm_name          = "${var.project_name}-worker-cpu-low"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -700,44 +540,10 @@ resource "aws_cloudwatch_metric_alarm" "public_worker_cpu_low" {
   statistic           = "Average"
   threshold           = "10"
   alarm_description   = "This metric monitors ec2 cpu utilization"
-  alarm_actions       = [aws_autoscaling_policy.public_worker_scale_down.arn]
+  alarm_actions       = [aws_autoscaling_policy.worker_scale_down.arn]
 
   dimensions = {
-    AutoScalingGroupName = aws_autoscaling_group.public_workers.name
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "private_worker_cpu_high" {
-  alarm_name          = "${var.project_name}-private-worker-cpu-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = "120"
-  statistic           = "Average"
-  threshold           = "80"
-  alarm_description   = "This metric monitors ec2 cpu utilization"
-  alarm_actions       = [aws_autoscaling_policy.private_worker_scale_up.arn]
-
-  dimensions = {
-    AutoScalingGroupName = aws_autoscaling_group.private_workers.name
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "private_worker_cpu_low" {
-  alarm_name          = "${var.project_name}-private-worker-cpu-low"
-  comparison_operator = "LessThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = "120"
-  statistic           = "Average"
-  threshold           = "10"
-  alarm_description   = "This metric monitors ec2 cpu utilization"
-  alarm_actions       = [aws_autoscaling_policy.private_worker_scale_down.arn]
-
-  dimensions = {
-    AutoScalingGroupName = aws_autoscaling_group.private_workers.name
+    AutoScalingGroupName = aws_autoscaling_group.workers.name
   }
 }
 
@@ -746,14 +552,9 @@ resource "aws_cloudwatch_metric_alarm" "private_worker_cpu_low" {
 #region Outputs
 
 # Auto Scaling Group outputs
-output "public_worker_asg_name" {
-  description = "Name of the public worker Auto Scaling Group"
-  value       = aws_autoscaling_group.public_workers.name
-}
-
-output "private_worker_asg_name" {
-  description = "Name of the private worker Auto Scaling Group"
-  value       = aws_autoscaling_group.private_workers.name
+output "worker_asg_name" {
+  description = "Name of the worker Auto Scaling Group"
+  value       = aws_autoscaling_group.workers.name
 }
 
 output "manager_asg_name" {
@@ -761,14 +562,9 @@ output "manager_asg_name" {
   value       = aws_autoscaling_group.managers.name
 }
 
-output "public_worker_asg_arn" {
-  description = "ARN of the public worker Auto Scaling Group"
-  value       = aws_autoscaling_group.public_workers.arn
-}
-
-output "private_worker_asg_arn" {
-  description = "ARN of the private worker Auto Scaling Group"
-  value       = aws_autoscaling_group.private_workers.arn
+output "worker_asg_arn" {
+  description = "ARN of the worker Auto Scaling Group"
+  value       = aws_autoscaling_group.workers.arn
 }
 
 output "manager_asg_arn" {
@@ -777,14 +573,9 @@ output "manager_asg_arn" {
 }
 
 # Launch Template outputs
-output "public_worker_launch_template_id" {
-  description = "ID of the public worker launch template"
-  value       = aws_launch_template.public_worker.id
-}
-
-output "private_worker_launch_template_id" {
-  description = "ID of the private worker launch template"
-  value       = aws_launch_template.private_worker.id
+output "worker_launch_template_id" {
+  description = "ID of the worker launch template"
+  value       = aws_launch_template.worker.id
 }
 
 output "manager_launch_template_id" {
@@ -793,20 +584,15 @@ output "manager_launch_template_id" {
 }
 
 # Target Group outputs
-output "public_worker_target_group_arn" {
-  description = "ARN of the public worker HTTP target group"
+output "worker_target_group_arn" {
+  description = "ARN of the worker HTTP target group"
   value       = aws_lb_target_group.public_workers.arn
 }
 
 # IAM Role outputs
-output "public_worker_role_arn" {
-  description = "ARN of the public worker IAM role"
-  value       = aws_iam_role.public_worker.arn
-}
-
-output "private_worker_role_arn" {
-  description = "ARN of the private worker IAM role"
-  value       = aws_iam_role.private_worker.arn
+output "worker_role_arn" {
+  description = "ARN of the worker IAM role"
+  value       = aws_iam_role.worker.arn
 }
 
 output "manager_role_arn" {
@@ -815,14 +601,9 @@ output "manager_role_arn" {
 }
 
 # Instance Profile outputs
-output "public_worker_instance_profile_name" {
-  description = "Name of the public worker instance profile"
-  value       = aws_iam_instance_profile.public_worker.name
-}
-
-output "private_worker_instance_profile_name" {
-  description = "Name of the private worker instance profile"
-  value       = aws_iam_instance_profile.private_worker.name
+output "worker_instance_profile_name" {
+  description = "Name of the worker instance profile"
+  value       = aws_iam_instance_profile.worker.name
 }
 
 output "manager_instance_profile_name" {

@@ -3,7 +3,7 @@ description: "Create tarball, upload to S3, trigger CodeDeploy, and wait"
 inputs:
   service_name: { required: true }
   environment:  { required: true }
-  app_name:     { required: true }
+  project_name:     { required: true }
   image_uri:
     required: false
     default: ""
@@ -46,7 +46,7 @@ runs:
         export SERVICE_NAME="${{ inputs.service_name }}"
         export ENVIRONMENT="${{ inputs.environment }}"
         export IMAGE_URI="${{ inputs.image_uri }}"
-        export APP_NAME="${{ inputs.app_name }}"
+        export PROJECT_NAME="${{ inputs.project_name }}"
         export VERSION="${{ inputs.version }}"
         export AWS_REGION="${{ inputs.aws_region }}"
         export STACK_FILE="${{ inputs.stack_file }}"
@@ -101,8 +101,8 @@ runs:
       run: |
         set -euo pipefail
         DEPLOY_ID=$(aws deploy create-deployment \
-          --application-name "${{ inputs.app_name }}-${{ inputs.service_name }}-${{ inputs.environment }}" \
-          --deployment-group-name "${{ inputs.app_name }}-${{ inputs.service_name }}-${{ inputs.environment }}-deployment-group" \
+          --application-name "${{ inputs.project_name }}-${{ inputs.service_name }}-${{ inputs.environment }}" \
+          --deployment-group-name "${{ inputs.project_name }}-${{ inputs.service_name }}-${{ inputs.environment }}-deployment-group" \
           --s3-location bucket=${{ inputs.s3_bucket }},key=deployments/${{ inputs.service_name }}/${{ inputs.environment }}/deployment-${{ steps.pkg.outputs.ts }}.tar.gz,bundleType=tgz \
           --description "Deploy ${{ inputs.service_name }} to ${{ inputs.environment }}" \
           --query deploymentId --output text)

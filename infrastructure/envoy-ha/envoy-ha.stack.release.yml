@@ -29,18 +29,14 @@ services:
       restart_policy:
         condition: any
     ports:
-      - target: 8443
-        published: 8443
+      - target: 8080
+        published: 8080
         protocol: tcp
         mode: host
     configs:
       - source: envoy-config
         target: /etc/envoy/envoy.yaml
     secrets:
-      - source: tls-crt
-        target: tls.crt
-      - source: tls-key
-        target: tls.key
       - source: edge-secret
         target: edge-secret
     networks: [edge, ops]
@@ -73,10 +69,6 @@ configs:
     file: ../envoy/envoy.ha.yaml
 
 secrets:
-  tls-crt:
-    external: true
-  tls-key:
-    external: true
   edge-secret:
     external: true
 

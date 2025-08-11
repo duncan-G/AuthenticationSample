@@ -27,11 +27,15 @@ terraform {
 # Providers
 # ---------------------------------------------------------------------------
 
+variable "vercel_api_token" {
+  description = "Vercel API token"
+  type        = string
+  sensitive   = true
+}
+
 provider "aws" {
   region = var.region
 }
-
-data "aws_availability_zones" "this" {}
 
 provider "vercel" {
   api_token = var.vercel_api_token

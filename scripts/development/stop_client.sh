@@ -4,15 +4,15 @@ working_dir=$(pwd)
 PID_DIR="$working_dir/pids"
 PID_FILE="$PID_DIR/client.pid"
 TERMINAL_PID_FILE="$PID_DIR/client_terminal.pid"
-CLIENT_DIR="$working_dir/clients/authentication-sample"
+CLIENT_DIR="$working_dir/clients/auth-sample"
 
 echo "Stopping client..."
 
 function close_terminal_window() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS - close terminal windows running in authentication-sample directory
+        # macOS - close terminal windows running in auth-sample directory
         echo "Attempting to close terminal window on macOS..."
-        osascript -e 'tell application "Terminal" to close (every window whose name contains "authentication-sample")' 2>/dev/null || true
+        osascript -e 'tell application "Terminal" to close (every window whose name contains "auth-sample")' 2>/dev/null || true
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         # Linux - try to close gnome-terminal window
         echo "Attempting to close terminal window on Linux..."

@@ -16,8 +16,8 @@ resource "aws_security_group" "instances" {
   tags = { Name = "${local.name_prefix}-instances" }
 }
 
-# SG for NLB is only used for TLS health-checks and cross-sg rules when target type is instance.
-# Note: NLB does not use SG; this SG is applied to instances to restrict who can reach 8443.
+# SG for NLB-related ingress on instances (when target type is instance).
+# Note: NLB does not use SG; this SG is applied to instances to restrict who can reach Envoy.
 resource "aws_security_group" "nlb_to_envoy" {
   name        = "${local.name_prefix}-nlb-to-envoy"
   description = "Allow 8443 only from CloudFront (via NLB)"
@@ -32,14 +32,14 @@ resource "aws_security_group" "nlb_to_envoy" {
 }
 
 # Allow only NLB to Envoy port 8443 on instances. We will later attach this SG to ASGs.
-resource "aws_security_group_rule" "envoy_8443_from_nlb" {
+resource "aws_security_group_rule" "envoy_8080_from_nlb" {
   type              = "ingress"
   security_group_id = aws_security_group.nlb_to_envoy.id
-  from_port         = 8443
-  to_port           = 8443
+  from_port         = 8080
+  to_port           = 8080
   protocol          = "tcp"
   cidr_blocks       = length(var.allowed_cloudfront_cidrs) > 0 ? var.allowed_cloudfront_cidrs : [for s in aws_subnet.public : s.cidr_block]
-  description       = "Only CloudFront/NLB ranges can reach Envoy 8443"
+  description       = "Only CloudFront/NLB ranges can reach Envoy 8080"
 }
 
 # Docker Swarm intra-cluster ports (only within VPC)

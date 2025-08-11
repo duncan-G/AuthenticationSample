@@ -172,7 +172,6 @@ display_state_bucket_cleanup_instructions() {
     echo -e "${GREEN}aws s3 rm s3://$CODE_DEPLOY_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
     echo -e "${GREEN}aws s3api delete-bucket --bucket $CODE_DEPLOY_BUCKET_NAME --profile $AWS_PROFILE${NC}"
     
-    print_warning "⚠️  WARNING: This will permanently delete your Terraform state and certificates!"
     print_info "Make sure you have backed up your state or are certain you want to delete it."
     print_info "Note: CodeDeploy bucket is managed by Terraform and will be cleaned up with terraform destroy."
     

@@ -11,7 +11,6 @@ A modern, production-ready authentication system built with microservices archit
 - **🔄 API Gateway**: Envoy proxy for routing and load balancing
 - **📊 Observability**: Built-in monitoring with Aspire dashboard
 - **🐳 Container Ready**: Full Docker support with Docker Swarm
-- **🔐 TLS/SSL**: Automatic certificate generation and management
 - **📈 Production Ready**: Includes logging, monitoring, and health checks
 
 
@@ -36,9 +35,9 @@ cd AuthenticationSample
 ```bash
 # Copy and configure environment files
 cp .env.template .env
-cp microservices/Authentication/src/Authentication.Grpc/.env.template microservices/Authentication/src/Authentication.Grpc/.env
-cp microservices/Authentication/src/Authentication.Grpc/.env.docker.template microservices/Authentication/src/Authentication.Grpc/.env.docker
-cp clients/authentication-sample/.env.docker.template clients/authentication-sample/.env.docker
+cp microservices/Auth/src/Auth.Grpc/.env.template microservices/Auth/src/Auth.Grpc/.env
+cp microservices/Auth/src/Auth.Grpc/.env.docker.template microservices/Auth/src/Auth.Grpc/.env.docker
+cp clients/auth-sample/.env.docker.template clients/auth-sample/.env.docker
 
 # Edit all .env files with your configuration values
 ```

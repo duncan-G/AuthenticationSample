@@ -44,7 +44,7 @@ resource "vercel_project" "frontend" {
   environment = [
     {
       key    = "NEXT_PUBLIC_AUTHENTICATION_SERVICE_URL"
-      value  = "https://api.${var.domain_name}/authentication"
+      value  = "https://api.${var.domain_name}/auth"
       target = ["production", "preview"]
     },
     {

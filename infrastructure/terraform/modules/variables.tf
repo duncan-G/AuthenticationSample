@@ -28,29 +28,6 @@ variable "environment" {
   }
 }
 
-variable "deployment_bucket" {
-  description = "S3 bucket name for deployment artifacts"
-  type        = string
-  default     = ""
-}
-
-variable "github_repository" {
-  description = "GitHub repo in 'owner/repo' format for OIDC trust policy"
-  type        = string
-  default     = ""
-}
-
-variable "staging_environment_name" {
-  description = "GitHub Actions staging environment name"
-  type        = string
-  default     = "stage"
-}
-
-variable "production_environment_name" {
-  description = "GitHub Actions production environment name"
-  type        = string
-  default     = "prod"
-}
 
 variable "domain_name" {
   description = "Primary domain (e.g., example.com)"
@@ -72,10 +49,10 @@ variable "route53_hosted_zone_id" {
   }
 }
 
-variable "api_subdomain" {
-  description = "Public API subdomain prefix (viewer) served by CloudFront (e.g., 'api')"
-  type        = string
-  default     = "api"
+variable "public_subdomains" {
+  description = "List of public subdomains that should resolve to the public load balancer"
+  type        = list(string)
+  default     = ["api"]
 }
 
 
@@ -89,17 +66,20 @@ variable "bucket_suffix" {
   }
 }
 
-variable "vercel_api_token" {
-  description = "Vercel API token"
-  type        = string
-  sensitive   = true
+
+# Microservice lists used by ECR and CodeDeploy modules
+variable "microservices" {
+  description = "List of microservices to deploy/build (also used to create ECR repos)"
+  type        = list(string)
+  default     = []
 }
 
-variable "az_count" {
-  description = "Number of Availability Zones to use"
-  type        = number
-  default     = 3
+variable "microservices_with_logs" {
+  description = "Subset of microservices that should have CloudWatch logs collected via CodeDeploy"
+  type        = list(string)
+  default     = []
 }
+
 
 variable "instance_type_managers" {
   description = "EC2 instance type for Swarm managers"
@@ -137,42 +117,11 @@ variable "enable_spot" {
   default     = false
 }
 
-variable "on_demand_base" {
-  description = "Base number of On-Demand instances before using Spot"
-  type        = number
-  default     = 1
-}
-
-variable "spot_max_price" {
-  description = "Optional max price for Spot instances (e.g., '0.08'). Empty uses on-demand price cap"
-  type        = string
-  default     = ""
-}
-
-variable "enable_origin_shield" {
-  description = "Enable CloudFront Origin Shield"
+# Toggle SSM association-based bootstrapping (set false when using userdata)
+variable "enable_ssm_associations" {
+  description = "Enable SSM associations to bootstrap docker and cloudwatch on instances"
   type        = bool
   default     = false
 }
 
-variable "waf_rule_set" {
-  description = "List of AWS Managed WAF rule group identifiers to enable"
-  type        = list(string)
-  default = [
-    "AWSManagedRulesCommonRuleSet",
-    "AWSManagedRulesKnownBadInputsRuleSet",
-    "AWSManagedRulesAmazonIpReputationList"
-  ]
-}
 
-variable "jwks_ttl_seconds" {
-  description = "TTL to cache /.well-known/jwks.json at CloudFront"
-  type        = number
-  default     = 120
-}
-
-variable "edge_shared_secret" {
-  description = "Secret header value set by CloudFront to prevent origin bypass"
-  type        = string
-  sensitive   = true
-}

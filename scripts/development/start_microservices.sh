@@ -55,7 +55,7 @@ fi
 # Start Postgres
 bash $working_dir/scripts/development/start_database.sh
 
-# Deploy Authentication microservice if containerization is enabled
+# Deploy Auth microservice if containerization is enabled
 if [ "$containerize_microservices" = true ]; then
     # Check if Docker Swarm is active
     if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
@@ -63,30 +63,30 @@ if [ "$containerize_microservices" = true ]; then
         exit 1
     fi
 
-    # Build Authentication and deploy to swarm
-    image_name="auth-sample/authentication"
-    echo "Building Authentication service"
-    cd $working_dir/microservices/Authentication
+    # Build Auth and deploy to swarm
+    image_name="auth-sample/auth"
+    echo "Building Auth service"
+    cd $working_dir/microservices/Auth
     env ContainerRepository=$image_name \
       dotnet publish --os linux --arch x64 /t:PublishContainer
     cd ../..
 
-    echo "Deploying Authentication service to swarm"
+    echo "Deploying Auth service to swarm"
     env IMAGE_NAME=$image_name \
         HOME=$HOME \
-        docker stack deploy --compose-file microservices/.builds/service.stack.debug.yaml authentication
+        docker stack deploy --compose-file microservices/.builds/service.stack.debug.yaml auth
     
 else
-    # Start Authentication service with proper logging and process management
-    echo "Starting Authentication service"
-    service_name="authentication"
+    # Start Auth service with proper logging and process management
+    echo "Starting Auth service"
+    service_name="auth"
     logfile="$LOG_DIR/$service_name.log"
     pidfile="$PID_DIR/$service_name.pid"
 
     (
-        cd "$working_dir/microservices/Authentication"
+        cd "$working_dir/microservices/Auth"
         nohup env $DOTNET_ENV_VARS dotnet watch run \
-            --project src/Authentication.Grpc/Authentication.Grpc.csproj \
+            --project src/Auth.Grpc/Auth.Grpc.csproj \
             >>"$logfile" 2>&1 &
         echo $! > "$pidfile"
     )

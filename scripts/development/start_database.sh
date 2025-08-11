@@ -66,7 +66,7 @@ env PGADMIN_PATH="$working_dir/microservices/.builds/postgres/pg_admin" \
 
 # Run Schema Builders
 if [ "$rebuild" = true ]; then
-    cd microservices/Authentication/src/Authentication.SchemaBuilder
+    cd microservices/Auth/src/Auth.SchemaBuilder
     dotnet run
     cd ../../../../
 fi

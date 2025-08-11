@@ -46,28 +46,9 @@ resource "aws_security_group_rule" "http" {
   from_port         = 80
   to_port           = 80
   protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
   ipv6_cidr_blocks  = ["::/0"]
   description       = "HTTP"
-}
-
-resource "aws_security_group_rule" "https_tcp" {
-  type              = "ingress"
-  security_group_id = aws_security_group.instance.id
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  ipv6_cidr_blocks  = ["::/0"]
-  description       = "HTTPS (TCP)"
-}
-
-resource "aws_security_group_rule" "https_udp" {
-  type              = "ingress"
-  security_group_id = aws_security_group.instance.id
-  from_port         = 443
-  to_port           = 443
-  protocol          = "udp"
-  ipv6_cidr_blocks  = ["::/0"]
-  description       = "HTTPS (UDP/QUIC)"
 }
 
 # Docker Swarm ingress (loop to avoid repetition)
@@ -90,6 +71,7 @@ resource "aws_security_group_rule" "egress_all" {
   from_port         = 0
   to_port           = 0
   protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
   ipv6_cidr_blocks  = ["::/0"]
   description       = "Allow all outbound"
 }

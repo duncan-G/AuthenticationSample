@@ -15,25 +15,39 @@
 
 #region Configuration
 
-# Variables
-variable "microservices" {
-  description = "List of microservices to deploy via CodeDeploy"
-  type        = list(string)
+variable "bucket_suffix" {
+  description = "Suffix to ensure unique S3 bucket names across envs"
+  type        = string
+}
 
-  validation {
-    condition     = length(var.microservices) > 0
-    error_message = "At least one microservice must be specified"
-  }
+variable "microservices" {
+  description = "List of microservices to deploy/build (also used to create ECR repos)"
+  type        = list(string)
+  default     = []
 }
 
 variable "microservices_with_logs" {
-  description = "List of microservices that should have CloudWatch logs collected"
+  description = "Subset of microservices that should have CloudWatch logs collected via CodeDeploy"
   type        = list(string)
+  default     = []
+}
 
-  validation {
-    condition     = length(var.microservices_with_logs) > 0
-    error_message = "At least one microservice must be specified for log collection"
-  }
+variable "github_repository" {
+  description = "GitHub repo in 'owner/repo' format for OIDC trust policy"
+  type        = string
+  default     = ""
+}
+
+variable "staging_environment_name" {
+  description = "GitHub Actions staging environment name"
+  type        = string
+  default     = "stage"
+}
+
+variable "production_environment_name" {
+  description = "GitHub Actions production environment name"
+  type        = string
+  default     = "prod"
 }
 
 #endregion
@@ -122,12 +136,12 @@ resource "aws_codedeploy_deployment_group" "microservices" {
     }
   }
 
-  # Tag group 2: restrict deployment to manager/private tier instances only
+  # Tag group 2: restrict deployment to manager role instances only
   ec2_tag_set {
     ec2_tag_filter {
-      key   = "Tier"
+      key   = "Role"
       type  = "KEY_AND_VALUE"
-      value = "private"
+      value = "manager"
     }
   }
 
@@ -194,9 +208,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
         }
         Condition = {
           StringEquals = {
-            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          }
-          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com",
             "token.actions.githubusercontent.com:sub" = [
               "repo:${var.github_repository}:environment:${var.staging_environment_name}",
               "repo:${var.github_repository}:environment:${var.production_environment_name}"

@@ -31,6 +31,25 @@ prompt_user() {
     eval "$var_name='$input'"
 }
 
+# Function to prompt user for optional input (allows empty)
+prompt_user_optional() {
+    local prompt="${1:-Enter value (optional)}"
+    local var_name="${2:-user_input}"
+    local default_value="${3:-}"
+
+    if [ -n "$default_value" ]; then
+        read -p "$(echo -e ${WHITE}$prompt ${NC}[${default_value}]: )" input
+        if [ -z "$input" ]; then
+            input="$default_value"
+        fi
+    else
+        read -p "$(echo -e ${WHITE}$prompt: ${NC})" input
+        # Allow empty without repeated prompting
+    fi
+
+    eval "$var_name='$input'"
+}
+
 # Function to prompt for confirmation
 prompt_confirmation() {
     local prompt="$1"
@@ -93,4 +112,4 @@ prompt_selection() {
 }
 
 # Export functions so they can be used by other scripts
-export -f prompt_user prompt_confirmation prompt_required_confirmation prompt_selection 
+export -f prompt_user prompt_user_optional prompt_confirmation prompt_required_confirmation prompt_selection 

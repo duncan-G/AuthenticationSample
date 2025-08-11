@@ -5,24 +5,16 @@ admin:
 
 static_resources:
   listeners:
-  - name: tls_8443
+  - name: http_ingress
     address:
-      socket_address: { address: 0.0.0.0, port_value: 8443 }
+      socket_address: { address: 0.0.0.0, port_value: 8080 }
     filter_chains:
-    - transport_socket:
-        name: envoy.transport_sockets.tls
-        typed_config:
-          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-          common_tls_context:
-            tls_certificates:
-            - certificate_chain: { filename: /certs/tls.crt }
-              private_key:      { filename: /certs/tls.key }
-      filters:
+    - filters:
       - name: envoy.filters.network.http_connection_manager
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           codec_type: AUTO
-          stat_prefix: ingress_https
+          stat_prefix: ingress_http
           xff_num_trusted_hops: 2
           request_headers_to_add:
           - header: { key: "x-request-id", value: "%REQ(X-REQUEST-ID)%" }
