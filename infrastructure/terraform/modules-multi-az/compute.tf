@@ -128,8 +128,7 @@ resource "aws_autoscaling_group" "managers" {
     version = "$Latest"
   }
 
-  placement_group    = null
-  availability_zones = [for i in range(var.az_count) : data.aws_availability_zones.available.names[i]]
+  placement_group = null
 
   instance_refresh {
     strategy = "Rolling"

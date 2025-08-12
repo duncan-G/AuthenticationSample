@@ -2,6 +2,7 @@ locals {
   cognito_domain    = var.cognito_domain_prefix == "" ? null : "${var.cognito_domain_prefix}-${var.bucket_suffix}"
   auth_environments = toset([var.env, "dev"])
   social_idp_names  = length(var.idps) > 0 ? [for k in keys(var.idps) : k == "google" ? "Google" : "SignInWithApple"] : []
+  redirect_uri      = length(var.auth_callback) > 0 ? var.auth_callback[0] : ""
 }
 
 # =============================================================================
@@ -132,7 +133,7 @@ output "cognito_user_pool_client_id_back" { value = aws_cognito_user_pool_client
 output "cognito_identity_pool_id" { value = aws_cognito_identity_pool.this.id }
 
 output "cognito_auth_url" {
-  value = "https://${aws_cognito_user_pool_domain.this[var.env].domain}.auth.${var.region}.amazoncognito.com/oauth2/authorize?response_type=code&client_id=${aws_cognito_user_pool_client.web[var.env].id}&redirect_uri=${var.auth_callback[0]}"
+  value = length(local.redirect_uri) > 0 ? "https://${aws_cognito_user_pool_domain.this[var.env].domain}.auth.${var.region}.amazoncognito.com/oauth2/authorize?response_type=code&client_id=${aws_cognito_user_pool_client.web[var.env].id}&redirect_uri=${local.redirect_uri}" : ""
 }
 
 # Dev outputs for convenience
@@ -144,6 +145,6 @@ output "cognito_user_pool_client_id_web_dev" { value = aws_cognito_user_pool_cli
 output "cognito_user_pool_client_id_back_dev" { value = aws_cognito_user_pool_client.backend["dev"].id }
 
 output "cognito_auth_url_dev" {
-  value = "https://${aws_cognito_user_pool_domain.this["dev"].domain}.auth.${var.region}.amazoncognito.com/oauth2/authorize?response_type=code&client_id=${aws_cognito_user_pool_client.web["dev"].id}&redirect_uri=${var.auth_callback[0]}"
+  value = length(local.redirect_uri) > 0 ? "https://${aws_cognito_user_pool_domain.this["dev"].domain}.auth.${var.region}.amazoncognito.com/oauth2/authorize?response_type=code&client_id=${aws_cognito_user_pool_client.web["dev"].id}&redirect_uri=${local.redirect_uri}" : ""
 }
 
