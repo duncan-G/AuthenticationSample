@@ -99,7 +99,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "codedeploy" {
 resource "aws_s3_bucket" "codedeploy_tags" {
   bucket = aws_s3_bucket.codedeploy.id
   tags = {
-    Name        = "${var.project_name}-codedeploy"
+    Name        = "${var.project_name}-codedeploy-${var.env}"
     Environment = var.env
   }
 }
@@ -163,7 +163,7 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
   retention_in_days = 14
 
   tags = {
-    Name        = "${var.project_name}-${each.key}-codedeploy-logs"
+    Name        = "${var.project_name}-${each.key}-codedeploy-logs-${var.env}"
     Environment = var.env
     Service     = each.key
   }
@@ -175,7 +175,7 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
 
 # CodeDeploy Service Role for Github Actions to deploy microservices
 resource "aws_iam_role" "codedeploy_service_role" {
-  name = "${var.project_name}-codedeploy-service-role"
+  name = "${var.project_name}-codedeploy-service-role-${var.env}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -191,14 +191,14 @@ resource "aws_iam_role" "codedeploy_service_role" {
   })
 
   tags = {
-    Name        = "${var.project_name}-codedeploy-service-role"
+    Name        = "${var.project_name}-codedeploy-service-role-${var.env}"
     Environment = var.env
   }
 }
 
 # GitHub Actions CodeDeploy Role for GitHub Actions to deploy via CodeDeploy
 resource "aws_iam_role" "github_actions_codedeploy" {
-  name = "${var.project_name}-github-actions-role-codedeploy"
+  name = "${var.project_name}-github-actions-role-codedeploy-${var.env}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -223,7 +223,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-github-actions-role-codedeploy"
+    Name        = "${var.project_name}-github-actions-role-codedeploy-${var.env}"
     Environment = var.env
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
@@ -231,7 +231,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
 
 # EC2 CodeDeploy Role for EC2 instances to work with CodeDeploy
 resource "aws_iam_role" "ec2_codedeploy_role" {
-  name = "${var.project_name}-ec2-codedeploy-role"
+  name = "${var.project_name}-ec2-codedeploy-role-${var.env}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -247,7 +247,7 @@ resource "aws_iam_role" "ec2_codedeploy_role" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-codedeploy-role"
+    Name        = "${var.project_name}-ec2-codedeploy-role-${var.env}"
     Environment = var.env
   }
 }
@@ -258,7 +258,7 @@ resource "aws_iam_role" "ec2_codedeploy_role" {
 
 # GitHub Actions CodeDeploy Policy for GitHub Actions to deploy via CodeDeploy
 resource "aws_iam_policy" "github_actions_codedeploy_policy" {
-  name        = "${var.project_name}-github-actions-policy-codedeploy"
+  name        = "${var.project_name}-github-actions-policy-codedeploy-${var.env}"
   description = "Policy for GitHub Actions to deploy via AWS CodeDeploy"
 
   policy = jsonencode({
@@ -323,7 +323,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-github-actions-policy-codedeploy"
+    Name        = "${var.project_name}-github-actions-policy-codedeploy-${var.env}"
     Environment = var.env
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
@@ -331,7 +331,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
 
 # Policy for EC2 instances to work with CodeDeploy
 resource "aws_iam_policy" "ec2_codedeploy_policy" {
-  name        = "${var.project_name}-ec2-codedeploy-policy"
+  name        = "${var.project_name}-ec2-codedeploy-policy-${var.env}"
   description = "Policy for EC2 instances to work with CodeDeploy"
 
   policy = jsonencode({
@@ -373,7 +373,7 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-codedeploy-policy"
+    Name        = "${var.project_name}-ec2-codedeploy-policy-${var.env}"
     Environment = var.env
   }
 }
@@ -408,7 +408,7 @@ resource "aws_iam_role_policy_attachment" "manager_codedeploy_policy_attachment"
 
 # EC2 CodeDeploy Instance Profile
 resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
-  name = "${var.project_name}-ec2-codedeploy-profile"
+  name = "${var.project_name}-ec2-codedeploy-profile-${var.env}"
   role = aws_iam_role.ec2_codedeploy_role.name
 }
 

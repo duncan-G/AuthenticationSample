@@ -1,5 +1,5 @@
 # ---------------------------------------------------
-#  Terraform configuration for AWS application stack
+# Terraform configuration and providers
 # ---------------------------------------------------
 
 terraform {
@@ -17,7 +17,7 @@ terraform {
   }
 
   backend "s3" {
-    # Bucket is passed via `-backend-config="bucket=…"` during `terraform init`
+    # Bucket is passed via -backend-config during terraform init
     key     = "terraform.tfstate"
     encrypt = true
   }

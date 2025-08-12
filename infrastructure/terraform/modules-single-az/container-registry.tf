@@ -1,10 +1,7 @@
 # =============================================================================
 # AWS ECR Repository Infrastructure
 # =============================================================================
-# This file manages all ECR repositories required for the application:
-# 
-# • ECR repositories for microservices
-# • Lifecycle policies for image retention
+# Manages ECR repositories for microservices and lifecycle policies.
 # =============================================================================
 
 #region Resources
@@ -12,7 +9,7 @@
 resource "aws_ecr_repository" "microservices" {
   for_each = toset(var.microservices)
 
-  name                 = "${var.project_name}/${each.key}"
+  name                 = "${var.project_name}/${each.key}-${var.env}"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 
@@ -21,7 +18,7 @@ resource "aws_ecr_repository" "microservices" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${each.key}-repository"
+    Name        = "${var.project_name}-${each.key}-repository-${var.env}"
     Environment = var.env
     Service     = each.key
   }

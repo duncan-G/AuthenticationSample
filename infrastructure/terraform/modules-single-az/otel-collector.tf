@@ -1,26 +1,16 @@
 # =============================================================================
-# OpenTelemetry Collector Infrastructure
+# OpenTelemetry Collector
 # =============================================================================
-# This file manages OpenTelemetry Collector infrastructure components:
-# 
-# • IAM roles and policies for OpenTelemetry Collector
-# • CloudWatch logging permissions
-# • X-Ray tracing permissions
-# • Instance profile for collector deployment
-# • Policy attachments to existing compute roles
-# 
-# The OpenTelemetry Collector handles:
-# - Metrics collection and forwarding to CloudWatch
-# - Distributed tracing via AWS X-Ray
-# - Log aggregation and forwarding
-# - Telemetry data processing and filtering
+# IAM role, instance profile, policies and attachments for telemetry
+# collection (CloudWatch logs, metrics) and tracing (AWS X-Ray).
+# Also attaches permissions to existing compute roles.
 # =============================================================================
 
 #region IAM Roles
 
 # IAM Role for OpenTelemetry Collector
 resource "aws_iam_role" "otel_collector_role" {
-  name = "${var.project_name}-otel-collector-role"
+  name = "${var.project_name}-otel-collector-role-${var.env}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -36,7 +26,7 @@ resource "aws_iam_role" "otel_collector_role" {
   })
 
   tags = {
-    Name        = "${var.project_name}-otel-collector-role"
+    Name        = "${var.project_name}-otel-collector-role-${var.env}"
     Environment = var.env
     Purpose     = "OpenTelemetry Collector IAM Role"
   }
@@ -44,11 +34,11 @@ resource "aws_iam_role" "otel_collector_role" {
 
 # Instance profile for OpenTelemetry Collector
 resource "aws_iam_instance_profile" "otel_collector_instance_profile" {
-  name = "${var.project_name}-otel-collector-instance-profile"
+  name = "${var.project_name}-otel-collector-instance-profile-${var.env}"
   role = aws_iam_role.otel_collector_role.name
 
   tags = {
-    Name        = "${var.project_name}-otel-collector-instance-profile"
+    Name        = "${var.project_name}-otel-collector-instance-profile-${var.env}"
     Environment = var.env
     Purpose     = "OpenTelemetry Collector Instance Profile"
   }
@@ -60,7 +50,7 @@ resource "aws_iam_instance_profile" "otel_collector_instance_profile" {
 
 # IAM Policy for OpenTelemetry Collector CloudWatch Access
 resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
-  name        = "${var.project_name}-otel-collector-cloudwatch-policy"
+  name        = "${var.project_name}-otel-collector-cloudwatch-policy-${var.env}"
   description = "Policy for OpenTelemetry Collector to create and write to CloudWatch log groups"
 
   policy = jsonencode({
@@ -96,7 +86,7 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-otel-collector-cloudwatch-policy"
+    Name        = "${var.project_name}-otel-collector-cloudwatch-policy-${var.env}"
     Environment = var.env
     Purpose     = "OpenTelemetry CloudWatch Permissions"
   }
@@ -104,7 +94,7 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
 
 # IAM Policy for OpenTelemetry Collector X-Ray Access
 resource "aws_iam_policy" "otel_collector_xray_policy" {
-  name        = "${var.project_name}-otel-collector-xray-policy"
+  name        = "${var.project_name}-otel-collector-xray-policy-${var.env}"
   description = "Policy for OpenTelemetry Collector to write to X-Ray"
 
   policy = jsonencode({
@@ -122,7 +112,7 @@ resource "aws_iam_policy" "otel_collector_xray_policy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-otel-collector-xray-policy"
+    Name        = "${var.project_name}-otel-collector-xray-policy-${var.env}"
     Environment = var.env
     Purpose     = "OpenTelemetry X-Ray Permissions"
   }

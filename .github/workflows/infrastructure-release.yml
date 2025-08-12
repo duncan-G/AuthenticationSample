@@ -117,7 +117,8 @@ jobs:
       id: init
       run: |
         echo "🔧 Initializing Terraform..."
-        
+
+        # Prefix used in terraform state bucket
         TF_WORKSPACE_PREFIX="${{ vars.PROJECT_NAME }}/${{ github.event.inputs.multi_az && 'multi-az' || 'single-az' }}"
         
         # Initialize with partial backend configuration

@@ -1,18 +1,8 @@
 # =============================================================================
 # Network Infrastructure
 # =============================================================================
-# This file manages all network infrastructure components:
-# 
-# • VPC with IPv4 and IPv6 support
-# • Public and private subnets
-# • Internet Gateway for external connectivity
-# • Route tables and associations
-# • Network configuration for Docker Swarm
-# 
-# Network Design:
-# - VPC: 10.0.0.0/16 with IPv6 support
-# - Public Subnet: 10.0.1.0/24 (for public workers, load balancers)
-# - Private Subnet: 10.0.2.0/24 (for private workers, managers, databases)
+# VPC with dual-stack IPv4/IPv6, one public subnet (workers, NLB) and one
+# private subnet (managers, internal workloads), with IGW and route tables.
 # =============================================================================
 
 #region Resources
@@ -25,7 +15,7 @@ resource "aws_vpc" "main" {
   enable_dns_support               = true
 
   tags = {
-    Name        = "${var.project_name}-vpc"
+    Name        = "${var.project_name}-vpc-${var.env}"
     Environment = var.env
     Purpose     = "Main VPC for Docker Swarm infrastructure"
   }
@@ -36,7 +26,7 @@ resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name        = "${var.project_name}-igw"
+    Name        = "${var.project_name}-igw-${var.env}"
     Environment = var.env
     Purpose     = "Internet Gateway for public access"
   }
@@ -52,7 +42,7 @@ resource "aws_subnet" "public" {
   availability_zone               = data.aws_availability_zones.this.names[0]
 
   tags = {
-    Name        = "${var.project_name}-public-subnet"
+    Name        = "${var.project_name}-public-subnet-${var.env}"
     Environment = var.env
     Type        = "public"
     Purpose     = "Public subnet for external-facing resources"
@@ -68,7 +58,7 @@ resource "aws_subnet" "private" {
   availability_zone               = data.aws_availability_zones.this.names[0]
 
   tags = {
-    Name        = "${var.project_name}-private-subnet"
+    Name        = "${var.project_name}-private-subnet-${var.env}"
     Environment = var.env
     Type        = "private"
     Purpose     = "Private subnet for internal resources"
@@ -92,7 +82,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name        = "${var.project_name}-public-rt"
+    Name        = "${var.project_name}-public-rt-${var.env}"
     Environment = var.env
     Type        = "public"
     Purpose     = "Public route table with internet access"
@@ -110,7 +100,7 @@ resource "aws_route_table" "private" {
   }
 
   tags = {
-    Name        = "${var.project_name}-private-rt"
+    Name        = "${var.project_name}-private-rt-${var.env}"
     Environment = var.env
     Type        = "private"
     Purpose     = "Private route table with IPv6 internet access"
@@ -133,7 +123,7 @@ resource "aws_route_table_association" "private" {
 
 #region Outputs
 
-# Only outputs that are actually used by other modules
+# Outputs consumed by other files in this module
 output "vpc_id" {
   description = "ID of the VPC"
   value       = aws_vpc.main.id

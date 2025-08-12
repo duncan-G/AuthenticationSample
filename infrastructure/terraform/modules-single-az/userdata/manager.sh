@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
+# ----------------------------------------------------------------------------
+# manager.sh — EC2 user data bootstrap for Docker Swarm manager
+#
+# Purpose
+# - Provision an Amazon Linux EC2 instance as a Docker Swarm manager node.
+#
+# What this script does
+# - Installs Docker, jq, awscli, and the Amazon ECR credential helper; configures
+#   Docker to use the credential store for root and (optionally) `SETUP_USER`.
+# - Installs and configures the CloudWatch agent to ship this script's log file.
+# - Initializes (or ensures) Docker Swarm in manager mode and creates an overlay
+#   network (`NETWORK_NAME`, `NETWORK_SUBNET`).
+# - Publishes join and network info to AWS Systems Manager Parameter Store under
+#   `SSM_PREFIX`: `worker-token`, `manager-ip`, `network-name`.
+# - Installs the AWS CodeDeploy agent and labels the node with its AZ for
+#   placement constraints.
+#
+# Inputs/overrides via environment variables
+# - `AWS_REGION` (auto-detected if unset), `LOG_FILE`, `SSM_PREFIX`,
+#   `NETWORK_NAME`, `NETWORK_SUBNET`, `PROJECT_NAME`, `SETUP_USER`.
+#
+# Usage
+# - Invoked as EC2 user data by Terraform for instances tagged `Role=manager`,
+#   and/or executed via SSM associations. Designed to be idempotent and safe to
+#   re-run.
+# ----------------------------------------------------------------------------
+
 set -Eeuo pipefail
 shopt -s inherit_errexit || true
 

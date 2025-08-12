@@ -1,6 +1,31 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
+# ----------------------------------------------------------------------------
+# worker.sh — EC2 user data bootstrap for Docker Swarm worker
+#
+# Purpose
+# - Provision an Amazon Linux EC2 instance as a Docker Swarm worker node.
+#
+# What this script does
+# - Installs Docker, jq, awscli, and the Amazon ECR credential helper; configures
+#   Docker to use the credential store for root and (optionally) `SETUP_USER`.
+# - Installs and configures the CloudWatch agent to ship this script's log file.
+# - Reads manager-provided values from AWS Systems Manager Parameter Store under
+#   `SSM_PREFIX` (set by the manager script): `worker-token`, `manager-ip`.
+# - Waits/retries until the manager parameters are available, then joins the
+#   swarm as a worker and labels the node with its AZ for placement constraints.
+#
+# Inputs/overrides via environment variables
+# - `AWS_REGION` (auto-detected if unset), `LOG_FILE`, `SSM_PREFIX`, `PROJECT_NAME`,
+#   `SETUP_USER`, `MAX_ATTEMPTS`, `SLEEP_SECONDS`.
+#
+# Usage
+# - Invoked as EC2 user data by Terraform for instances tagged `Role=worker`,
+#   and/or executed via SSM associations. Designed to be idempotent and safe to
+#   re-run.
+# ----------------------------------------------------------------------------
+
 set -Eeuo pipefail
 shopt -s inherit_errexit || true
 

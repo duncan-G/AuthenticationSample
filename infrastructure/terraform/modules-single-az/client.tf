@@ -1,18 +1,11 @@
 # =============================================================================
 # Vercel Frontend Deployment
 # =============================================================================
-# This file manages Vercel deployment infrastructure components:
+# Manages a Vercel project for the Next.js frontend and its configuration:
 # 
-# • Vercel project configuration for Next.js frontend
-# • Git repository integration with GitHub
-# • Environment variables for production and preview
-# • Project settings and deployment configuration
-# 
-# Deployment Structure:
-# - Framework: Next.js with TypeScript
-# - Repository: GitHub integration for automatic deployments
-# - Environment: Production and preview environment variables
-# - API Integration: Backend service URL configuration
+# • GitHub repo integration
+# • Environment variables (production and preview)
+# • Root directory and project settings
 # =============================================================================
 
 #region Configuration

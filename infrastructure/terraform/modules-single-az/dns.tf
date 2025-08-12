@@ -1,20 +1,8 @@
 # =============================================================================
-# Route 53 DNS — Public Records Infrastructure
+# Route 53 DNS — Public Records
 # =============================================================================
-# This file manages Route 53 DNS records needed by the platform.
-#
-# What this module publishes:
-# • A/AAAA ALIAS records for each host in `public_subdomains`, pointing to the NLB/ALB (`aws_lb.main`)
-# • A TXT SPF record at the apex for outbound email
-#
-# What this module intentionally does NOT publish:
-# • No apex (root) A/AAAA records
-# • No `www` record
-# • No internal/staging hostnames or direct IPs
-#
-# Operational notes:
-# • Let’s Encrypt DNS-01 works via IAM updates to the `_acme-challenge.*` TXT records
-# • IPv6 is assumed; if your load balancer isn’t dual-stack, disable AAAA or gate it with a variable
+# Publishes ALIAS A/AAAA records for `public_subdomains` to the public NLB and
+# an SPF TXT record at the zone apex.
 # =============================================================================
 
 #region Configuration
@@ -26,7 +14,7 @@ variable "public_subdomains" {
   default     = []
 }
 
-// ACME validation subdomains removed
+// ACME validation records are not managed in this module
 
 # Local values to reference the hosted zone (data source defined in data.tf)
 locals {

@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Shared Variables
 # ---------------------------------------------------------------------------
-// This file contains variables used across the stack.
+# Variables used across the stack.
 
 variable "region" {
   description = "AWS region for all resources (set via TF_VAR_region)"
@@ -75,8 +75,7 @@ variable "enable_spot" {
   default     = false
 }
 
-# Toggle SSM association-based bootstrapping (set false when using userdata)
-// declared in compute-scripts.tf
+# Toggle SSM association-based bootstrapping (declared in compute-scripts.tf)
 
 variable "authenticated_policy_arn" {
   description = "If provided, attaches this policy ARN to the authenticated Cognito role"

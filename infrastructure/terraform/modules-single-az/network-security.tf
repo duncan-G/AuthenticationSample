@@ -1,14 +1,14 @@
 # ---------------------------------------------------------------------------
-# Security
+# Network Security
 # ---------------------------------------------------------------------------
 
 resource "aws_security_group" "instance" {
-  name_prefix = "${var.project_name}-sg-"
+  name_prefix = "${var.project_name}-sg-${var.env}-"
   description = "Allow HTTP/HTTPS + Docker Swarm"
   vpc_id      = aws_vpc.main.id
 
   tags = {
-    Name        = "${var.project_name}-instance-sg"
+    Name        = "${var.project_name}-instance-sg-${var.env}"
     Environment = var.env
   }
 }

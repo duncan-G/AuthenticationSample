@@ -1,11 +1,7 @@
 # =============================================================================
 # Data Sources
 # =============================================================================
-# This file manages all data sources required for the application:
-# 
-# • Availability zones
-# • Amazon Linux AMI
-# • Caller identity
+# Common data sources used across the module (AZs, AMI, caller identity, zone).
 # =============================================================================
 
 data "aws_availability_zones" "this" {}
@@ -16,7 +12,7 @@ data "aws_ami" "amazon_linux" {
 
   filter {
     name   = "name"
-    values = ["al2023-ami-2023*"] # regular AL2023 AMIs
+    values = ["al2023-ami-2023*"]
   }
 
   filter {

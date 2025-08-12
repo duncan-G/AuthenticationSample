@@ -1,18 +1,8 @@
 # =============================================================================
-# Network Load Balancer Infrastructure
+# Network Load Balancer
 # =============================================================================
-# This file manages all load balancer infrastructure components:
-# 
-# • Network Load Balancer for high-performance traffic distribution
-# • Listeners for HTTP and HTTPS traffic
-# • Integration with Auto Scaling Group target groups
-# • Health checks and monitoring
-# 
-# Load Balancer Design:
-# - Internet-facing NLB in public subnet
-# - IPv6-only traffic support
-# - Forwards traffic to public worker ASG
-# - High availability and fault tolerance
+# Internet-facing dualstack NLB in the public subnet that forwards TCP/80 to
+# the public worker target group. HTTPS/TLS is intentionally not managed here.
 # =============================================================================
 
 #region Configuration
@@ -48,11 +38,11 @@ variable "load_balancer_type" {
 
 # Network Load Balancer
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-nlb"
+  name               = "${var.project_name}-nlb-${var.env}"
   internal           = false
   load_balancer_type = var.load_balancer_type
 
-  # Enable IPv6-only traffic
+  # Enable IPv4/IPv6
   ip_address_type = "dualstack"
 
   # Place in public subnet for internet-facing access
@@ -62,15 +52,10 @@ resource "aws_lb" "main" {
   enable_deletion_protection       = var.enable_deletion_protection
   enable_cross_zone_load_balancing = var.enable_cross_zone_load_balancing
 
-  # Enable access logs (optional - requires S3 bucket)
-  # access_logs {
-  #   bucket  = aws_s3_bucket.lb_logs.bucket
-  #   prefix  = "access-logs"
-  #   enabled = true
-  # }
+  # Access logs can be enabled if an S3 bucket is provided
 
   tags = {
-    Name        = "${var.project_name}-network-load-balancer"
+    Name        = "${var.project_name}-network-load-balancer-${var.env}"
     Environment = var.env
     Type        = "network"
     IpVersion   = "dualstack"
@@ -90,7 +75,7 @@ resource "aws_lb_listener" "http" {
   }
 
   tags = {
-    Name        = "${var.project_name}-nlb-http-listener"
+    Name        = "${var.project_name}-nlb-http-listener-${var.env}"
     Environment = var.env
     Protocol    = "HTTP"
   }

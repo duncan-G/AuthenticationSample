@@ -1,19 +1,12 @@
 # =============================================================================
 # EC2 Compute Infrastructure
 # =============================================================================
-# This file manages all EC2 compute infrastructure components:
-# 
-# • IAM roles and policies for EC2 instances
-# • Instance profiles for role attachment
-# • EC2 instances (workers, managers)
-# • Dependencies and security configurations
-# 
-# Instance Types:
-# - Workers: Application workloads (internet-facing via NLB)
-# - Managers: Docker Swarm management and orchestration
+# IAM roles/policies, instance profiles, launch templates and ASGs for
+# workers (public) and managers (private), including CloudWatch log groups
+# and scaling alarms.
 # =============================================================================
 
-//# uses shared variables from variables.tf and data sources from data.tf
+// Uses shared variables from variables.tf and data sources from data.tf
 
 # Locals for IAM ARNs
 locals {
@@ -31,7 +24,7 @@ locals {
 
 # Worker role
 resource "aws_iam_role" "worker" {
-  name = "${var.project_name}-ec2-worker-role"
+  name = "${var.project_name}-ec2-worker-role-${var.env}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -43,14 +36,14 @@ resource "aws_iam_role" "worker" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-worker-role"
+    Name        = "${var.project_name}-ec2-worker-role-${var.env}"
     Environment = var.env
   }
 }
 
 # Manager role
 resource "aws_iam_role" "manager" {
-  name = "${var.project_name}-ec2-manager-role"
+  name = "${var.project_name}-ec2-manager-role-${var.env}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -62,7 +55,7 @@ resource "aws_iam_role" "manager" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-manager-role"
+    Name        = "${var.project_name}-ec2-manager-role-${var.env}"
     Environment = var.env
     Tier        = "private"
   }
@@ -70,11 +63,11 @@ resource "aws_iam_role" "manager" {
 
 # Public Worker Instance Profile
 resource "aws_iam_instance_profile" "worker" {
-  name = "${var.project_name}-ec2-worker-profile"
+  name = "${var.project_name}-ec2-worker-profile-${var.env}"
   role = aws_iam_role.worker.name
 
   tags = {
-    Name        = "${var.project_name}-ec2-worker-profile"
+    Name        = "${var.project_name}-ec2-worker-profile-${var.env}"
     Environment = var.env
     Purpose     = "Worker EC2 Instance Profile"
   }
@@ -82,11 +75,11 @@ resource "aws_iam_instance_profile" "worker" {
 
 # Manager Instance Profile
 resource "aws_iam_instance_profile" "manager" {
-  name = "${var.project_name}-ec2-manager-profile"
+  name = "${var.project_name}-ec2-manager-profile-${var.env}"
   role = aws_iam_role.manager.name
 
   tags = {
-    Name        = "${var.project_name}-ec2-manager-profile"
+    Name        = "${var.project_name}-ec2-manager-profile-${var.env}"
     Environment = var.env
     Purpose     = "Manager EC2 Instance Profile"
   }
@@ -98,7 +91,7 @@ resource "aws_iam_instance_profile" "manager" {
 
 # Worker core permissions policy
 resource "aws_iam_policy" "worker_core" {
-  name        = "${var.project_name}-worker-core"
+  name        = "${var.project_name}-worker-core-${var.env}"
   description = "Core permissions for worker nodes"
 
   policy = jsonencode({
@@ -136,7 +129,7 @@ resource "aws_iam_policy" "worker_core" {
   })
 
   tags = {
-    Name        = "${var.project_name}-worker-core-policy"
+    Name        = "${var.project_name}-worker-core-policy-${var.env}"
     Environment = var.env
     Purpose     = "Worker Core Permissions"
   }
@@ -144,7 +137,7 @@ resource "aws_iam_policy" "worker_core" {
 
 # Manager core permissions policy (includes worker permissions + management capabilities)
 resource "aws_iam_policy" "manager_core" {
-  name        = "${var.project_name}-manager-core"
+  name        = "${var.project_name}-manager-core-${var.env}"
   description = "Core permissions for manager nodes"
 
   policy = jsonencode({
@@ -187,7 +180,7 @@ resource "aws_iam_policy" "manager_core" {
   })
 
   tags = {
-    Name        = "${var.project_name}-manager-core-policy"
+    Name        = "${var.project_name}-manager-core-policy-${var.env}"
     Environment = var.env
     Purpose     = "Manager Core Permissions"
   }
@@ -235,22 +228,22 @@ resource "aws_iam_role_policy_attachment" "manager_core" {
 
 # CloudWatch Log Groups for EC2 instances
 resource "aws_cloudwatch_log_group" "manager" {
-  name              = "/aws/ec2/${var.project_name}-docker-manager"
+  name              = "/aws/ec2/${var.project_name}-${var.env}-docker-manager"
   retention_in_days = 30
 
   tags = {
-    Name        = "${var.project_name}-docker-manager-logs"
+    Name        = "${var.project_name}-docker-manager-logs-${var.env}"
     Environment = var.env
     Purpose     = "Docker Manager Logs"
   }
 }
 
 resource "aws_cloudwatch_log_group" "worker" {
-  name              = "/aws/ec2/${var.project_name}-docker-worker"
+  name              = "/aws/ec2/${var.project_name}-${var.env}-docker-worker"
   retention_in_days = 30
 
   tags = {
-    Name        = "${var.project_name}-docker-worker-logs"
+    Name        = "${var.project_name}-docker-worker-logs-${var.env}"
     Environment = var.env
     Purpose     = "Docker Worker Logs"
   }
@@ -258,7 +251,7 @@ resource "aws_cloudwatch_log_group" "worker" {
 
 # Launch Template for Workers (no user_data; bootstrap via SSM associations)
 resource "aws_launch_template" "worker" {
-  name_prefix   = "${var.project_name}-worker-"
+  name_prefix   = "${var.project_name}-worker-${var.env}-"
   description   = "Launch template for worker nodes"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = element(var.instance_types_workers, 0)
@@ -271,7 +264,7 @@ resource "aws_launch_template" "worker" {
 
   # Bootstrap using userdata script; prefix environment variables
   user_data = base64encode(join("\n", [
-    "PROJECT_NAME=\"${var.project_name}\"",
+    "PROJECT_NAME=\"${var.project_name}-${var.env}\"",
     "AWS_REGION=\"${var.region}\"",
     file("${path.module}/userdata/worker.sh")
   ]))
@@ -279,7 +272,7 @@ resource "aws_launch_template" "worker" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "${var.project_name}-worker"
+      Name        = "${var.project_name}-worker-${var.env}"
       Environment = var.env
       Role        = "worker"
     }
@@ -294,7 +287,7 @@ resource "aws_launch_template" "worker" {
 
 # Launch Template for Managers
 resource "aws_launch_template" "manager" {
-  name_prefix   = "${var.project_name}-manager-"
+  name_prefix   = "${var.project_name}-manager-${var.env}-"
   description   = "Launch template for manager nodes"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type_managers
@@ -307,7 +300,7 @@ resource "aws_launch_template" "manager" {
 
   # Bootstrap using userdata script; prefix environment variables
   user_data = base64encode(join("\n", [
-    "PROJECT_NAME=\"${var.project_name}\"",
+    "PROJECT_NAME=\"${var.project_name}-${var.env}\"",
     "AWS_REGION=\"${var.region}\"",
     file("${path.module}/userdata/manager.sh")
   ]))
@@ -315,7 +308,7 @@ resource "aws_launch_template" "manager" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "${var.project_name}-manager"
+      Name        = "${var.project_name}-manager-${var.env}"
       Environment = var.env
       Role        = "manager"
       Type        = "private"
@@ -331,7 +324,7 @@ resource "aws_launch_template" "manager" {
 
 # Auto Scaling Group for Workers (single group)
 resource "aws_autoscaling_group" "workers" {
-  name                      = "${var.project_name}-workers-asg"
+  name                      = "${var.project_name}-workers-asg-${var.env}"
   vpc_zone_identifier       = [aws_subnet.public.id]
   target_group_arns         = [aws_lb_target_group.public_workers.arn]
   health_check_type         = "ELB"
@@ -348,7 +341,7 @@ resource "aws_autoscaling_group" "workers" {
 
   tag {
     key                 = "Name"
-    value               = "${var.project_name}-worker-asg"
+    value               = "${var.project_name}-worker-asg-${var.env}"
     propagate_at_launch = false
   }
 
@@ -374,7 +367,7 @@ resource "aws_autoscaling_group" "workers" {
 
 # Auto Scaling Group for Managers
 resource "aws_autoscaling_group" "managers" {
-  name                      = "${var.project_name}-managers-asg"
+  name                      = "${var.project_name}-managers-asg-${var.env}"
   vpc_zone_identifier       = [aws_subnet.private.id]
   health_check_type         = "EC2"
   health_check_grace_period = 600 # Longer grace period for manager initialization
@@ -390,7 +383,7 @@ resource "aws_autoscaling_group" "managers" {
 
   tag {
     key                 = "Name"
-    value               = "${var.project_name}-manager-asg"
+    value               = "${var.project_name}-manager-asg-${var.env}"
     propagate_at_launch = false
   }
 
@@ -423,7 +416,7 @@ resource "aws_autoscaling_group" "managers" {
 
 # Target Group for Workers (for Load Balancer)
 resource "aws_lb_target_group" "public_workers" {
-  name     = "${var.project_name}-public-workers-tg"
+  name     = "${var.project_name}-public-workers-tg-${var.env}"
   port     = 80
   protocol = "TCP"
   vpc_id   = aws_vpc.main.id
@@ -438,14 +431,14 @@ resource "aws_lb_target_group" "public_workers" {
   }
 
   tags = {
-    Name        = "${var.project_name}-public-workers-target-group"
+    Name        = "${var.project_name}-public-workers-target-group-${var.env}"
     Environment = var.env
   }
 }
 
 # Auto Scaling Policies (Workers)
 resource "aws_autoscaling_policy" "worker_scale_up" {
-  name                   = "${var.project_name}-worker-scale-up"
+  name                   = "${var.project_name}-worker-scale-up-${var.env}"
   scaling_adjustment     = 1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
@@ -453,7 +446,7 @@ resource "aws_autoscaling_policy" "worker_scale_up" {
 }
 
 resource "aws_autoscaling_policy" "worker_scale_down" {
-  name                   = "${var.project_name}-worker-scale-down"
+  name                   = "${var.project_name}-worker-scale-down-${var.env}"
   scaling_adjustment     = -1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
@@ -462,7 +455,7 @@ resource "aws_autoscaling_policy" "worker_scale_down" {
 
 # CloudWatch Alarms for Auto Scaling
 resource "aws_cloudwatch_metric_alarm" "worker_cpu_high" {
-  alarm_name          = "${var.project_name}-worker-cpu-high"
+  alarm_name          = "${var.project_name}-worker-cpu-high-${var.env}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -479,7 +472,7 @@ resource "aws_cloudwatch_metric_alarm" "worker_cpu_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "worker_cpu_low" {
-  alarm_name          = "${var.project_name}-worker-cpu-low"
+  alarm_name          = "${var.project_name}-worker-cpu-low-${var.env}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"

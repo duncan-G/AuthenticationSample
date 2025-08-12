@@ -1,13 +1,12 @@
 # =============================================================================
 # AWS Cognito OIDC Provider Infrastructure
 # =============================================================================
-# This file manages all infrastructure components required for AWS Cognito OIDC:
+# Manages Cognito components for authentication:
 # 
-# • Cognito User Pools (prod and dev environments)
+# • Cognito User Pools (prod and dev)
 # • Social Identity Providers (Google, Apple)
-# • User Pool Clients (web and backend applications)
-# • Identity Pools for authenticated users
-# • User pool groups and configurations
+# • User Pool Clients (web and backend)
+# • Identity Pool for authenticated users (for the primary environment `var.env`)
 # =============================================================================
 
 #region Configuration
