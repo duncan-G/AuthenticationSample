@@ -6,13 +6,13 @@ locals {
 resource "aws_wafv2_web_acl" "this" {
   name        = "${var.project_name}-web-acl-${var.env}"
   description = "Managed rules for API edge"
-  scope       = "CLOUDFRONT"  
+  scope       = "CLOUDFRONT"
 
   default_action {
     allow {}
   }
 
-  rule {  
+  rule {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 0
     override_action {
