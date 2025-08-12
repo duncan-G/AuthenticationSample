@@ -10,6 +10,66 @@
 
 #region Configuration
 
+variable "instance_type_managers" {
+  description = "EC2 instance type for Swarm managers"
+  type        = string
+  default     = "t4g.small"
+}
+
+variable "instance_types_workers" {
+  description = "List of instance types for workers (used for MixedInstancesPolicy if spot enabled)"
+  type        = list(string)
+  default     = ["t4g.small", "m6g.medium"]
+}
+
+variable "desired_workers" {
+  description = "Desired number of worker nodes"
+  type        = number
+  default     = 3
+}
+
+variable "min_workers" {
+  description = "Minimum number of worker nodes"
+  type        = number
+  default     = 3
+}
+
+variable "max_workers" {
+  description = "Maximum number of worker nodes"
+  type        = number
+  default     = 9
+}
+
+variable "enable_spot" {
+  description = "Whether to use Spot capacity for workers"
+  type        = bool
+  default     = false
+}
+
+variable "authenticated_policy_arn" {
+  description = "If provided, attaches this policy ARN to the authenticated Cognito role"
+  type        = string
+  default     = ""
+}
+
+variable "manager_min_size" {
+  description = "Minimum number of manager instances (should be odd for quorum)"
+  type        = number
+  default     = 1
+}
+
+variable "manager_max_size" {
+  description = "Maximum number of manager instances"
+  type        = number
+  default     = 3
+}
+
+variable "manager_desired_capacity" {
+  description = "Desired number of manager instances"
+  type        = number
+  default     = 1
+}
+
 # Locals for IAM ARNs
 locals {
   account_id = data.aws_caller_identity.current.account_id

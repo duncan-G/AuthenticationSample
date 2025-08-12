@@ -24,6 +24,11 @@ variable "api_subdomain" {
   default = "api"
 }
 
+variable "auth_subdomain" {
+  type    = string
+  default = "auth"
+}
+
 
 variable "route53_hosted_zone_id" {
   type = string

@@ -10,7 +10,7 @@ This directory contains the Terraform code for the Auth Sample application. It p
 - Auto Scaling Groups: public workers (internet-facing workloads), private workers (internal services), and managers (Swarm control plane). Rolling instance refresh is enabled.
 - CodeDeploy integrates with EC2 via tags to deploy microservices. Artifacts stored in a private S3 bucket.
 - OpenTelemetry + CloudWatch for logs/metrics/traces with minimal IAM granting.
-- Route53 publishes A/AAAA ALIAS records for selected subdomains to the NLB.
+- Route53 publishes A/AAAA ALIAS records for `auth_subdomain` to the NLB. If `api_cdn_domain_name` is set, publishes `api_subdomain` to the CDN.
 - ECR hosts per-service repositories.
 - Vercel deploys the Next.js client; the app receives environment variables for backend URLs.
 
@@ -42,7 +42,8 @@ export TF_VAR_route53_hosted_zone_id="Z123..."
 export TF_VAR_bucket_suffix="unique-suffix"
 export TF_VAR_vercel_api_token="vercel-token"
 export TF_VAR_vercel_root_directory="clients/auth-sample"
-export TF_VAR_public_subdomains='["api"]'
+export TF_VAR_auth_subdomain="auth"
+export TF_VAR_api_subdomain="api"
 ```
 
 ### Optional
@@ -58,6 +59,9 @@ export TF_VAR_instance_type_managers="t4g.small"
 export TF_VAR_min_workers=3
 export TF_VAR_desired_workers=3
 export TF_VAR_max_workers=9
+
+# If fronting API with CloudFront, provide its domain to alias API DNS:
+export TF_VAR_api_cdn_domain_name="dxxxxx.cloudfront.net"
 ```
 
 ### Apply
@@ -78,7 +82,7 @@ terraform apply
 - `network-security.tf`: Security group + rules.
 - `compute.tf`: IAM roles/policies, launch templates, ASGs, target groups.
 - `load-balancer.tf`: NLB and TCP listeners.
-- `dns.tf`: Route53 ALIAS records for subdomains and SPF.
+- `dns.tf`: Route53 ALIAS records for API/Auth subdomains and SPF.
 - `container-registry.tf`: ECR repos and lifecycle policies.
 - `deploy-microservices.tf`: CodeDeploy app, groups, roles, and S3 bucket.
 - `otel-collector.tf`: IAM policies for CloudWatch/X-Ray; attachments to roles.
@@ -90,7 +94,7 @@ terraform apply
 - NLB + TCP: Target group protocol and listener are TCP; health check uses TCP to avoid HTTP-only assumptions.
 - IPv6: Public and private subnets are IPv6-enabled; security group allows v4/v6 for web ports.
 - Workspaces: The GitHub workflow selects workspaces `terraform-stage` and `terraform-prod` and sets `TF_VAR_environment` accordingly (`stage`/`prod`).
-- Subdomains: Provide `TF_VAR_public_subdomains` like `["api"]` to publish DNS to the NLB.
+- Subdomains: Provide `TF_VAR_auth_subdomain` and optionally `TF_VAR_api_cdn_domain_name` for API fronted by CloudFront. `TF_VAR_api_subdomain` controls the label for API DNS.
 
 ## Troubleshooting
 

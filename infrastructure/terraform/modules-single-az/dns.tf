@@ -1,22 +1,28 @@
 # =============================================================================
 # Route 53 DNS — Public Records
 # =============================================================================
-# Publishes ALIAS A/AAAA records for `public_subdomains` to the public NLB and
-# an SPF TXT record at the zone apex.
+# Publishes ALIAS records for API and Auth subdomains to the public NLB
+# and an SPF TXT record at the zone apex.
 # =============================================================================
 
 #region Configuration
 
 # Variables
-variable "public_subdomains" {
-  description = "List of public subdomains that should resolve to the public load balancer (e.g., [\"api\"])"
-  type        = list(string)
-  default     = []
+variable "api_subdomain" {
+  description = "API subdomain label (e.g., 'api')"
+  type        = string
+  default     = "api"
+}
+
+variable "auth_subdomain" {
+  description = "Auth subdomain label (e.g., 'auth')"
+  type        = string
+  default     = "auth"
 }
 
 // ACME validation records are not managed in this module
 
-# Local values to reference the hosted zone (data source defined in data.tf)
+# Local values to reference the hosted zone (data source defined in providers.tf)
 locals {
   hosted_zone_id   = data.aws_route53_zone.hosted_zone.zone_id
   hosted_zone_name = data.aws_route53_zone.hosted_zone.name
@@ -26,11 +32,10 @@ locals {
 
 #region Resources
 
-resource "aws_route53_record" "subdomains" {
-  for_each = toset(var.public_subdomains)
-
+# API subdomain → Public Load Balancer
+resource "aws_route53_record" "api_a" {
   zone_id = local.hosted_zone_id
-  name    = "${each.value}.${var.domain_name}"
+  name    = "${var.api_subdomain}.${var.domain_name}"
   type    = "A"
 
   alias {
@@ -40,11 +45,34 @@ resource "aws_route53_record" "subdomains" {
   }
 }
 
-resource "aws_route53_record" "subdomains_ipv6" {
-  for_each = toset(var.public_subdomains)
-
+resource "aws_route53_record" "api_aaaa" {
   zone_id = local.hosted_zone_id
-  name    = "${each.value}.${var.domain_name}"
+  name    = "${var.api_subdomain}.${var.domain_name}"
+  type    = "AAAA"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = false
+  }
+}
+
+# Auth subdomain → Public Load Balancer
+resource "aws_route53_record" "auth_a" {
+  zone_id = local.hosted_zone_id
+  name    = "${var.auth_subdomain}.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "auth_aaaa" {
+  zone_id = local.hosted_zone_id
+  name    = "${var.auth_subdomain}.${var.domain_name}"
   type    = "AAAA"
 
   alias {
@@ -85,9 +113,14 @@ output "main_domain_url" {
   value       = "https://${var.domain_name}"
 }
 
-output "subdomain_urls" {
-  description = "Public sub-domain URLs"
-  value       = [for subdomain in var.public_subdomains : "https://${subdomain}.${var.domain_name}"]
+output "api_domain_url" {
+  description = "API subdomain URL"
+  value       = "https://${var.api_subdomain}.${var.domain_name}"
+}
+
+output "auth_domain_url" {
+  description = "Auth subdomain URL"
+  value       = "https://${var.auth_subdomain}.${var.domain_name}"
 }
 
 #endregion
