@@ -10,7 +10,7 @@ on:
       - 'main'
       - 'integration/*'
     paths:
-      - 'Microservices/Auth/**'
+      - 'microservices/Auth/**'
       - '.github/workflows/auth-service-debug.yml'
 jobs:
   build:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./Microservices/Auth/
+        working-directory: ./microservices/Auth/
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET

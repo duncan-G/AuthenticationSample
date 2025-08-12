@@ -17,7 +17,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'Microservices/Auth/**'
+      - 'microservices/Auth/**'
       - '.github/workflows/auth-service-release.yml'
 
 env:
@@ -33,7 +33,7 @@ jobs:
     uses: ./.github/workflows/deploy-dotnet-microservice.yml
     with:
       service_name: 'auth'
-      service_path: 'Microservices/Auth'
+      service_path: 'microservices/Auth'
       environment: ${{ github.event.inputs.environment || 'production' }}
       image_name: '${{ vars.PROJECT_NAME }}/auth'
     secrets:
