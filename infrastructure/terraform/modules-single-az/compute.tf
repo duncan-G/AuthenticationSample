@@ -8,6 +8,8 @@
 
 // Uses shared variables from variables.tf and data sources from data.tf
 
+#region Configuration
+
 # Locals for IAM ARNs
 locals {
   account_id = data.aws_caller_identity.current.account_id
@@ -338,6 +340,8 @@ resource "aws_autoscaling_group" "workers" {
     id      = aws_launch_template.worker.id
     version = "$Latest"
   }
+
+  depends_on = [aws_autoscaling_group.managers]
 
   tag {
     key                 = "Name"
