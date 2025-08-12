@@ -2,8 +2,6 @@
 # IAM for Cognito Authenticated Users (HA)
 # =============================================================================
 
-data "aws_caller_identity" "current" {}
-
 data "aws_iam_policy_document" "auth_assume" {
   statement {
     effect = "Allow"

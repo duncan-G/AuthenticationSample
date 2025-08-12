@@ -26,7 +26,7 @@ resource "aws_vpc" "main" {
 
   tags = {
     Name        = "${var.project_name}-vpc"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Main VPC for Docker Swarm infrastructure"
   }
 }
@@ -37,7 +37,7 @@ resource "aws_internet_gateway" "this" {
 
   tags = {
     Name        = "${var.project_name}-igw"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Internet Gateway for public access"
   }
 }
@@ -53,7 +53,7 @@ resource "aws_subnet" "public" {
 
   tags = {
     Name        = "${var.project_name}-public-subnet"
-    Environment = var.environment
+    Environment = var.env
     Type        = "public"
     Purpose     = "Public subnet for external-facing resources"
   }
@@ -69,7 +69,7 @@ resource "aws_subnet" "private" {
 
   tags = {
     Name        = "${var.project_name}-private-subnet"
-    Environment = var.environment
+    Environment = var.env
     Type        = "private"
     Purpose     = "Private subnet for internal resources"
   }
@@ -93,7 +93,7 @@ resource "aws_route_table" "public" {
 
   tags = {
     Name        = "${var.project_name}-public-rt"
-    Environment = var.environment
+    Environment = var.env
     Type        = "public"
     Purpose     = "Public route table with internet access"
   }
@@ -111,7 +111,7 @@ resource "aws_route_table" "private" {
 
   tags = {
     Name        = "${var.project_name}-private-rt"
-    Environment = var.environment
+    Environment = var.env
     Type        = "private"
     Purpose     = "Private route table with IPv6 internet access"
   }

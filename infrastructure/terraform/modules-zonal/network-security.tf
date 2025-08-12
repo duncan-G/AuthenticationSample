@@ -9,7 +9,7 @@ resource "aws_security_group" "instance" {
 
   tags = {
     Name        = "${var.project_name}-instance-sg"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 

@@ -12,7 +12,7 @@
 
 # Data Sources
 data "aws_route53_zone" "this" {
-  id = var.route53_hosted_zone_id
+  zone_id = var.route53_hosted_zone_id
 }
 
 #endregion

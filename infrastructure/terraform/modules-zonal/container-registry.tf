@@ -22,7 +22,7 @@ resource "aws_ecr_repository" "microservices" {
 
   tags = {
     Name        = "${var.project_name}-${each.key}-repository"
-    Environment = var.environment
+    Environment = var.env
     Service     = each.key
   }
 }

@@ -87,17 +87,20 @@ resource "aws_s3_bucket_lifecycle_configuration" "codedeploy" {
   rule {
     id     = "deployment_cleanup"
     status = "Enabled"
+    filter {
+      prefix = ""
+    }
 
     noncurrent_version_expiration { noncurrent_days = 30 }
     expiration { days = 90 }
   }
 }
 
-resource "aws_s3_bucket_tagging" "codedeploy" {
+resource "aws_s3_bucket" "codedeploy_tags" {
   bucket = aws_s3_bucket.codedeploy.id
-  tag_set = {
+  tags = {
     Name        = "${var.project_name}-codedeploy"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -105,13 +108,13 @@ resource "aws_s3_bucket_tagging" "codedeploy" {
 resource "aws_codedeploy_app" "microservices" {
   for_each = toset(var.microservices)
 
-  name = "${var.project_name}-${each.key}-${var.environment}"
+  name = "${var.project_name}-${each.key}-${var.env}"
 
   compute_platform = "Server"
 
   tags = {
-    Name        = "${var.project_name}-${each.key}-${var.environment}"
-    Environment = var.environment
+    Name        = "${var.project_name}-${each.key}-${var.env}"
+    Environment = var.env
     Service     = each.key
   }
 }
@@ -121,7 +124,7 @@ resource "aws_codedeploy_deployment_group" "microservices" {
   for_each = toset(var.microservices_with_logs)
 
   app_name              = aws_codedeploy_app.microservices[each.key].name
-  deployment_group_name = "${var.project_name}-${each.key}-${var.environment}-deployment-group"
+  deployment_group_name = "${var.project_name}-${each.key}-${var.env}-deployment-group"
   service_role_arn      = aws_iam_role.codedeploy_service_role.arn
 
   # Deployment configuration
@@ -132,7 +135,7 @@ resource "aws_codedeploy_deployment_group" "microservices" {
     ec2_tag_filter {
       key   = "Environment"
       type  = "KEY_AND_VALUE"
-      value = var.environment
+      value = var.env
     }
   }
 
@@ -146,8 +149,8 @@ resource "aws_codedeploy_deployment_group" "microservices" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${each.key}-${var.environment}-deployment-group"
-    Environment = var.environment
+    Name        = "${var.project_name}-${each.key}-${var.env}-deployment-group"
+    Environment = var.env
     Service     = each.key
   }
 }
@@ -156,12 +159,12 @@ resource "aws_codedeploy_deployment_group" "microservices" {
 resource "aws_cloudwatch_log_group" "codedeploy_logs" {
   for_each = toset(var.microservices_with_logs)
 
-  name              = "/aws/codedeploy/${var.project_name}-${each.key}-${var.environment}"
+  name              = "/aws/codedeploy/${var.project_name}-${each.key}-${var.env}"
   retention_in_days = 14
 
   tags = {
     Name        = "${var.project_name}-${each.key}-codedeploy-logs"
-    Environment = var.environment
+    Environment = var.env
     Service     = each.key
   }
 }
@@ -189,7 +192,7 @@ resource "aws_iam_role" "codedeploy_service_role" {
 
   tags = {
     Name        = "${var.project_name}-codedeploy-service-role"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -221,7 +224,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
 
   tags = {
     Name        = "${var.project_name}-github-actions-role-codedeploy"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
 }
@@ -245,7 +248,7 @@ resource "aws_iam_role" "ec2_codedeploy_role" {
 
   tags = {
     Name        = "${var.project_name}-ec2-codedeploy-role"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -321,7 +324,7 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
 
   tags = {
     Name        = "${var.project_name}-github-actions-policy-codedeploy"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
 }
@@ -371,7 +374,7 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
 
   tags = {
     Name        = "${var.project_name}-ec2-codedeploy-policy"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 

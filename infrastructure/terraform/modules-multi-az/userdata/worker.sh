@@ -43,7 +43,7 @@ for i in $(seq 1 $MAX); do
   sleep 5
 done
 
-if [[ -z "${MANAGER_ADDR:-}" || -z "${WORKER_TOKEN:-}" ]]; then
+if [[ -z "$${MANAGER_ADDR:-}" || -z "$${WORKER_TOKEN:-}" ]]; then
   log "Manager params not ready"
   exit 1
 fi

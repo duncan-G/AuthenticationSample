@@ -21,8 +21,8 @@ on:
         options:
           - terraform-stage
           - terraform-prod
-      ha:
-        description: 'Enable high availability (HA) configuration'
+      multi_az:
+        description: 'Enable multi-az configuration'
         required: false
         default: false
         type: boolean
@@ -31,24 +31,24 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - 'infrastructure/terraform/modules/**'
-      - 'infrastructure/terraform/modules-ha/**'
+      - 'infrastructure/terraform/modules-zonal/**'
+      - 'infrastructure/terraform/modules-multi-az/**'
 
   # Only plan on main branch pushes (no auto-deploy)
   push:
     branches: [ main ]
     paths:
-      - 'infrastructure/terraform/modules/**'
-      - 'infrastructure/terraform/modules-ha/**'
+      - 'infrastructure/terraform/modules-zonal/**'
+      - 'infrastructure/terraform/modules-multi-az/**'
 
 env:
   TERRAFORM_VERSION: "1.12.2"
-  TF_ROOT_DIR: ${{ github.event.inputs.ha && 'infrastructure/terraform/modules-ha' || 'infrastructure/terraform/modules' }}
+  TF_ROOT_DIR: ${{ github.event.inputs.multi_az && 'infrastructure/terraform/modules-multi-az' || 'infrastructure/terraform/modules-zonal' }}
   TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
   TF_VAR_region: ${{ vars.AWS_REGION }}
   TF_VAR_github_repository: ${{ github.repository }}
   TF_VAR_deployment_bucket: ${{ secrets.DEPLOYMENT_BUCKET }}
-  TF_VAR_environment: ${{ github.event.inputs.environment == 'terraform-prod' && 'prod' || 'stage' }}
+  TF_VAR_env: ${{ github.event.inputs.environment == 'terraform-prod' && 'prod' || 'stage' }}
   TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
   TF_VAR_route53_hosted_zone_id: ${{ secrets.ROUTE53_HOSTED_ZONE_ID }}
   TF_VAR_bucket_suffix: ${{ secrets.BUCKET_SUFFIX }}
@@ -118,7 +118,7 @@ jobs:
       run: |
         echo "🔧 Initializing Terraform..."
         
-        TF_WORKSPACE_PREFIX="${{ vars.PROJECT_NAME }}"
+        TF_WORKSPACE_PREFIX="${{ vars.PROJECT_NAME }}/${{ github.event.inputs.multi_az && 'multi-az' || 'zonal' }}"
         
         # Initialize with partial backend configuration
         terraform init \

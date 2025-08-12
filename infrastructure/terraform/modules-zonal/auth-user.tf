@@ -9,18 +9,11 @@
 # • Identity pool role mappings
 # =============================================================================
 
-#region Configuration
-
-# Data Sources
-data "aws_caller_identity" "current" {}
-
-#endregion
-
 #region IAM Roles
 
 # IAM Role for Authenticated Users
 resource "aws_iam_role" "auth_users" {
-  name               = "${var.project_name}-auth-${var.environment}"
+  name               = "${var.project_name}-auth-${var.env}"
   assume_role_policy = data.aws_iam_policy_document.auth_assume.json
 }
 
@@ -56,7 +49,7 @@ data "aws_iam_policy_document" "auth_assume" {
 
 # IAM Policy for Authenticated Users
 # resource "aws_iam_policy" "auth_users" {
-#   name        = "${var.project_name}-auth-users-${var.environment}"
+#   name        = "${var.project_name}-auth-users-${var.env}"
 #   description = "Policy for authenticated Cognito users"
 
 #   policy = jsonencode({
@@ -78,8 +71,9 @@ data "aws_iam_policy_document" "auth_assume" {
 
 # IAM Role Policy Attachment
 resource "aws_iam_role_policy_attachment" "auth_users" {
+  count      = var.authenticated_policy_arn == "" ? 0 : 1
   role       = aws_iam_role.auth_users.name
-  policy_arn = aws_iam_policy.auth_users.arn
+  policy_arn = var.authenticated_policy_arn
 }
 
 # Cognito Identity Pool Roles Attachment

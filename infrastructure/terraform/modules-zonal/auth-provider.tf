@@ -3,7 +3,7 @@
 # =============================================================================
 # This file manages all infrastructure components required for AWS Cognito OIDC:
 # 
-# • Cognito User Pools (production and development environments)
+# • Cognito User Pools (prod and dev environments)
 # • Social Identity Providers (Google, Apple)
 # • User Pool Clients (web and backend applications)
 # • Identity Pools for authenticated users
@@ -40,13 +40,10 @@ variable "auth_logout" {
   type        = list(string)
 }
 
-# Data Sources
-data "aws_caller_identity" "current" {}
-
 # Locals
 locals {
   # Define environments to create user pools for
-  environments = [var.environment, "dev"]
+  environments = [var.env, "dev"]
 
   # Social IDP Names
   social_idp_names = length(var.idps) > 0 ? [for k in keys(var.idps) : k == "google" ? "Google" : "SignInWithApple"] : []
@@ -198,25 +195,18 @@ resource "aws_cognito_user_pool_client" "backend" {
   prevent_user_existence_errors = "ENABLED"
 }
 
-# Cognito Identity Pool (only for production environment)
+# Cognito Identity Pool (only for prod environment)
 resource "aws_cognito_identity_pool" "this" {
-  identity_pool_name               = "${var.project_name}-identity-${var.environment}"
+  identity_pool_name               = "${var.project_name}-identity-${var.env}"
   allow_unauthenticated_identities = false
 
   cognito_identity_providers {
-    provider_name           = aws_cognito_user_pool.this[var.environment].endpoint
-    client_id               = aws_cognito_user_pool_client.web[var.environment].id
+    provider_name           = aws_cognito_user_pool.this[var.env].endpoint
+    client_id               = aws_cognito_user_pool_client.web[var.env].id
     server_side_token_check = false
   }
 
-  tags = { Environment = var.environment }
-}
-
-# User Pool Groups (only for production environment)
-resource "aws_cognito_user_pool_group" "user" {
-  name         = "user"
-  user_pool_id = aws_cognito_user_pool.this[var.environment].id
-  description  = "Default user group"
+  tags = { Environment = var.env }
 }
 
 #endregion
@@ -224,15 +214,15 @@ resource "aws_cognito_user_pool_group" "user" {
 #region Outputs
 
 # Production Environment Outputs
-output "cognito_user_pool_id" { value = aws_cognito_user_pool.this[var.environment].id }
-output "cognito_user_pool_arn" { value = aws_cognito_user_pool.this[var.environment].arn }
-output "cognito_user_pool_endpoint" { value = aws_cognito_user_pool.this[var.environment].endpoint }
-output "cognito_user_pool_domain" { value = aws_cognito_user_pool_domain.this[var.environment].domain }
-output "cognito_user_pool_client_id_web" { value = aws_cognito_user_pool_client.web[var.environment].id }
-output "cognito_user_pool_client_id_back" { value = aws_cognito_user_pool_client.backend[var.environment].id }
+output "cognito_user_pool_id" { value = aws_cognito_user_pool.this[var.env].id }
+output "cognito_user_pool_arn" { value = aws_cognito_user_pool.this[var.env].arn }
+output "cognito_user_pool_endpoint" { value = aws_cognito_user_pool.this[var.env].endpoint }
+output "cognito_user_pool_domain" { value = aws_cognito_user_pool_domain.this[var.env].domain }
+output "cognito_user_pool_client_id_web" { value = aws_cognito_user_pool_client.web[var.env].id }
+output "cognito_user_pool_client_id_back" { value = aws_cognito_user_pool_client.backend[var.env].id }
 output "cognito_identity_pool_id" { value = aws_cognito_identity_pool.this.id }
 output "cognito_auth_url" {
-  value = "https://${aws_cognito_user_pool_domain.this[var.environment].domain}.auth.${var.region}.amazoncognito.com/oauth2/authorize?response_type=code&client_id=${aws_cognito_user_pool_client.web[var.environment].id}&redirect_uri=${var.auth_callback[0]}"
+  value = "https://${aws_cognito_user_pool_domain.this[var.env].domain}.auth.${var.region}.amazoncognito.com/oauth2/authorize?response_type=code&client_id=${aws_cognito_user_pool_client.web[var.env].id}&redirect_uri=${var.auth_callback[0]}"
 }
 
 # Development Environment Outputs

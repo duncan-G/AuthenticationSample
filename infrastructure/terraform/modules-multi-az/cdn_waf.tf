@@ -1,19 +1,18 @@
 locals {
-  name_prefix = "${var.project_name}-${var.env}"
-  fqdn_api    = "${var.api_subdomain}.${var.domain_name}"
+  fqdn_api = "${var.api_subdomain}.${var.domain_name}"
 }
 
 # WAFv2 Web ACL
 resource "aws_wafv2_web_acl" "this" {
-  name        = "${local.name_prefix}-web-acl"
+  name        = "${var.project_name}-web-acl-${var.env}"
   description = "Managed rules for API edge"
-  scope       = "CLOUDFRONT"
+  scope       = "CLOUDFRONT"  
 
   default_action {
     allow {}
   }
 
-  rule {
+  rule {  
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 0
     override_action {
@@ -27,21 +26,21 @@ resource "aws_wafv2_web_acl" "this" {
     }
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${local.name_prefix}-common"
+      metric_name                = "${var.project_name}-common-${var.env}"
       sampled_requests_enabled   = true
     }
   }
 
   visibility_config {
     cloudwatch_metrics_enabled = true
-    metric_name                = "${local.name_prefix}-waf"
+    metric_name                = "${var.project_name}-waf-${var.env}"
     sampled_requests_enabled   = true
   }
 }
 
 # Origin request policy to forward auth header and shared secret to origin
 resource "aws_cloudfront_origin_request_policy" "api" {
-  name = "${local.name_prefix}-api-origin-policy"
+  name = "${var.project_name}-api-origin-policy-${var.env}"
   headers_config {
     header_behavior = "whitelist"
     headers {
@@ -57,7 +56,7 @@ resource "aws_cloudfront_origin_request_policy" "api" {
 }
 
 resource "aws_cloudfront_cache_policy" "api" {
-  name = "${local.name_prefix}-api-cache"
+  name = "${var.project_name}-api-cache-${var.env}"
   parameters_in_cache_key_and_forwarded_to_origin {
     enable_accept_encoding_brotli = true
     enable_accept_encoding_gzip   = true
@@ -71,7 +70,7 @@ resource "aws_cloudfront_cache_policy" "api" {
 }
 
 resource "aws_cloudfront_cache_policy" "jwks" {
-  name = "${local.name_prefix}-jwks-cache"
+  name = "${var.project_name}-jwks-cache-${var.env}"
   parameters_in_cache_key_and_forwarded_to_origin {
     enable_accept_encoding_brotli = true
     enable_accept_encoding_gzip   = true
@@ -86,7 +85,7 @@ resource "aws_cloudfront_cache_policy" "jwks" {
 
 resource "aws_cloudfront_distribution" "api" {
   enabled         = true
-  comment         = "${local.name_prefix} API"
+  comment         = "${var.project_name}-${var.env} API"
   is_ipv6_enabled = true
   http_version    = "http3"
   web_acl_id      = aws_wafv2_web_acl.this.arn

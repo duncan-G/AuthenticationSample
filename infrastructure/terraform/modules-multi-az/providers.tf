@@ -10,6 +10,12 @@ terraform {
       version = "~> 2.0"
     }
   }
+
+  backend "s3" {
+    # Bucket is passed via -backend-config during terraform init
+    key     = "terraform.tfstate"
+    encrypt = true
+  }
 }
 
 provider "aws" {

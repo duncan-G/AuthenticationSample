@@ -37,7 +37,7 @@ resource "aws_iam_role" "otel_collector_role" {
 
   tags = {
     Name        = "${var.project_name}-otel-collector-role"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "OpenTelemetry Collector IAM Role"
   }
 }
@@ -49,7 +49,7 @@ resource "aws_iam_instance_profile" "otel_collector_instance_profile" {
 
   tags = {
     Name        = "${var.project_name}-otel-collector-instance-profile"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "OpenTelemetry Collector Instance Profile"
   }
 }
@@ -97,7 +97,7 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
 
   tags = {
     Name        = "${var.project_name}-otel-collector-cloudwatch-policy"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "OpenTelemetry CloudWatch Permissions"
   }
 }
@@ -123,7 +123,7 @@ resource "aws_iam_policy" "otel_collector_xray_policy" {
 
   tags = {
     Name        = "${var.project_name}-otel-collector-xray-policy"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "OpenTelemetry X-Ray Permissions"
   }
 }

@@ -1,10 +1,6 @@
-locals {
-  name_prefix = "${var.project_name}-${var.env}"
-}
-
 # Target group in instance mode pointing to proxy (Envoy) 8080 on instances
 resource "aws_lb_target_group" "proxy" {
-  name        = substr(replace("${local.name_prefix}-proxy", "/", "-"), 0, 32)
+  name        = substr(replace("${var.project_name}-proxy-${var.env}", "/", "-"), 0, 32)
   port        = 8080
   protocol    = "TCP"
   target_type = "instance"
@@ -21,7 +17,7 @@ resource "aws_lb_target_group" "proxy" {
 }
 
 resource "aws_lb" "this" {
-  name                             = substr(replace("${local.name_prefix}-nlb", "/", "-"), 0, 32)
+  name                             = substr(replace("${var.project_name}-nlb-${var.env}", "/", "-"), 0, 32)
   internal                         = false
   load_balancer_type               = "network"
   enable_cross_zone_load_balancing = false
@@ -33,7 +29,7 @@ resource "aws_lb" "this" {
     }
   }
 
-  tags = { Name = "${local.name_prefix}-nlb" }
+  tags = { Name = "${var.project_name}-nlb-${var.env}" }
 }
 
 resource "aws_lb_listener" "tls_443" {

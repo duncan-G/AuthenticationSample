@@ -45,7 +45,7 @@ resource "aws_ssm_document" "docker_manager_setup" {
 
   tags = {
     Name        = "${var.project_name}-docker-manager-setup"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -84,7 +84,7 @@ resource "aws_ssm_document" "docker_worker_setup" {
 
   tags = {
     Name        = "${var.project_name}-docker-worker-setup"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -106,7 +106,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_manager" {
           "yum install -y amazon-cloudwatch-agent",
           # Write the CloudWatch agent configuration
           "cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json",
-          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${project_name}", "${var.project_name}"), "$${environment}", "${var.environment}"))}",
+          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${project_name}", "${var.project_name}"), "$${environment}", "${var.env}"))}",
           "EOF",
           # Start and enable the agent
           "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json",
@@ -119,7 +119,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_manager" {
 
   tags = {
     Name        = "${var.project_name}-cloudwatch-agent-setup-manager"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -141,7 +141,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
           "yum install -y amazon-cloudwatch-agent",
           # Write the CloudWatch agent configuration
           "cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json",
-          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${project_name}", "${var.project_name}"), "$${environment}", "${var.environment}"))}",
+          "${indent(2, replace(replace(file("${path.module}/cloudwatch-agent-config.json"), "$${project_name}", "${var.project_name}"), "$${environment}", "${var.env}"))}",
           "EOF",
           # Start and enable the agent
           "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json",
@@ -154,7 +154,7 @@ resource "aws_ssm_document" "cloudwatch_agent_setup_worker" {
 
   tags = {
     Name        = "${var.project_name}-cloudwatch-agent-setup-worker"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -225,7 +225,7 @@ resource "aws_ssm_parameter" "docker_swarm_worker_token" {
 
   tags = {
     Name        = "${var.project_name}-docker-swarm-worker-token"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -242,7 +242,7 @@ resource "aws_ssm_parameter" "docker_swarm_manager_ip" {
 
   tags = {
     Name        = "${var.project_name}-docker-swarm-manager-ip"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -259,6 +259,6 @@ resource "aws_ssm_parameter" "docker_swarm_network_name" {
 
   tags = {
     Name        = "${var.project_name}-docker-swarm-network-name"
-    Environment = var.environment
+    Environment = var.env
   }
 } 

@@ -13,61 +13,7 @@
 # - Managers: Docker Swarm management and orchestration
 # =============================================================================
 
-#region Configuration
-
-variable "instance_type_managers" {
-  description = "EC2 instance type for Swarm managers"
-  type        = string
-  default     = "t4g.small"
-}
-
-variable "instance_types_workers" {
-  description = "List of instance types for workers"
-  type        = list(string)
-  default     = ["t4g.small", "m6g.medium"]
-}
-
-variable "desired_workers" {
-  description = "Desired number of worker nodes"
-  type        = number
-  default     = 3
-}
-
-variable "min_workers" {
-  description = "Minimum number of worker nodes"
-  type        = number
-  default     = 3
-}
-
-variable "max_workers" {
-  description = "Maximum number of worker nodes"
-  type        = number
-  default     = 9
-}
-
-# ASG Configuration Variables (Managers)
-
-variable "manager_min_size" {
-  description = "Minimum number of manager instances (should be odd for quorum)"
-  type        = number
-  default     = 1
-}
-
-variable "manager_max_size" {
-  description = "Maximum number of manager instances"
-  type        = number
-  default     = 3
-}
-
-variable "manager_desired_capacity" {
-  description = "Desired number of manager instances"
-  type        = number
-  default     = 1
-}
-
-
-# Data Sources
-data "aws_caller_identity" "current" {}
+//# uses shared variables from variables.tf and data sources from data.tf
 
 # Locals for IAM ARNs
 locals {
@@ -98,7 +44,7 @@ resource "aws_iam_role" "worker" {
 
   tags = {
     Name        = "${var.project_name}-ec2-worker-role"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 
@@ -117,7 +63,7 @@ resource "aws_iam_role" "manager" {
 
   tags = {
     Name        = "${var.project_name}-ec2-manager-role"
-    Environment = var.environment
+    Environment = var.env
     Tier        = "private"
   }
 }
@@ -129,7 +75,7 @@ resource "aws_iam_instance_profile" "worker" {
 
   tags = {
     Name        = "${var.project_name}-ec2-worker-profile"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Worker EC2 Instance Profile"
   }
 }
@@ -141,7 +87,7 @@ resource "aws_iam_instance_profile" "manager" {
 
   tags = {
     Name        = "${var.project_name}-ec2-manager-profile"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Manager EC2 Instance Profile"
   }
 }
@@ -191,7 +137,7 @@ resource "aws_iam_policy" "worker_core" {
 
   tags = {
     Name        = "${var.project_name}-worker-core-policy"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Worker Core Permissions"
   }
 }
@@ -242,7 +188,7 @@ resource "aws_iam_policy" "manager_core" {
 
   tags = {
     Name        = "${var.project_name}-manager-core-policy"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Manager Core Permissions"
   }
 }
@@ -294,7 +240,7 @@ resource "aws_cloudwatch_log_group" "manager" {
 
   tags = {
     Name        = "${var.project_name}-docker-manager-logs"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Docker Manager Logs"
   }
 }
@@ -305,7 +251,7 @@ resource "aws_cloudwatch_log_group" "worker" {
 
   tags = {
     Name        = "${var.project_name}-docker-worker-logs"
-    Environment = var.environment
+    Environment = var.env
     Purpose     = "Docker Worker Logs"
   }
 }
@@ -323,17 +269,18 @@ resource "aws_launch_template" "worker" {
     name = aws_iam_instance_profile.worker.name
   }
 
-  # Bootstrap using userdata (modules-ha methodology)
-  user_data = base64encode(templatefile("${path.module}/userdata/worker.sh", {
-    region       = var.region,
-    project_name = var.project_name
-  }))
+  # Bootstrap using userdata script; prefix environment variables
+  user_data = base64encode(join("\n", [
+    "PROJECT_NAME=\"${var.project_name}\"",
+    "AWS_REGION=\"${var.region}\"",
+    file("${path.module}/userdata/worker.sh")
+  ]))
 
   tag_specifications {
     resource_type = "instance"
     tags = {
       Name        = "${var.project_name}-worker"
-      Environment = var.environment
+      Environment = var.env
       Role        = "worker"
     }
   }
@@ -358,17 +305,18 @@ resource "aws_launch_template" "manager" {
     name = aws_iam_instance_profile.manager.name
   }
 
-  # Bootstrap using userdata (modules-ha methodology)
-  user_data = base64encode(templatefile("${path.module}/userdata/manager.sh", {
-    region       = var.region,
-    project_name = var.project_name
-  }))
+  # Bootstrap using userdata script; prefix environment variables
+  user_data = base64encode(join("\n", [
+    "PROJECT_NAME=\"${var.project_name}\"",
+    "AWS_REGION=\"${var.region}\"",
+    file("${path.module}/userdata/manager.sh")
+  ]))
 
   tag_specifications {
     resource_type = "instance"
     tags = {
       Name        = "${var.project_name}-manager"
-      Environment = var.environment
+      Environment = var.env
       Role        = "manager"
       Type        = "private"
     }
@@ -406,7 +354,7 @@ resource "aws_autoscaling_group" "workers" {
 
   tag {
     key                 = "Environment"
-    value               = var.environment
+    value               = var.env
     propagate_at_launch = true
   }
 
@@ -448,7 +396,7 @@ resource "aws_autoscaling_group" "managers" {
 
   tag {
     key                 = "Environment"
-    value               = var.environment
+    value               = var.env
     propagate_at_launch = true
   }
 
@@ -491,7 +439,7 @@ resource "aws_lb_target_group" "public_workers" {
 
   tags = {
     Name        = "${var.project_name}-public-workers-target-group"
-    Environment = var.environment
+    Environment = var.env
   }
 }
 

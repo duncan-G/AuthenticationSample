@@ -1,10 +1,6 @@
-locals {
-  name_prefix = "${var.project_name}-${var.env}"
-}
-
 # SG for instances (managers/workers) – private only, no public ingress. Egress all.
 resource "aws_security_group" "instances" {
-  name        = "${local.name_prefix}-instances"
+  name        = "${var.project_name}-instances-${var.env}"
   description = "Instances private SG"
   vpc_id      = aws_vpc.this.id
   egress {
@@ -13,13 +9,13 @@ resource "aws_security_group" "instances" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  tags = { Name = "${local.name_prefix}-instances" }
+  tags = { Name = "${var.project_name}-instances-${var.env}" }
 }
 
 # SG for NLB-related ingress on instances (when target type is instance).
 # Note: NLB does not use SG; this SG is applied to instances to restrict who can reach Envoy.
 resource "aws_security_group" "nlb_to_envoy" {
-  name        = "${local.name_prefix}-nlb-to-envoy"
+  name        = "${var.project_name}-nlb-to-envoy-${var.env}"
   description = "Allow 8443 only from CloudFront (via NLB)"
   vpc_id      = aws_vpc.this.id
   egress {
@@ -28,7 +24,7 @@ resource "aws_security_group" "nlb_to_envoy" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  tags = { Name = "${local.name_prefix}-nlb-to-envoy" }
+  tags = { Name = "${var.project_name}-nlb-to-envoy-${var.env}" }
 }
 
 # Allow only NLB to Envoy port 8443 on instances. We will later attach this SG to ASGs.

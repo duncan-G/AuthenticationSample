@@ -20,6 +20,7 @@ resource "vercel_project_domain" "client_domain" {
 resource "vercel_deployment" "client" {
   project_id = vercel_project.client.id
   production = true
+  ref        = "main"
 }
 
 

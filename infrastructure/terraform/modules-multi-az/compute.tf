@@ -1,7 +1,3 @@
-locals {
-  name_prefix = "${var.project_name}-${var.env}"
-}
-
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
@@ -16,7 +12,7 @@ data "aws_ami" "al2023" {
 }
 
 resource "aws_iam_role" "ec2" {
-  name               = "${local.name_prefix}-ec2-role"
+  name               = "${var.project_name}-ec2-role-${var.env}"
   assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{ Effect = "Allow", Principal = { Service = "ec2.amazonaws.com" }, Action = "sts:AssumeRole" }] })
 }
 
@@ -26,7 +22,7 @@ resource "aws_iam_role_policy_attachment" "ssm" {
 }
 
 resource "aws_iam_policy" "ssm_params" {
-  name = "${local.name_prefix}-ssm-params"
+  name = "${var.project_name}-ssm-params-${var.env}"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -42,21 +38,23 @@ resource "aws_iam_role_policy_attachment" "ssm_params" {
 }
 
 resource "aws_iam_instance_profile" "ec2" {
-  name = "${local.name_prefix}-ec2-profile"
+  name = "${var.project_name}-ec2-profile-${var.env}"
   role = aws_iam_role.ec2.name
 }
 
 locals {
   manager_userdata = base64encode(templatefile("${path.module}/userdata/manager.sh", {
-    region = var.region
+    region       = var.region,
+    project_name = var.project_name
   }))
   worker_userdata = base64encode(templatefile("${path.module}/userdata/worker.sh", {
-    region = var.region
+    region       = var.region,
+    project_name = var.project_name
   }))
 }
 
 resource "aws_launch_template" "manager" {
-  name_prefix            = "${local.name_prefix}-mgr-"
+  name_prefix            = "${var.project_name}-mgr-${var.env}-"
   image_id               = data.aws_ami.al2023.id
   instance_type          = var.instance_type_managers
   update_default_version = true
@@ -78,14 +76,14 @@ resource "aws_launch_template" "manager" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "${local.name_prefix}-manager"
+      Name = "${var.project_name}-manager-${var.env}"
       Role = "manager"
     }
   }
 }
 
 resource "aws_launch_template" "worker" {
-  name_prefix            = "${local.name_prefix}-wkr-"
+  name_prefix            = "${var.project_name}-wkr-${var.env}-"
   image_id               = data.aws_ami.al2023.id
   instance_type          = var.instance_types_workers[0]
   update_default_version = true
@@ -107,7 +105,7 @@ resource "aws_launch_template" "worker" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "${local.name_prefix}-worker"
+      Name = "${var.project_name}-worker-${var.env}"
       Role = "worker"
     }
   }
@@ -115,7 +113,7 @@ resource "aws_launch_template" "worker" {
 
 # Managers: 3 nodes, one per AZ, scale-in protection on, On-Demand only
 resource "aws_autoscaling_group" "managers" {
-  name                      = "${local.name_prefix}-managers"
+  name                      = "${var.project_name}-managers-${var.env}"
   vpc_zone_identifier       = [for s in aws_subnet.private : s.id]
   desired_capacity          = 3
   min_size                  = 3
@@ -143,14 +141,14 @@ resource "aws_autoscaling_group" "managers" {
 
   tag {
     key                 = "Name"
-    value               = "${local.name_prefix}-manager"
+    value               = "${var.project_name}-manager-${var.env}"
     propagate_at_launch = true
   }
 }
 
 # Workers: desired/min/max, Mixed policy with optional Spot, Warm Pool
 resource "aws_autoscaling_group" "workers" {
-  name                      = "${local.name_prefix}-workers"
+  name                      = "${var.project_name}-workers-${var.env}"
   vpc_zone_identifier       = [for s in aws_subnet.private : s.id]
   desired_capacity          = var.desired_workers
   min_size                  = var.min_workers
@@ -194,7 +192,7 @@ resource "aws_autoscaling_group" "workers" {
 
   tag {
     key                 = "Name"
-    value               = "${local.name_prefix}-worker"
+    value               = "${var.project_name}-worker-${var.env}"
     propagate_at_launch = true
   }
 }

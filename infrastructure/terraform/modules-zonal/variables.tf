@@ -18,12 +18,12 @@ variable "project_name" {
   }
 }
 
-variable "environment" {
-  description = "Environment name (e.g., dev, stage, prod)"
+variable "env" {
+  description = "Environment name (e.g. stage, prod)"
   type        = string
 
   validation {
-    condition     = contains(["dev", "stage", "prod"], var.environment)
+    condition     = contains(["dev", "stage", "prod"], var.env)
     error_message = "Environment must be one of: dev, stage, prod"
   }
 }
@@ -38,48 +38,6 @@ variable "domain_name" {
     error_message = "Domain name must not be empty"
   }
 }
-
-variable "route53_hosted_zone_id" {
-  description = "Route53 hosted-zone ID"
-  type        = string
-
-  validation {
-    condition     = length(var.route53_hosted_zone_id) > 0
-    error_message = "Hosted-zone ID must not be empty"
-  }
-}
-
-variable "public_subdomains" {
-  description = "List of public subdomains that should resolve to the public load balancer"
-  type        = list(string)
-  default     = ["api"]
-}
-
-
-variable "bucket_suffix" {
-  description = "Suffix to ensure unique S3 bucket names across envs"
-  type        = string
-
-  validation {
-    condition     = length(var.bucket_suffix) > 0
-    error_message = "Bucket suffix must not be empty"
-  }
-}
-
-
-# Microservice lists used by ECR and CodeDeploy modules
-variable "microservices" {
-  description = "List of microservices to deploy/build (also used to create ECR repos)"
-  type        = list(string)
-  default     = []
-}
-
-variable "microservices_with_logs" {
-  description = "Subset of microservices that should have CloudWatch logs collected via CodeDeploy"
-  type        = list(string)
-  default     = []
-}
-
 
 variable "instance_type_managers" {
   description = "EC2 instance type for Swarm managers"
@@ -118,10 +76,30 @@ variable "enable_spot" {
 }
 
 # Toggle SSM association-based bootstrapping (set false when using userdata)
-variable "enable_ssm_associations" {
-  description = "Enable SSM associations to bootstrap docker and cloudwatch on instances"
-  type        = bool
-  default     = false
+// declared in compute-scripts.tf
+
+variable "authenticated_policy_arn" {
+  description = "If provided, attaches this policy ARN to the authenticated Cognito role"
+  type        = string
+  default     = ""
+}
+
+variable "manager_min_size" {
+  description = "Minimum number of manager instances (should be odd for quorum)"
+  type        = number
+  default     = 1
+}
+
+variable "manager_max_size" {
+  description = "Maximum number of manager instances"
+  type        = number
+  default     = 3
+}
+
+variable "manager_desired_capacity" {
+  description = "Desired number of manager instances"
+  type        = number
+  default     = 1
 }
 
 

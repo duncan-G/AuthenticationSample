@@ -71,7 +71,7 @@ resource "aws_lb" "main" {
 
   tags = {
     Name        = "${var.project_name}-network-load-balancer"
-    Environment = var.environment
+    Environment = var.env
     Type        = "network"
     IpVersion   = "dualstack"
     Purpose     = "Dualstack load balancer for Docker Swarm public workers"
@@ -91,7 +91,7 @@ resource "aws_lb_listener" "http" {
 
   tags = {
     Name        = "${var.project_name}-nlb-http-listener"
-    Environment = var.environment
+    Environment = var.env
     Protocol    = "HTTP"
   }
 }

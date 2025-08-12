@@ -34,5 +34,5 @@ variable "route53_hosted_zone_id" {
 
 # Route53 hosted zone for DNS records
 data "aws_route53_zone" "hosted_zone" {
-  id = var.route53_hosted_zone_id
+  zone_id = var.route53_hosted_zone_id
 }
