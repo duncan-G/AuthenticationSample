@@ -49,7 +49,7 @@ resource "vercel_project" "frontend" {
 }
 
 resource "vercel_deployment" "client" {
-  project_id = vercel_project.client.id
+  project_id = vercel_project.frontend.id
   production = true
   ref        = "main"
 }
