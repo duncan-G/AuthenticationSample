@@ -7,21 +7,6 @@
 
 #region Configuration
 
-# Variables
-variable "api_subdomain" {
-  description = "API subdomain label (e.g., 'api')"
-  type        = string
-  default     = "api"
-}
-
-variable "auth_subdomain" {
-  description = "Auth subdomain label (e.g., 'auth')"
-  type        = string
-  default     = "auth"
-}
-
-// ACME validation records are not managed in this module
-
 # Local values to reference the hosted zone (data source defined in providers.tf)
 locals {
   hosted_zone_id   = data.aws_route53_zone.hosted_zone.zone_id
