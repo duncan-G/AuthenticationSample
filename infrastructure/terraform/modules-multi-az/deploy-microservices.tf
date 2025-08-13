@@ -30,7 +30,6 @@ resource "aws_codedeploy_app" "platform" {
   compute_platform = "Server"
 }
 
-output "codedeploy_bucket_name" { value = aws_s3_bucket.codedeploy.bucket }
 output "codedeploy_app_name" { value = aws_codedeploy_app.platform.name }
 
 
