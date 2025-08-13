@@ -43,7 +43,7 @@ on:
 
 env:
   TERRAFORM_VERSION: "1.12.2"
-  TF_ROOT_DIR: ${{ github.event.inputs.multi_az && 'infrastructure/terraform/modules-multi-az' || 'infrastructure/terraform/modules-single-az' }}
+  TF_ROOT_DIR: ${{ (github.event.inputs.multi_az == 'true') && 'infrastructure/terraform/modules-multi-az' || 'infrastructure/terraform/modules-single-az' }}
   TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
   TF_VAR_region: ${{ vars.AWS_REGION }}
   TF_VAR_github_repository: ${{ github.repository }}
@@ -122,7 +122,7 @@ jobs:
         echo "🔧 Initializing Terraform..."
 
         # Prefix used in terraform state bucket
-        TF_WORKSPACE_PREFIX="${{ vars.PROJECT_NAME }}/${{ github.event.inputs.multi_az && 'multi-az' || 'single-az' }}"
+        TF_WORKSPACE_PREFIX="${{ vars.PROJECT_NAME }}/${{ (github.event.inputs.multi_az == 'true') && 'multi-az' || 'single-az' }}"
         
         # Initialize with partial backend configuration
         terraform init \
@@ -309,7 +309,7 @@ jobs:
         terraform init \
           -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
           -backend-config="region=${{ vars.AWS_REGION }}" \
-          -backend-config="workspace_key_prefix=${{ vars.PROJECT_NAME }}" \
+          -backend-config="workspace_key_prefix=${{ vars.PROJECT_NAME }}/${{ (github.event.inputs.multi_az == 'true') && 'multi-az' || 'single-az' }}" \
           -no-color
         
         # Verify backend configuration

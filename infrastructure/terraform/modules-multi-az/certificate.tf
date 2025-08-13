@@ -32,11 +32,12 @@ resource "aws_route53_record" "acm_validation" {
     }
   }
 
-  zone_id = var.route53_hosted_zone_id
-  name    = each.value.name
-  type    = each.value.type
-  ttl     = 60
-  records = [each.value.record]
+  zone_id         = var.route53_hosted_zone_id
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.record]
+  allow_overwrite = true
 }
 
 resource "aws_acm_certificate_validation" "public" {
@@ -82,11 +83,12 @@ resource "aws_route53_record" "edge_acm_validation" {
     }
   }
 
-  zone_id = var.route53_hosted_zone_id
-  name    = each.value.name
-  type    = each.value.type
-  ttl     = 60
-  records = [each.value.record]
+  zone_id         = var.route53_hosted_zone_id
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.record]
+  allow_overwrite = true
 }
 
 resource "aws_acm_certificate_validation" "edge" {

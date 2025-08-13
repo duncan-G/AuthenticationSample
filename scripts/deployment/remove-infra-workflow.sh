@@ -145,13 +145,10 @@ delete_oidc_provider() {
 
 # Function to cleanup OIDC infrastructure
 cleanup_oidc_infrastructure() {
-    print_info "Cleaning up OIDC infrastructure..."
-    
-    detach_policy_from_role "terraform"
-    delete_iam_role "terraform"
-    delete_iam_policy "terraform"
-    
-    delete_oidc_provider
+    print_info "Cleaning up OIDC infrastructure (delegated script)..."
+    "$SCRIPT_DIR/remove-oidc-infrastructure.sh" \
+        --aws-profile "$AWS_PROFILE" \
+        --aws-account-id "$AWS_ACCOUNT_ID"
 }
 
 # Function to provide instructions for S3 bucket cleanup

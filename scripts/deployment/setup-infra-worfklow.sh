@@ -134,102 +134,16 @@ create_codedeploy_bucket() {
     print_success "CodeDeploy bucket created successfully."
 }
 
-# Function to create OIDC provider
-create_oidc_provider() {
-    print_info "Creating OIDC provider..."
-    
-    if aws iam list-open-id-connect-providers --profile "$AWS_PROFILE" | grep -q "token.actions.githubusercontent.com"; then
-        print_warning "OIDC provider already exists, skipping creation"
-    else
-        aws iam create-open-id-connect-provider \
-            --profile "$AWS_PROFILE" \
-            --url https://token.actions.githubusercontent.com \
-            --client-id-list sts.amazonaws.com \
-            --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
-        print_success "OIDC provider created"
-    fi
-}
-
-# Function to create IAM policy
-create_iam_policy() {
-    local policy_file_path="$1"
-    
-    print_info "Creating IAM policy for Terraform..."
-    
-    if aws iam get-policy --profile "$AWS_PROFILE" --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/github-actions-oidc-policy-terraform" &> /dev/null; then
-        print_warning "IAM policy already exists, skipping creation"
-    else
-        aws iam create-policy \
-            --profile "$AWS_PROFILE" \
-            --policy-name "github-actions-oidc-policy-terraform" \
-            --policy-document "file://$policy_file_path"
-        print_success "IAM policy created"
-    fi
-}
-
-# Function to create IAM role
-create_iam_role() {
-    local trust_policy_file_path="$1"
-    
-    print_info "Creating IAM role for Terraform..."
-    
-    if aws iam get-role --profile "$AWS_PROFILE" --role-name "github-actions-terraform" &> /dev/null; then
-        print_warning "IAM role already exists, updating trust policy"
-        aws iam update-assume-role-policy \
-            --profile "$AWS_PROFILE" \
-            --role-name "github-actions-terraform" \
-            --policy-document "file://$trust_policy_file_path" \
-            --no-cli-pager
-    else
-        aws iam create-role \
-            --profile "$AWS_PROFILE" \
-            --role-name "github-actions-terraform" \
-            --assume-role-policy-document "file://$trust_policy_file_path" \
-            --no-cli-pager
-        print_success "IAM role created"
-    fi
-    
-    aws iam attach-role-policy \
-        --profile "$AWS_PROFILE" \
-        --role-name "github-actions-terraform" \
-        --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/github-actions-oidc-policy-terraform"
-    
-    print_success "Policy attached to role"
-}
-
 setup_oidc_infrastructure() {
-    print_info "Setting up OIDC infrastructure..."
-    
-    ORIGINAL_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../infrastructure/terraform" && pwd)/terraform-policy.json"
-    ORIGINAL_TRUST_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../infrastructure/terraform" && pwd)/github-trust-policy.json"
-    
-    PROCESSED_POLICY_FILE_PATH="$(pwd)/terraform-policy-processed.json"
-    PROCESSED_TRUST_POLICY_FILE_PATH="$(pwd)/github-trust-policy-processed.json"
-
-    DEPLOYMENT_BUCKET="${PROJECT_NAME}-codedeploy-${BUCKET_SUFFIX}"
-    
-    print_info "Processing policy files with variable substitution..."
-    
-    sed \
-        -e "s|\${PROJECT_NAME}|$PROJECT_NAME|g" \
-        -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
-        -e "s|\${TF_STATE_BUCKET}|$TF_STATE_BUCKET|g" \
-        -e "s|\${DEPLOYMENT_BUCKET}|$DEPLOYMENT_BUCKET|g" \
-        "$ORIGINAL_POLICY_FILE_PATH" > "$PROCESSED_POLICY_FILE_PATH"
-    
-    sed \
-        -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
-        -e "s|\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
-        -e "s|\${STAGING_ENVIRONMENT}|$STAGE_WORKSPACE|g" \
-        -e "s|\${PRODUCTION_ENVIRONMENT}|$PROD_WORKSPACE|g" \
-        "$ORIGINAL_TRUST_POLICY_FILE_PATH" > "$PROCESSED_TRUST_POLICY_FILE_PATH"
-    
-    create_oidc_provider
-    
-    create_iam_policy "$PROCESSED_POLICY_FILE_PATH"
-    create_iam_role "$PROCESSED_TRUST_POLICY_FILE_PATH"
-    
-    rm -f "$PROCESSED_POLICY_FILE_PATH" "$PROCESSED_TRUST_POLICY_FILE_PATH"
+    print_info "Setting up OIDC infrastructure (delegated script)..."
+    "$SCRIPT_DIR/setup-oidc-infrastructure.sh" \
+        --aws-profile "$AWS_PROFILE" \
+        --project-name "$PROJECT_NAME" \
+        --github-repo "$GITHUB_REPO_FULL" \
+        --tf-state-bucket "$TF_STATE_BUCKET" \
+        --stage-workspace "$STAGE_WORKSPACE" \
+        --prod-workspace "$PROD_WORKSPACE" \
+        --bucket-suffix "$BUCKET_SUFFIX"
 }
 
 # Function to setup GitHub secrets and environments

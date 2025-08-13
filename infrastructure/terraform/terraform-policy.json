@@ -252,7 +252,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "IAMCreateServiceLinkedRoleForELBandASG",
+      "Sid": "IAMCreateServiceLinkedRoleForELBASGAndCognitoEmail",
       "Effect": "Allow",
       "Action": [
         "iam:CreateServiceLinkedRole"
@@ -262,7 +262,8 @@
         "StringEquals": {
           "iam:AWSServiceName": [
             "elasticloadbalancing.amazonaws.com",
-            "autoscaling.amazonaws.com"
+            "autoscaling.amazonaws.com",
+            "email.cognito-idp.amazonaws.com"
           ]
         }
       }

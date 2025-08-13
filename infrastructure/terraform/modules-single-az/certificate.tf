@@ -33,11 +33,12 @@ resource "aws_route53_record" "acm_validation" {
     }
   }
 
-  zone_id = local.hosted_zone_id
-  name    = each.value.name
-  type    = each.value.type
-  ttl     = 60
-  records = [each.value.record]
+  zone_id         = local.hosted_zone_id
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.record]
+  allow_overwrite = true
 }
 
 # Wait for DNS validation to complete and the certificate to be ISSUED
