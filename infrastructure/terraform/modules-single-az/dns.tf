@@ -75,7 +75,7 @@ resource "aws_route53_record" "spf" {
   ttl     = "300"
 
   # TXT values must be quoted once by Route 53; do not double-quote
-  records         = ["v=spf1 include:_spf.google.com ~all"]
+  records = ["v=spf1 include:_spf.google.com ~all"]
 }
 
 #endregion
