@@ -1,7 +1,3 @@
-locals {
-  fqdn_api = "${var.api_subdomain}.${var.domain_name}"
-}
-
 # WAFv2 Web ACL
 resource "aws_wafv2_web_acl" "this" {
   name        = "${var.project_name}-web-acl-${var.env}"
@@ -142,17 +138,3 @@ resource "aws_cloudfront_distribution" "api" {
     minimum_protocol_version = "TLSv1.2_2021"
   }
 }
-
-resource "aws_route53_record" "api_alias" {
-  zone_id = var.route53_hosted_zone_id
-  name    = local.fqdn_api
-  type    = "A"
-  alias {
-    name                   = aws_cloudfront_distribution.api.domain_name
-    zone_id                = aws_cloudfront_distribution.api.hosted_zone_id
-    evaluate_target_health = false
-  }
-}
-
-
-

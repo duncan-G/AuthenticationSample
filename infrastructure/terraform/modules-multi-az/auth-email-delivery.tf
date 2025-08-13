@@ -6,12 +6,6 @@
 # - Route53 DNS records for verification and DKIM
 # =============================================================================
 
-#region Data Sources
-data "aws_route53_zone" "this" {
-  zone_id = var.route53_hosted_zone_id
-}
-#endregion
-
 #region Resources
 resource "aws_ses_domain_identity" "this" {
   domain = var.domain_name

@@ -91,9 +91,7 @@
         "arn:aws:s3:::${TF_STATE_BUCKET}",
         "arn:aws:s3:::${TF_STATE_BUCKET}/*",
         "arn:aws:s3:::${DEPLOYMENT_BUCKET}",
-        "arn:aws:s3:::${DEPLOYMENT_BUCKET}/*",
-        "arn:aws:s3:::${CERTIFICATE_BUCKET}",
-        "arn:aws:s3:::${CERTIFICATE_BUCKET}/*"
+        "arn:aws:s3:::${DEPLOYMENT_BUCKET}/*"
       ]
     },
     {
@@ -182,6 +180,30 @@
         "arn:aws:cognito-idp:*:${AWS_ACCOUNT_ID}:userpool/*",
         "arn:aws:cognito-identity:*:${AWS_ACCOUNT_ID}:identitypool/*"
       ]
+    },
+    {
+      "Sid": "ACMCertificateManagerPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "acm:RequestCertificate",
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:DeleteCertificate",
+        "acm:AddTagsToCertificate",
+        "acm:RemoveTagsFromCertificate",
+        "acm:ListTagsForCertificate",
+        "acm:UpdateCertificateOptions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Route53ChangeRecordPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ChangeResourceRecordSets",
+        "route53:ListResourceRecordSets"
+      ],
+      "Resource": "*"
     }
   ]
 }
