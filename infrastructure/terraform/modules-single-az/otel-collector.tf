@@ -38,7 +38,7 @@ resource "aws_iam_instance_profile" "otel_collector_instance_profile" {
   role = aws_iam_role.otel_collector_role.name
 
   tags = {
-    Name        = "${var.project_name}-otel-collector-instance-profile-${var.env}"
+    Name        = "${var.project_name}-otel-profile-${var.env}"
     Environment = var.env
     Purpose     = "OpenTelemetry Collector Instance Profile"
   }
