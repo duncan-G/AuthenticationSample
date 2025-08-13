@@ -78,7 +78,9 @@
       "Action": [
         "route53:ListHostedZones",
         "route53:GetHostedZone",
-        "route53:ListHostedZonesByName"
+        "route53:ListHostedZonesByName",
+        "route53:ChangeResourceRecordSets",
+        "route53:ListResourceRecordSets"
       ],
       "Resource": "*"
     },
@@ -100,6 +102,20 @@
       ],
       "Resource": "*"
     },
-    
+    {
+      "Sid": "ACMCertificateManagerPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "acm:RequestCertificate",
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
+        "acm:DeleteCertificate",
+        "acm:AddTagsToCertificate",
+        "acm:RemoveTagsFromCertificate",
+        "acm:ListTagsForCertificate",
+        "acm:UpdateCertificateOptions"
+      ],
+      "Resource": "*"
+    }
   ]
 }
