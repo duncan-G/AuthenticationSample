@@ -61,7 +61,7 @@
         "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${PROJECT_NAME}-*"
       ],
       "Condition": {
-        "StringEquals": {
+        "StringEqualsIfExists": {
           "iam:PassedToService": [
             "ec2.amazonaws.com",
             "codedeploy.amazonaws.com",

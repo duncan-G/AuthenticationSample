@@ -13,7 +13,7 @@
 variable "instance_type_managers" {
   description = "EC2 instance type for Swarm managers"
   type        = string
-  default     = "t4g.small"
+  default     = "t4g.micro"
 }
 
 variable "instance_types_workers" {
