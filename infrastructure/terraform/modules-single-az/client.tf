@@ -38,14 +38,20 @@ resource "vercel_project" "frontend" {
     {
       key    = "NEXT_PUBLIC_AUTHENTICATION_SERVICE_URL"
       value  = "https://api.${var.domain_name}/auth"
-      target = ["prod", "stage"]
+      target = ["production", "preview"]
     },
     {
       key    = "NODE_ENV"
       value  = "production"
-      target = ["prod"]
+      target = ["production"]
     }
   ]
+}
+
+resource "vercel_deployment" "client" {
+  project_id = vercel_project.client.id
+  production = true
+  ref        = "main"
 }
 
 #endregion
