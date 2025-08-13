@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  app:
+    image: envoyproxy/envoy:v1.33-latest
+    networks:
+      - net
+    ports:
+      - "10000:80" # Application Service (HTTP)
+      - "4000:9901"  # Envoy admin
+    configs:
+      - source: envoy_config
+        target: /etc/envoy/envoy.yaml
+      - source: envoy_clusters
+        target: /etc/envoy/discovery/envoy.cds.yaml
+      - source: envoy_routes
+        target: /etc/envoy/discovery/envoy.rds.yaml
+    deploy:
+      labels:
+        version: ${VERSION}
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        order: stop-first
+
+networks:
+  net:
+    external: true
+
+configs:
+  envoy_config:
+    name: envoy_config_${VERSION}
+    external: true
+  envoy_clusters:
+    name: envoy_clusters_${VERSION}
+    external: true
+  envoy_routes:
+    name: envoy_routes_${VERSION}
+    external: true

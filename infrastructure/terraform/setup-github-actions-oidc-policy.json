@@ -1,0 +1,104 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "STSPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "OIDCProviderPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:ListOpenIDConnectProviders",
+        "iam:CreateOpenIDConnectProvider",
+        "iam:GetOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMPolicyPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:GetPolicy",
+        "iam:ListPolicyVersions",
+        "iam:DeletePolicy",
+        "iam:DeletePolicyVersion"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:policy/github-actions-oidc-policy-terraform",
+        "arn:aws:iam::*:policy/github-actions-oidc-policy-codedeploy"
+      ]
+    },
+    {
+      "Sid": "IAMRolePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:DetachRolePolicy",
+        "iam:DeleteRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/github-actions-terraform",
+        "arn:aws:iam::*:role/github-actions-codedeploy"
+      ]
+    },
+    {
+      "Sid": "TerraformStateS3Permissions",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:ListBucket",
+        "s3:DeleteBucket",
+        "s3:PutBucketVersioning",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketTagging",
+        "s3:PutLifecycleConfiguration"
+      ],
+      "Resource": [
+        "arn:aws:s3:::terraform-state-*",
+        "arn:aws:s3:::terraform-state-*/*",
+        "arn:aws:s3:::*codedeploy-*",
+        "arn:aws:s3:::*codedeploy-*/*"
+      ]
+    },
+    {
+      "Sid": "Route53HostedZonePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ListHostedZones",
+        "route53:GetHostedZone",
+        "route53:ListHostedZonesByName"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SecretsManagerPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:UpdateSecret",
+        "secretsmanager:CreateSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:*-secrets*"
+    },
+    {
+      "Sid": "ECRPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

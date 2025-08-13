@@ -25,7 +25,6 @@ permissions:
 
 env:
   SERVICE_NAME: otel-collector
-  AWS_REGION: us-west-1      # overridden if repo/org variable AWS_REGION exists
 
 jobs:
   deploy:
@@ -47,7 +46,7 @@ jobs:
       id: vars
       run: |
         ENVIRONMENT="${{ github.event.inputs.environment || 'production' }}"
-        APP_NAME="${{ vars.APP_NAME }}"            # Org / repo variable
+        PROJECT_NAME="${{ vars.PROJECT_NAME }}"            # Org / repo variable
         SHORT_SHA="${GITHUB_SHA::8}"
         VERSION="${SHORT_SHA}"        # turn dots → dashes
 
@@ -64,74 +63,22 @@ jobs:
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.APP_NAME }}-github-actions-role-codedeploy
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-github-actions-role-codedeploy
         role-session-name: gha-codedeploy-${{ github.run_id }}
         aws-region: ${{ vars.AWS_REGION || env.AWS_REGION }}
 
     # ───────────────────────────────
-    - name: Build deployment package
-      run: |
-        # ========= Prep local vars =========
-        ENVIRONMENT='${{ steps.vars.outputs.environment }}'
-        VERSION='${{ steps.vars.outputs.version }}'
-        APP_NAME='${{ vars.APP_NAME }}'
-        SERVICE_NAME='${{ env.SERVICE_NAME }}'
-
-        STACK_FILE='otel-collector.stack.yaml'
-
-        # ========= Create staging area =========
-        mkdir -p staging/scripts
-        mkdir -p staging/configs
-        cp Infrastructure/codedeploy/appspec.yml        staging/
-        cp -r Infrastructure/codedeploy/scripts/*       staging/scripts/
-        cp -r Infrastructure/otel-collector/*           staging/configs/
-
-        # Render env.sh (envsubst keeps it POSIX-portable)
-        export SERVICE_NAME ENVIRONMENT VERSION APP_NAME STACK_FILE \
-               AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=false
-        envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
-        mv staging/scripts/env.sh.tmp staging/scripts/env.sh
-        chmod +x staging/scripts/env.sh
-
-        # Template appspec.yml variables
-        sed -i \
-          -e "s|{{ ENVIRONMENT }}|$ENVIRONMENT|g" \
-          -e "s|{{ SERVICE_NAME }}|$SERVICE_NAME|g" \
-          staging/appspec.yml
-
-        # ========= Copy & template otel-collector configs =========
-        find staging/configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
-          -e "s|\${AWS_REGION}|$AWS_REGION|g" \
-          -e "s|\${VERSION}|$VERSION|g" \
-          -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" {} +
-
-        mv staging/configs/$STACK_FILE staging/
-
-        tar -czf deployment-package.tar.gz -C staging .
-
-    # ───────────────────────────────
-    - name: Upload artefact to S3
-      run: |
-        aws s3 cp deployment-package.tar.gz \
-          "s3://${{ secrets.DEPLOYMENT_BUCKET }}/deployments/${{ env.SERVICE_NAME }}/${{ steps.vars.outputs.environment }}/deployment-${{ steps.vars.outputs.ts }}.tar.gz"
-
-    # ───────────────────────────────
-    - name: Trigger CodeDeploy deployment
+    - name: Package & deploy via composite action
       id: deploy
-      run: |
-        DEPLOY_ID=$(aws deploy create-deployment \
-          --application-name "${{ vars.APP_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}" \
-          --deployment-group-name "${{ vars.APP_NAME }}-${{ env.SERVICE_NAME }}-${{ steps.vars.outputs.environment }}-deployment-group" \
-          --s3-location bucket=${{ secrets.DEPLOYMENT_BUCKET }},key=deployments/${{ env.SERVICE_NAME }}/${{ steps.vars.outputs.environment }}/deployment-${{ steps.vars.outputs.ts }}.tar.gz,bundleType=tgz \
-          --description "Deploy ${{ steps.vars.outputs.version }}" \
-          --query deploymentId --output text)
-        echo "id=$DEPLOY_ID" >>"$GITHUB_OUTPUT"
-
-    # ───────────────────────────────
-    - name: Wait for CodeDeploy to finish
-      run: |
-        aws deploy wait deployment-successful --deployment-id ${{ steps.deploy.outputs.id }}
-        STATUS=$(aws deploy get-deployment --deployment-id ${{ steps.deploy.outputs.id }} --query 'deploymentInfo.status' --output text)
-        echo "Deployment finished with status: $STATUS"
-        [[ "$STATUS" == "Succeeded" ]] || exit 1 
+      uses: ./.github/workflows/actions/package-and-deploy
+      with:
+        service_name: ${{ env.SERVICE_NAME }}
+        environment:  ${{ steps.vars.outputs.environment }}
+        project_name:     ${{ vars.PROJECT_NAME }}
+        image_uri:    ""  # not used for otel-collector
+        version:      ${{ steps.vars.outputs.version }}
+        aws_region:   ${{ vars.AWS_REGION }}
+        s3_bucket:    ${{ secrets.DEPLOYMENT_BUCKET }}
+        stack_file:   otel-collector.stack.yaml
+        stack_file_path: infrastructure/otel-collector/otel-collector.stack.yaml
+        configs_dir:  infrastructure/otel-collector

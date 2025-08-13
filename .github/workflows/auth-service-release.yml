@@ -1,0 +1,42 @@
+name: 'Auth Service Release'
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: 'production'
+
+  # Automatic trigger on service changes
+  push:
+    branches: [ main ]
+    paths:
+      - 'microservices/Auth/**'
+      - '.github/workflows/auth-service-release.yml'
+
+env:
+  SERVICE_NAME: 'authentication'
+  
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: 'Deploy Authentication Service'
+    uses: ./.github/workflows/deploy-dotnet-microservice.yml
+    with:
+      service_name: 'auth'
+      service_path: 'microservices/Auth'
+      environment: ${{ github.event.inputs.environment || 'production' }}
+      image_name: '${{ vars.PROJECT_NAME }}/auth'
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }} 
+      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.PROJECT_NAME }}/auth'

@@ -1,0 +1,50 @@
+name: "Build and push image"
+description: "Build .NET container and push to ECR with optional 'latest' tag"
+inputs:
+  context:
+    required: true
+    description: "Build context (service path)"
+  ecr_repository:
+    required: true
+    description: "Full ECR repository URI"
+  build_tag:
+    required: true
+    description: "Image tag (usually SHORT_SHA)"
+  dotnet_version:
+    default: "9.0.x"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.dotnet_version }}
+
+    - name: Login to ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Set up Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Publish container (no push)
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "${{ inputs.context }}"
+        env \
+          ContainerRepository="${{ inputs.ecr_repository }}" \
+          ContainerImageTag="${{ inputs.build_tag }}" \
+          dotnet publish --os linux --arch arm64 -p:PublishProfile=DefaultContainer
+
+    - name: Push image and create manifest
+      shell: bash
+      run: |
+        set -euo pipefail
+        IMAGE_URI="${{ inputs.ecr_repository }}:${{ inputs.build_tag }}"
+        docker push "$IMAGE_URI"
+
+        # Create manifest list and tag latest for nicer ECR UX
+        docker buildx imagetools create \
+          --tag "$IMAGE_URI" \
+          --tag "${{ inputs.ecr_repository }}:latest" \
+          "$IMAGE_URI"
