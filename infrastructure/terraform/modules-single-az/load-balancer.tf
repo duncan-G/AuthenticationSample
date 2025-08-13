@@ -2,7 +2,7 @@
 # Network Load Balancer
 # =============================================================================
 # Internet-facing dualstack NLB in the public subnet that terminates TLS on 443
-# and forwards to the public worker target group over TCP/80.
+# and forwards to the worker target group over TCP/80.
 # =============================================================================
 
 #region Configuration
@@ -58,7 +58,7 @@ resource "aws_lb" "main" {
     Environment = var.env
     Type        = "network"
     IpVersion   = "dualstack"
-    Purpose     = "Dualstack load balancer for Docker Swarm public workers"
+    Purpose     = "Dualstack load balancer for Docker Swarm workers"
   }
 }
 
@@ -71,7 +71,7 @@ resource "aws_lb_listener" "tls" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.public_workers.arn
+    target_group_arn = aws_lb_target_group.workers.arn
   }
 
   tags = {

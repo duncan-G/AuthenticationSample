@@ -6,8 +6,8 @@ This directory contains the Terraform code for the Auth Sample application. It p
 
 - VPC with public/private subnets, IPv4 and IPv6 enabled.
 - Security group permits 80/443 (IPv4 and IPv6) plus Docker Swarm ports. Egress is open to the internet (IPv4/IPv6).
-- Network Load Balancer (dualstack) fronts public worker nodes on TCP/80. TLS termination is handled by downstream Envoy or application layer as needed. NLB listeners are TCP.
-- Auto Scaling Groups: public workers (internet-facing workloads), private workers (internal services), and managers (Swarm control plane). Rolling instance refresh is enabled.
+- Network Load Balancer (dualstack) fronts worker nodes on TCP/80. TLS termination is handled by downstream Envoy or application layer as needed. NLB listeners are TCP.
+- Auto Scaling Groups: workers (private) and managers (private, Swarm control plane). Rolling instance refresh is enabled.
 - CodeDeploy integrates with EC2 via tags to deploy microservices. Artifacts stored in a private S3 bucket.
 - OpenTelemetry + CloudWatch for logs/metrics/traces with minimal IAM granting.
 - Route53 publishes A/AAAA ALIAS records for `auth_subdomain` to the NLB. If `api_cdn_domain_name` is set, publishes `api_subdomain` to the CDN.
@@ -18,10 +18,10 @@ This directory contains the Terraform code for the Auth Sample application. It p
 
 ```
 Internet → NLB (TCP/80, dualstack)
-             └── Target Group (TCP/80) → ASG (Public Workers)
+             └── Target Group (TCP/80) → ASG (Workers)
 
 VPC (10.0.0.0/16, IPv6)
-  ├─ Public Subnet  (10.0.1.0/24) → NLB, Public Workers
+  ├─ Public Subnet  (10.0.1.0/24) → NLB
   └─ Private Subnet (10.0.2.0/24) → Managers, Private Workers
 ```
 

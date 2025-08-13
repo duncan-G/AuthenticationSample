@@ -2,7 +2,7 @@
 # EC2 Compute Infrastructure
 # =============================================================================
 # IAM roles/policies, instance profiles, launch templates and ASGs for
-# workers (public) and managers (private), including CloudWatch log groups
+# workers (private) and managers (private), including CloudWatch log groups
 # and scaling alarms.
 # =============================================================================
 
@@ -31,13 +31,13 @@ variable "desired_workers" {
 variable "min_workers" {
   description = "Minimum number of worker nodes"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "max_workers" {
   description = "Maximum number of worker nodes"
   type        = number
-  default     = 9
+  default     = 6
 }
 
 variable "enable_spot" {
@@ -121,7 +121,7 @@ resource "aws_iam_role" "manager" {
   }
 }
 
-# Public Worker Instance Profile
+# Worker Instance Profile
 resource "aws_iam_instance_profile" "worker" {
   name = "${var.project_name}-ec2-worker-profile-${var.env}"
   role = aws_iam_role.worker.name
@@ -379,8 +379,8 @@ resource "aws_launch_template" "manager" {
 # Auto Scaling Group for Workers (single group)
 resource "aws_autoscaling_group" "workers" {
   name                      = "${var.project_name}-workers-asg-${var.env}"
-  vpc_zone_identifier       = [aws_subnet.public.id]
-  target_group_arns         = [aws_lb_target_group.public_workers.arn]
+  vpc_zone_identifier       = [aws_subnet.private.id]
+  target_group_arns         = [aws_lb_target_group.workers.arn]
   health_check_type         = "ELB"
   health_check_grace_period = 300
 
@@ -404,6 +404,12 @@ resource "aws_autoscaling_group" "workers" {
   tag {
     key                 = "Role"
     value               = "worker"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Type"
+    value               = "private"
     propagate_at_launch = true
   }
 
@@ -459,7 +465,7 @@ resource "aws_autoscaling_group" "managers" {
 }
 
 # Target Group for Workers (for Load Balancer)
-resource "aws_lb_target_group" "public_workers" {
+resource "aws_lb_target_group" "workers" {
   name     = "${var.project_name}-worker-tg-${var.env}"
   port     = 80
   protocol = "TCP"
@@ -570,7 +576,7 @@ output "manager_launch_template_id" {
 # Target Group outputs
 output "worker_target_group_arn" {
   description = "ARN of the worker HTTP target group"
-  value       = aws_lb_target_group.public_workers.arn
+  value       = aws_lb_target_group.workers.arn
 }
 
 # IAM Role outputs
