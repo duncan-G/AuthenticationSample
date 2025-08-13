@@ -123,6 +123,12 @@ variable "vercel_root_directory" {
   default     = "clients/auth-sample"
 }
 
+variable "vercel_custom_domains" {
+  description = "List of custom domains to attach to the Vercel project. If empty, no domains are attached."
+  type        = list(string)
+  default     = []
+}
+
 variable "bucket_suffix" {
   description = "Random/unique suffix for global resource names"
   type        = string

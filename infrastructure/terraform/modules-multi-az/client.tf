@@ -11,8 +11,9 @@ resource "vercel_project" "client" {
 }
 
 resource "vercel_project_domain" "client_domain" {
+  for_each   = toset(var.vercel_custom_domains)
   project_id = vercel_project.client.id
-  domain     = "${var.vercel_project_name}.vercel.app"
+  domain     = each.value
 }
 
 # For GitOps, prefer building/deploying from CI. Keep a minimal deployment placeholder;

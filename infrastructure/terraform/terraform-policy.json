@@ -17,7 +17,8 @@
       ],
       "Resource": [
         "arn:aws:ssm:*:*:parameter/docker/swarm/*",
-        "arn:aws:ssm:*:*:document/${PROJECT_NAME}-*"
+        "arn:aws:ssm:*:*:document/${PROJECT_NAME}-*",
+        "arn:aws:ssm:*:*:parameter/swarm/*"
       ]
     },
     {
@@ -202,6 +203,51 @@
       "Action": [
         "route53:ChangeResourceRecordSets",
         "route53:ListResourceRecordSets"
+      ],
+      "Resource": "*"
+    }
+    ,
+    {
+      "Sid": "SESDomainVerificationPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "ses:VerifyDomainIdentity"
+      ],
+      "Resource": "*"
+    }
+    ,
+    {
+      "Sid": "CloudFrontPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:*"
+      ],
+      "Resource": "*"
+    }
+    ,
+    {
+      "Sid": "WAFv2Permissions",
+      "Effect": "Allow",
+      "Action": [
+        "wafv2:*"
+      ],
+      "Resource": "*"
+    }
+    ,
+    {
+      "Sid": "AutoScalingPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:*"
+      ],
+      "Resource": "*"
+    }
+    ,
+    {
+      "Sid": "ElasticLoadBalancingPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:*"
       ],
       "Resource": "*"
     }
