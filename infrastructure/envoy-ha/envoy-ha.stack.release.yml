@@ -47,7 +47,7 @@ services:
       retries: 3
 
   auth-api:
-    image: 123456789012.dkr.ecr.${AWS_REGION}.amazonaws.com/auth-api:latest
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/auth-api:latest
     endpoint_mode: dnsrr
     deploy:
       replicas: 4

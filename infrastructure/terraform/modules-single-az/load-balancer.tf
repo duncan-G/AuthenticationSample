@@ -1,8 +1,8 @@
 # =============================================================================
 # Network Load Balancer
 # =============================================================================
-# Internet-facing dualstack NLB in the public subnet that forwards TCP/80 to
-# the public worker target group. HTTPS/TLS is intentionally not managed here.
+# Internet-facing dualstack NLB in the public subnet that terminates TLS on 443
+# and forwards to the public worker target group over TCP/80.
 # =============================================================================
 
 #region Configuration
@@ -62,11 +62,12 @@ resource "aws_lb" "main" {
   }
 }
 
-# HTTP Listener (Port 80)
-resource "aws_lb_listener" "http" {
+# TLS Listener (Port 443)
+resource "aws_lb_listener" "tls" {
   load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "TCP"
+  port              = "443"
+  protocol          = "TLS"
+  certificate_arn   = aws_acm_certificate_validation.public.certificate_arn
 
   default_action {
     type             = "forward"
@@ -74,13 +75,11 @@ resource "aws_lb_listener" "http" {
   }
 
   tags = {
-    Name        = "${var.project_name}-nlb-http-listener-${var.env}"
+    Name        = "${var.project_name}-nlb-tls-listener-${var.env}"
     Environment = var.env
-    Protocol    = "HTTP"
+    Protocol    = "TLS"
   }
 }
-
-// HTTPS listener and target group removed – TLS not managed here
 
 #endregion
 
@@ -108,9 +107,9 @@ output "load_balancer_zone_id" {
 }
 
 # Listener outputs
-output "http_listener_arn" {
-  description = "ARN of the HTTP listener"
-  value       = aws_lb_listener.http.arn
+output "tls_listener_arn" {
+  description = "ARN of the TLS listener"
+  value       = aws_lb_listener.tls.arn
 }
 
 #endregion

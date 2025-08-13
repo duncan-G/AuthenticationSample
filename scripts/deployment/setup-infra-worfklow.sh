@@ -57,7 +57,6 @@ get_user_input() {
     prompt_user "Enter runtime prod environment label" "RUNTIME_PROD_ENV" "prod"
     
     prompt_user "Enter backend domain name (e.g., example.com)" "DOMAIN_NAME"
-    prompt_user "Enter API subdomains (comma-separated, e.g., api,admin,portal)" "SUBDOMAINS" "api"
     
     # Prompt for Vercel API key for frontend deployments (optional)
     prompt_user_optional "Enter Vercel API key (for frontend deployments, leave blank to skip)" "VERCEL_API_KEY"
@@ -81,7 +80,6 @@ get_user_input() {
     echo "  Runtime Prod Env: $RUNTIME_PROD_ENV"
     echo "  Domain Name: $DOMAIN_NAME"
     echo "  Route53 Hosted Zone ID: $ROUTE53_HOSTED_ZONE_ID"
-    echo "  API Subdomains: $SUBDOMAINS"
     if [ -n "${VERCEL_API_KEY}" ]; then
         echo "  Vercel API Key: ${VERCEL_API_KEY:0:8}..."
     else
@@ -238,20 +236,6 @@ setup_oidc_infrastructure() {
 setup_github_workflow() {
     print_info "Setting up GitHub secrets and environments..."
 
-    # Convert comma-separated subdomains to Terraform list format
-    # Terraform expects a JSON array like ["api", "admin", "portal"]
-    # but we accept comma-separated input like "api,admin,portal"
-    local subdomains_list
-    if [[ -n "$SUBDOMAINS" ]]; then
-        # Convert comma-separated string to JSON array format for Terraform
-        # Example: "api,admin,portal" -> ["api", "admin", "portal"]
-        subdomains_list=$(echo "$SUBDOMAINS" | tr ',' '\n' | jq -R . | jq -s .)
-        print_info "Converted subdomains to Terraform list format: $subdomains_list"
-    else
-        subdomains_list='[]'
-        print_warning "No subdomains provided, using empty list"
-    fi
-
     # Base secrets
     add_github_secrets "$GITHUB_REPO_FULL" \
         "AWS_ACCOUNT_ID:$AWS_ACCOUNT_ID" \
@@ -306,7 +290,6 @@ display_final_instructions() {
     echo -e "${GREEN}   $ecr_repo_uri${NC}"
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
-    echo -e "${GREEN}   API Subdomains: $SUBDOMAINS${NC}"
     echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
     
     print_info "You can now use the GitHub Actions workflows!"

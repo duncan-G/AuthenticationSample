@@ -37,3 +37,14 @@ variable "domain_name" {
     error_message = "Domain name must not be empty"
   }
 }
+
+# Subdomain labels
+variable "api_subdomain" {
+  description = "API subdomain label (e.g., 'api')"
+  type        = string
+}
+
+variable "auth_subdomain" {
+  description = "Auth subdomain label (e.g., 'auth')"
+  type        = string
+}

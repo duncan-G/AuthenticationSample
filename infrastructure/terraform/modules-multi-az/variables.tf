@@ -98,11 +98,6 @@ variable "edge_shared_secret" {
   sensitive = true
 }
 
-variable "acm_certificate_arn" {
-  type    = string
-  default = ""
-}
-
 variable "allowed_cloudfront_cidrs" {
   description = "Optional list of CloudFront egress CIDR ranges to restrict Envoy 8443 ingress"
   type        = list(string)
