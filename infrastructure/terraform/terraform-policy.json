@@ -64,7 +64,8 @@
         "StringEquals": {
           "iam:PassedToService": [
             "ec2.amazonaws.com",
-            "codedeploy.amazonaws.com"
+            "codedeploy.amazonaws.com",
+            "cognito-identity.amazonaws.com"
           ]
         }
       }
@@ -107,7 +108,8 @@
       "Sid": "CloudWatchLogsPermissions",
       "Effect": "Allow",
       "Action": [
-        "logs:*"
+        "logs:*",
+        "cloudwatch:*"
       ],
       "Resource": "*"
     },
@@ -181,6 +183,14 @@
         "arn:aws:cognito-idp:*:${AWS_ACCOUNT_ID}:userpool/*",
         "arn:aws:cognito-identity:*:${AWS_ACCOUNT_ID}:identitypool/*"
       ]
+    },
+    {
+      "Sid": "CognitoUserPoolDomainPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:DescribeUserPoolDomain"
+      ],
+      "Resource": "*"
     },
     {
       "Sid": "ACMCertificateManagerPermissions",

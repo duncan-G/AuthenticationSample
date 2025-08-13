@@ -22,7 +22,7 @@ variable "vercel_root_directory" {
 
 # Vercel project for the frontend application
 resource "vercel_project" "frontend" {
-  name      = var.project_name
+  name      = "${var.project_name}-${var.env}"
   framework = "nextjs"
 
   git_repository = {
@@ -38,20 +38,14 @@ resource "vercel_project" "frontend" {
     {
       key    = "NEXT_PUBLIC_AUTHENTICATION_SERVICE_URL"
       value  = "https://api.${var.domain_name}/auth"
-      target = ["production", "preview"]
+      target = ["prod", "stage"]
     },
     {
       key    = "NODE_ENV"
       value  = "production"
-      target = ["production"]
+      target = ["prod"]
     }
   ]
-
-  # Project settings
-  build_command    = null # Use framework default
-  dev_command      = null # Use framework default
-  install_command  = null # Use framework default
-  output_directory = null # Use framework default
 }
 
 #endregion
@@ -76,7 +70,7 @@ output "vercel_project_url" {
 
 output "vercel_production_url" {
   description = "Vercel production URL"
-  value       = "https://${var.project_name}.vercel.app"
+  value       = "https://${vercel_project.frontend.name}.vercel.app"
 }
 
 #endregion
