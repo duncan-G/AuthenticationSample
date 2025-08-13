@@ -211,7 +211,7 @@
       "Sid": "SESDomainVerificationPermissions",
       "Effect": "Allow",
       "Action": [
-        "ses:VerifyDomainIdentity"
+        "ses:*"
       ],
       "Resource": "*"
     }
@@ -250,6 +250,22 @@
         "elasticloadbalancing:*"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "IAMCreateServiceLinkedRoleForELBandASG",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateServiceLinkedRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": [
+            "elasticloadbalancing.amazonaws.com",
+            "autoscaling.amazonaws.com"
+          ]
+        }
+      }
     }
   ]
 }

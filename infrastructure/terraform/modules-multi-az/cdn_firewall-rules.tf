@@ -1,5 +1,6 @@
 # WAFv2 Web ACL
 resource "aws_wafv2_web_acl" "this" {
+  provider    = aws.us_east_1
   name        = "${var.project_name}-web-acl-${var.env}"
   description = "Managed rules for API edge"
   scope       = "CLOUDFRONT"
