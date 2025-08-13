@@ -99,7 +99,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "codedeploy" {
 resource "aws_s3_bucket" "codedeploy_tags" {
   bucket = aws_s3_bucket.codedeploy.id
   tags = {
-    Name        = "${var.project_name}-codedeploy-${var.env}"
     Environment = var.env
   }
 }
@@ -113,7 +112,6 @@ resource "aws_codedeploy_app" "microservices" {
   compute_platform = "Server"
 
   tags = {
-    Name        = "${var.project_name}-${each.key}-${var.env}"
     Environment = var.env
     Service     = each.key
   }
@@ -149,7 +147,6 @@ resource "aws_codedeploy_deployment_group" "microservices" {
   }
 
   tags = {
-    Name        = "${var.project_name}-${each.key}-${var.env}-deployment-group"
     Environment = var.env
     Service     = each.key
   }
@@ -163,7 +160,6 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
   retention_in_days = 14
 
   tags = {
-    Name        = "${var.project_name}-${each.key}-codedeploy-logs-${var.env}"
     Environment = var.env
     Service     = each.key
   }
@@ -191,7 +187,6 @@ resource "aws_iam_role" "codedeploy_service_role" {
   })
 
   tags = {
-    Name        = "${var.project_name}-codedeploy-service-role-${var.env}"
     Environment = var.env
   }
 }
@@ -223,7 +218,6 @@ resource "aws_iam_role" "github_actions_codedeploy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-github-actions-role-codedeploy-${var.env}"
     Environment = var.env
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
@@ -247,7 +241,6 @@ resource "aws_iam_role" "ec2_codedeploy_role" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-codedeploy-role-${var.env}"
     Environment = var.env
   }
 }
@@ -323,7 +316,6 @@ resource "aws_iam_policy" "github_actions_codedeploy_policy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-github-actions-policy-codedeploy-${var.env}"
     Environment = var.env
     Purpose     = "GitHub Actions CodeDeploy Deployments"
   }
@@ -373,7 +365,6 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-codedeploy-policy-${var.env}"
     Environment = var.env
   }
 }

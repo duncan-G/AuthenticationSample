@@ -55,7 +55,6 @@ resource "aws_lb" "main" {
   # Access logs can be enabled if an S3 bucket is provided
 
   tags = {
-    Name        = "${var.project_name}-network-load-balancer-${var.env}"
     Environment = var.env
     Type        = "network"
     IpVersion   = "dualstack"

@@ -98,7 +98,6 @@ resource "aws_iam_role" "worker" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-worker-role-${var.env}"
     Environment = var.env
   }
 }
@@ -117,7 +116,6 @@ resource "aws_iam_role" "manager" {
   })
 
   tags = {
-    Name        = "${var.project_name}-ec2-manager-role-${var.env}"
     Environment = var.env
     Tier        = "private"
   }
@@ -129,7 +127,6 @@ resource "aws_iam_instance_profile" "worker" {
   role = aws_iam_role.worker.name
 
   tags = {
-    Name        = "${var.project_name}-ec2-worker-profile-${var.env}"
     Environment = var.env
     Purpose     = "Worker EC2 Instance Profile"
   }
@@ -141,7 +138,6 @@ resource "aws_iam_instance_profile" "manager" {
   role = aws_iam_role.manager.name
 
   tags = {
-    Name        = "${var.project_name}-ec2-manager-profile-${var.env}"
     Environment = var.env
     Purpose     = "Manager EC2 Instance Profile"
   }
@@ -191,7 +187,6 @@ resource "aws_iam_policy" "worker_core" {
   })
 
   tags = {
-    Name        = "${var.project_name}-worker-core-policy-${var.env}"
     Environment = var.env
     Purpose     = "Worker Core Permissions"
   }
@@ -242,7 +237,6 @@ resource "aws_iam_policy" "manager_core" {
   })
 
   tags = {
-    Name        = "${var.project_name}-manager-core-policy-${var.env}"
     Environment = var.env
     Purpose     = "Manager Core Permissions"
   }
@@ -294,7 +288,6 @@ resource "aws_cloudwatch_log_group" "manager" {
   retention_in_days = 30
 
   tags = {
-    Name        = "${var.project_name}-docker-manager-logs-${var.env}"
     Environment = var.env
     Purpose     = "Docker Manager Logs"
   }
@@ -305,7 +298,6 @@ resource "aws_cloudwatch_log_group" "worker" {
   retention_in_days = 30
 
   tags = {
-    Name        = "${var.project_name}-docker-worker-logs-${var.env}"
     Environment = var.env
     Purpose     = "Docker Worker Logs"
   }
@@ -404,12 +396,6 @@ resource "aws_autoscaling_group" "workers" {
   depends_on = [aws_autoscaling_group.managers]
 
   tag {
-    key                 = "Name"
-    value               = "${var.project_name}-worker-asg-${var.env}"
-    propagate_at_launch = false
-  }
-
-  tag {
     key                 = "Environment"
     value               = var.env
     propagate_at_launch = true
@@ -446,12 +432,6 @@ resource "aws_autoscaling_group" "managers" {
   }
 
   tag {
-    key                 = "Name"
-    value               = "${var.project_name}-manager-asg-${var.env}"
-    propagate_at_launch = false
-  }
-
-  tag {
     key                 = "Environment"
     value               = var.env
     propagate_at_launch = true
@@ -480,7 +460,7 @@ resource "aws_autoscaling_group" "managers" {
 
 # Target Group for Workers (for Load Balancer)
 resource "aws_lb_target_group" "public_workers" {
-  name     = "${var.project_name}-public-workers-tg-${var.env}"
+  name     = "${var.project_name}-worker-tg-${var.env}"
   port     = 80
   protocol = "TCP"
   vpc_id   = aws_vpc.main.id
@@ -495,7 +475,6 @@ resource "aws_lb_target_group" "public_workers" {
   }
 
   tags = {
-    Name        = "${var.project_name}-public-workers-target-group-${var.env}"
     Environment = var.env
   }
 }
