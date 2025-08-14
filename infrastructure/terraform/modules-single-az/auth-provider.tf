@@ -92,7 +92,7 @@ resource "aws_cognito_user_pool" "this" {
   user_attribute_update_settings {
     attributes_require_verification_before_update = ["email"]
   }
-  
+
   sign_in_policy {
     allowed_first_auth_factors = ["PASSWORD", "EMAIL_OTP", "WEB_AUTHN"]
   }
