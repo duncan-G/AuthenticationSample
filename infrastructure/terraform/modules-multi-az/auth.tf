@@ -46,6 +46,9 @@ resource "aws_cognito_user_pool" "this" {
   user_attribute_update_settings {
     attributes_require_verification_before_update = ["email"]
   }
+
+  # Ensure SES identity is verified first so Cognito can send emails
+  depends_on = [aws_ses_domain_identity_verification.this]
 }
 
 resource "aws_cognito_user_pool_domain" "this" {

@@ -93,6 +93,10 @@ resource "aws_cognito_user_pool" "this" {
   }
 
   tags = { Environment = each.value }
+
+  # Ensure SES domain identity is VERIFIED before creating the user pool,
+  # otherwise Cognito will fail with InvalidParameterException when sending email.
+  depends_on = [aws_ses_domain_identity_verification.this]
 }
 
 # User Pool Domains
