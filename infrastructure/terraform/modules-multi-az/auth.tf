@@ -47,6 +47,10 @@ resource "aws_cognito_user_pool" "this" {
     attributes_require_verification_before_update = ["email"]
   }
 
+  sign_in_policy {
+    allowed_first_auth_factors = ["PASSWORD", "EMAIL_OTP", "WEB_AUTHN"]
+  }
+
   # Ensure SES identity is verified first so Cognito can send emails
   depends_on = [aws_ses_domain_identity_verification.this]
 }
@@ -84,6 +88,18 @@ resource "aws_cognito_user_pool_client" "web" {
   logout_urls   = var.auth_logout
 
   supported_identity_providers = concat(["COGNITO"], local.social_idp_names)
+
+  # Enable choice-based authentication with USER_AUTH flow
+  # USER_AUTH handles PASSWORD, EMAIL_OTP, and WEB_AUTHN (Passkey) automatically
+  explicit_auth_flows = [
+    "ALLOW_USER_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH"
+  ]
+
+  prevent_user_existence_errors = "ENABLED"
+
+  read_attributes  = ["email", "email_verified", "name"]
+  write_attributes = ["email", "name"]
 
   depends_on = [aws_cognito_identity_provider.social]
 }

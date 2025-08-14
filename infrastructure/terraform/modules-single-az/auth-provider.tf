@@ -7,6 +7,7 @@
 # • Social Identity Providers (Google, Apple)
 # • User Pool Clients (web and backend)
 # • Identity Pool for authenticated users (for the primary environment `var.env`)
+# • Passkey (WebAuthn) authentication support
 # =============================================================================
 
 #region Configuration
@@ -91,6 +92,10 @@ resource "aws_cognito_user_pool" "this" {
   user_attribute_update_settings {
     attributes_require_verification_before_update = ["email"]
   }
+  
+  sign_in_policy {
+    allowed_first_auth_factors = ["PASSWORD", "EMAIL_OTP", "WEB_AUTHN"]
+  }
 
   tags = { Environment = each.value }
 
@@ -158,8 +163,9 @@ resource "aws_cognito_user_pool_client" "web" {
 
   supported_identity_providers = concat(["COGNITO"], local.social_idp_names)
 
+  # Enable choice-based authentication with USER_AUTH flow
+  # USER_AUTH handles PASSWORD, EMAIL_OTP, and WEB_AUTHN (Passkey) automatically
   explicit_auth_flows = [
-    "ALLOW_CUSTOM_AUTH",
     "ALLOW_USER_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH"
   ]
