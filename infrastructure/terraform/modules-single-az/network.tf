@@ -32,6 +32,30 @@ resource "aws_internet_gateway" "this" {
   }
 }
 
+# Elastic IP for NAT Gateway (IPv4 egress from private subnet)
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name        = "${var.project_name}-nat-eip-${var.env}"
+    Environment = var.env
+    Purpose     = "Elastic IP for NAT Gateway"
+  }
+}
+
+# NAT Gateway placed in the public subnet
+resource "aws_nat_gateway" "this" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public.id
+  depends_on    = [aws_internet_gateway.this]
+
+  tags = {
+    Name        = "${var.project_name}-nat-gw-${var.env}"
+    Environment = var.env
+    Purpose     = "NAT Gateway for private subnet IPv4 egress"
+  }
+}
+
 # Public subnet for external-facing resources
 resource "aws_subnet" "public" {
   vpc_id                          = aws_vpc.main.id
@@ -92,6 +116,12 @@ resource "aws_route_table" "public" {
 # Private route table with IPv6 internet access (no NAT needed for IPv6)
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
+
+  # IPv4 egress via NAT Gateway
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.this.id
+  }
 
   # IPv6 egress via IGW (no NAT needed for IPv6)
   route {
