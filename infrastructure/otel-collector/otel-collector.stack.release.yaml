@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  app:
+    image: otel/opentelemetry-collector-contrib:latest
+    networks:
+      - net
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "13133:13133" # Health check endpoint
+    configs:
+      - source: otel_collector_config
+        target: /etc/otel/config.yaml
+    environment:
+      - AWS_REGION=${AWS_REGION}
+    # Add DNS configuration to fix CloudWatch Logs connectivity
+    dns:
+      - "8.8.8.8"
+      - "8.8.4.4"
+      - "1.1.1.1"
+    deploy:
+      labels:
+        service: otel-collector
+        environment: ${ENVIRONMENT}
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 15s
+        max_attempts: 3
+        window: 120s 
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 15s
+        order: stop-first
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: ["--config=/etc/otel/config.yaml"]
+
+networks:
+  net:
+    name: ${NETWORK_NAME}
+    external: true
+
+configs:
+  otel_collector_config:
+    name: otel-collector_config_${VERSION}
+    external: true 
