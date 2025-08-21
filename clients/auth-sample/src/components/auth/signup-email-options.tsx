@@ -11,7 +11,7 @@ import { validateEmail } from "@/lib/validation"
 interface SignUpEmailOptionsProps {
   email: string
   onEmailChange: (email: string) => void
-  onPasswordFlow: () => void
+  onPasswordFlowContinue: () => Promise<void>
   onPasswordlessFlow: () => void
   onBack: () => void
   isLoading: boolean
@@ -22,14 +22,14 @@ interface SignUpEmailOptionsProps {
 export function SignUpEmailOptions({
   email,
   onEmailChange,
-  onPasswordFlow,
+  onPasswordFlowContinue,
   onPasswordlessFlow,
   onBack,
   isLoading,
-  serverError: _serverError, // Reserved for future server error handling
+  serverError,
   signupMethod
 }: SignUpEmailOptionsProps) {
-  void _serverError // Reserved for future server error handling
+  
   
   const [emailError, setEmailError] = useState<string>("")
   const [showError, setShowError] = useState<boolean>(false)
@@ -46,7 +46,7 @@ export function SignUpEmailOptions({
     }
   }
 
-  const validateAndProceed = useCallback((action: () => void) => {
+  const validateAndProceed = useCallback((action: () => void | Promise<void>) => {
     if (!email.trim()) {
       setEmailError("Email address is required")
       setShowError(true)
@@ -62,7 +62,7 @@ export function SignUpEmailOptions({
     // Clear any errors and proceed
     setEmailError("")
     setShowError(false)
-    action()
+    void action()
   }, [email])
 
   const getTitle = () => {
@@ -79,7 +79,7 @@ export function SignUpEmailOptions({
   const getButtonText = () => {
     switch (signupMethod) {
       case "password":
-        return isLoading ? "Creating account..." : "Continue"
+        return isLoading ? "Validating..." : "Continue"
       case "passwordless":
         return isLoading ? "Sending verification..." : "Send verification email"
       default:
@@ -92,7 +92,7 @@ export function SignUpEmailOptions({
     if (signupMethod === "passwordless") {
       validateAndProceed(onPasswordlessFlow)
     } else {
-      validateAndProceed(onPasswordFlow)
+      validateAndProceed(onPasswordFlowContinue)
     }
   }
 
@@ -132,11 +132,17 @@ export function SignUpEmailOptions({
             />
             
             {/* Reserved space for error message - prevents layout shift */}
-            <div className="h-6 flex items-center">
-              {showError && emailError && (
+            <div className="min-h-6 flex items-center">
+              {(showError && emailError) && (
                 <div className="flex items-center space-x-2 text-red-400 text-sm">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{emailError}</span>
+                </div>
+              )}
+              {!emailError && serverError && (
+                <div className="flex items-center space-x-2 text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{serverError}</span>
                 </div>
               )}
             </div>
@@ -145,6 +151,7 @@ export function SignUpEmailOptions({
           <AuthButton
             type="submit"
             disabled={!email || isLoading}
+            loading={isLoading}
           >
             {getButtonText()}
           </AuthButton>
@@ -159,6 +166,7 @@ export function SignUpEmailOptions({
               variant="secondary"
               onClick={() => validateAndProceed(onPasswordlessFlow)}
               disabled={!email || isLoading}
+            loading={isLoading}
             >
               Send verification email
             </AuthButton>

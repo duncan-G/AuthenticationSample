@@ -59,8 +59,8 @@ export default function SignUpPage() {
             <MainSignUp
               onGoogleSignUp={auth.handleGoogleSignUp}
               onAppleSignUp={auth.handleAppleSignUp}
-              onPasswordSignUp={auth.handlePasswordSignUpFlow}
-              onPasswordlessSignUp={auth.handlePasswordlessSignUpFlow}
+              onPasswordSignUp={auth.handlePasswordSignFlowStart}
+              onPasswordlessSignUp={auth.handlePasswordlessSignUpFlowStart}
               isLoading={auth.isLoading}
             />
           </AuthFlowTransition>
@@ -75,10 +75,11 @@ export default function SignUpPage() {
             <SignUpEmailOptions
               email={auth.email}
               onEmailChange={auth.setEmail}
-              onPasswordFlow={() => auth.setCurrentFlow("signup-password")}
-              onPasswordlessFlow={() => auth.setCurrentFlow("signup-passwordless")}
+              onPasswordFlowContinue={auth.handlePasswordEmailContinue}
+              onPasswordlessFlow={auth.handlePasswordlessEmailContinue}
               onBack={() => auth.setCurrentFlow("signup-main")}
               isLoading={auth.isLoading}
+              serverError={auth.errorMessage}
               signupMethod={auth.signupMethod}
             />
           </AuthFlowTransition>
@@ -99,6 +100,7 @@ export default function SignUpPage() {
               onPasswordSignUp={auth.handlePasswordSignUp}
               onBack={() => auth.setCurrentFlow("signup-email-options")}
               isLoading={auth.isLoading}
+              serverError={auth.errorMessage}
             />
           </AuthFlowTransition>
         )
@@ -113,10 +115,11 @@ export default function SignUpPage() {
               email={auth.email}
               otpCode={auth.otpCode}
               onOtpChange={auth.setOtpCode}
-              onResendEmail={auth.handlePasswordlessSignUp}
+              onResendEmail={auth.handlePasswordlessEmailContinue}
               onVerifyOtp={auth.handleSignUpOtpVerification}
               onBack={() => auth.setCurrentFlow("signup-email-options")}
               isLoading={auth.isLoading}
+              serverError={auth.errorMessage}
             />
           </AuthFlowTransition>
         )

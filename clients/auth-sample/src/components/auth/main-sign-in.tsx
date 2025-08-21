@@ -49,6 +49,7 @@ export function MainSignIn({
           type="button"
           onClick={onEmailSignIn}
           disabled={isLoading}
+          loading={isLoading}
         >
           <Mail className="w-5 h-5 mr-3" />
           Sign in with email

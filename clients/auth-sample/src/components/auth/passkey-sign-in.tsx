@@ -42,6 +42,7 @@ export function PasskeySignIn({
         <AuthButton
           onClick={onPasskeySignIn}
           disabled={isLoading}
+          loading={isLoading}
         >
           {isLoading ? "Authenticating..." : "Use Passkey"}
         </AuthButton>

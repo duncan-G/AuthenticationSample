@@ -38,8 +38,8 @@ function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string 
           <MainSignUp
             onGoogleSignUp={auth.handleGoogleSignUp}
             onAppleSignUp={auth.handleAppleSignUp}
-            onPasswordSignUp={auth.handlePasswordSignUpFlow}
-            onPasswordlessSignUp={auth.handlePasswordlessSignUpFlow}
+            onPasswordSignUp={auth.handlePasswordSignFlowStart}
+            onPasswordlessSignUp={auth.handlePasswordlessSignUpFlowStart}
             isLoading={auth.isLoading}
           />
         )

@@ -102,12 +102,30 @@ function start_client_linux() {
 # Setup environment files
 setup_client_env
 
-# Generate Auth TypeScript services
-echo "Generating grpc services"
-bash $working_dir/scripts/development/gen-grpc-web.sh \
-    -i $working_dir/microservices/Auth/src/Auth.Grpc/Protos/greet.proto \
-    -o $working_dir/clients/auth-sample/src/app/services
-docker container rm protoc-gen-grpc-web
+# Generate TypeScript services for all microservices' proto files
+echo "Generating grpc services for all microservices"
+
+# Find all .proto files under any microservice's Protos directory and generate outputs
+while IFS= read -r proto_file; do
+    # Determine microservice name from path segment after microservices/
+    rel_path=${proto_file#"$working_dir/microservices/"}
+    microservice_name=${rel_path%%/*}
+    microservice_name_lower=$(echo "$microservice_name" | tr '[:upper:]' '[:lower:]')
+
+    # Output directory includes lowercase microservice name
+    output_dir="$working_dir/clients/auth-sample/src/lib/services/$microservice_name_lower"
+    mkdir -p "$output_dir"
+
+    # Ensure any previous container with the fixed name is removed before each run
+    docker container rm protoc-gen-grpc-web >/dev/null 2>&1 || true
+
+    bash "$working_dir/scripts/development/gen-grpc-web.sh" \
+        -i "$proto_file" \
+        -o "$output_dir"
+done < <(find "$working_dir/microservices" -type f -name "*.proto" -path "*/Protos/*" | sort)
+
+# Final cleanup (no-op if already removed)
+docker container rm protoc-gen-grpc-web >/dev/null 2>&1 || true
 
 # Start Next.js application
 if [[ "$OSTYPE" == "darwin"* ]]; then

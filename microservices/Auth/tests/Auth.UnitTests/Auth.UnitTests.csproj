@@ -17,6 +17,7 @@
 
     <ItemGroup>
         <Using Include="Xunit"/>
+        <ProjectReference Include="../../src/Auth.Grpc/Auth.Grpc.csproj"/>
     </ItemGroup>
 
 </Project>

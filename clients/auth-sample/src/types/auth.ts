@@ -8,6 +8,7 @@ export interface AuthState {
   otpCode: string
   isLoading: boolean
   signupMethod?: "password" | "passwordless"
+  errorMessage?: string
 }
 
 export interface AuthHandlers {
@@ -22,10 +23,11 @@ export interface AuthHandlers {
   handleGoogleSignUp: () => Promise<void>
   handleAppleSignUp: () => Promise<void>
   handleEmailSignUp: () => void
-  handlePasswordSignUpFlow: () => void
-  handlePasswordlessSignUpFlow: () => void
+  handlePasswordSignFlowStart: () => void
+  handlePasswordlessSignUpFlowStart: () => void
+  handlePasswordEmailContinue: () => Promise<void>
+  handlePasswordlessEmailContinue: () => Promise<void>
   handlePasswordSignUp: () => Promise<void>
-  handlePasswordlessSignUp: () => Promise<void>
   handleSignUpOtpVerification: () => Promise<void>
   setCurrentFlow: (flow: AuthFlow) => void
   setEmail: (email: string) => void

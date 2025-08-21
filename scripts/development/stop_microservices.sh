@@ -27,32 +27,33 @@ cleanup() {
         pid=$(<"$pidfile")
         name=$(basename "$pidfile" .pid)
 
-        if kill -0 "$pid" 2>/dev/null; then
-            echo "  • Stopping $name (PID $pid)"
+        # Prefer checking the process group first so we still catch children if leader died
+        if kill -0 "-$pid" 2>/dev/null || kill -0 "$pid" 2>/dev/null; then
+            echo "  • Stopping $name (PID/PGID $pid)"
 
             # 1) Try to SIGINT the entire process group (requires 'setsid' at startup)
             if kill -0 "-$pid" 2>/dev/null; then
                 kill -INT -- "-$pid"
             else
                 # fallback: SIGINT watcher, then its children
-                kill -INT "$pid"
-                pkill -INT -P "$pid"
+                kill -INT "$pid" 2>/dev/null || true
+                pkill -INT -P "$pid" 2>/dev/null || true
             fi
 
             # 2) Wait up to 5s for it to die gracefully
             for _ in {1..5}; do
                 sleep 1
-                kill -0 "$pid" 2>/dev/null || break
+                if ! kill -0 "-$pid" 2>/dev/null && ! kill -0 "$pid" 2>/dev/null; then
+                    break
+                fi
             done
 
             # 3) If still alive, force-kill group or individual
-            if kill -0 "$pid" 2>/dev/null; then
-                if kill -0 "-$pid" 2>/dev/null; then
-                    kill -9 -- "-$pid"
-                else
-                    pkill -9 -P "$pid"
-                    kill -9 "$pid" 2>/dev/null || true
-                fi
+            if kill -0 "-$pid" 2>/dev/null; then
+                kill -9 -- "-$pid"
+            elif kill -0 "$pid" 2>/dev/null; then
+                pkill -9 -P "$pid" 2>/dev/null || true
+                kill -9 "$pid" 2>/dev/null || true
             fi
         fi
 

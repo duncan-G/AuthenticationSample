@@ -11,6 +11,7 @@ interface AuthButtonProps {
   className?: string
   type?: "button" | "submit" | "reset"
   tabIndex?: number
+  loading?: boolean
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
@@ -31,7 +32,8 @@ export function AuthButton({
   disabled, 
   className = "",
   type = "button",
-  tabIndex = 0
+  tabIndex = 0,
+  loading = false
 }: AuthButtonProps) {
   return (
     <Button
@@ -39,9 +41,14 @@ export function AuthButton({
       tabIndex={tabIndex}
       className={`${variantStyles[variant]} ${className}`}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
     >
-      {children}
+      <span className="inline-flex items-center justify-center">
+        {children}
+        {loading && (
+          <div className="ml-3 animate-spin rounded-full h-5 w-5 border-2 border-stone-300/30 border-t-stone-200 shadow-sm" />
+        )}
+      </span>
     </Button>
   )
 } 

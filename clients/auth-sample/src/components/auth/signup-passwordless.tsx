@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { Mail, CheckCircle2 } from "lucide-react"
+import { Mail, CheckCircle2, AlertCircle } from "lucide-react"
 import { AuthCard } from "./auth-card"
 import { AuthButton } from "./auth-button"
 import { AuthHeader } from "./auth-header"
@@ -14,6 +14,7 @@ interface SignUpPasswordlessProps {
   onVerifyOtp: () => Promise<void>
   onBack: () => void
   isLoading: boolean
+  serverError?: string
 }
 
 export function SignUpPasswordless({
@@ -23,7 +24,8 @@ export function SignUpPasswordless({
   onResendEmail,
   onVerifyOtp,
   onBack,
-  isLoading
+  isLoading,
+  serverError
 }: SignUpPasswordlessProps) {
   const [emailSent, setEmailSent] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -94,7 +96,7 @@ export function SignUpPasswordless({
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3 mb-4">
             <Label htmlFor="otp" className="text-stone-100 font-medium text-base">
               6-digit verification code
             </Label>
@@ -110,9 +112,20 @@ export function SignUpPasswordless({
             />
           </div>
 
+          {/* Server error below input */}
+          <div className="min-h-6 mb-4 flex items-center">
+            {serverError && (
+              <div className="flex items-center space-x-2 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{serverError}</span>
+              </div>
+            )}
+          </div>
+
           <AuthButton
             type="submit"
             disabled={otpCode.length !== 6 || isLoading}
+            loading={isLoading}
           >
             {isLoading ? "Verifying..." : "Verify Code"}
           </AuthButton>

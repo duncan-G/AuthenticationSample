@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D0D920DF-B6E6-4EA7-ADB6-59322520735D}"
 EndProject
@@ -16,17 +16,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.IntegrationTests", "te
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libraries", "libraries", "{40D54F45-125A-4C06-84E1-71C46C0F677C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication", "..\..\libraries\Authentication\Authentication.csproj", "{F5709DBB-90D6-4944-B8DC-E6C1A6780932}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Authentication", "..\..\libraries\Authentication\src\Authentication.csproj", "{F5709DBB-90D6-4944-B8DC-E6C1A6780932}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.SchemaBuilder", "src\Auth.SchemaBuilder\Auth.SchemaBuilder.csproj", "{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{55CAEFE5-AC55-4769-823D-1DFCE45F77C5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logging", "..\..\libraries\Logging\Logging.csproj", "{C386FA90-0784-4A66-B38D-0B7E06BC39DB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logging", "..\..\libraries\Logging\src\Logging.csproj", "{C386FA90-0784-4A66-B38D-0B7E06BC39DB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "..\..\libraries\Api\Api.csproj", "{50346C62-34CC-4A5D-A922-EBFDB3637E2A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "..\..\libraries\Infrastructure\src\Infrastructure.csproj", "{E06AD19F-0E4D-444A-BD5F-7E90E397EBED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "..\..\libraries\Infrastructure\Infrastructure.csproj", "{E06AD19F-0E4D-444A-BD5F-7E90E397EBED}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "..\..\libraries\Api\src\Api.csproj", "{3ADC01FC-F982-4237-BDF8-E3C4DBDBF102}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -66,14 +66,14 @@ Global
 		{C386FA90-0784-4A66-B38D-0B7E06BC39DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C386FA90-0784-4A66-B38D-0B7E06BC39DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C386FA90-0784-4A66-B38D-0B7E06BC39DB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{50346C62-34CC-4A5D-A922-EBFDB3637E2A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E06AD19F-0E4D-444A-BD5F-7E90E397EBED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E06AD19F-0E4D-444A-BD5F-7E90E397EBED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E06AD19F-0E4D-444A-BD5F-7E90E397EBED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E06AD19F-0E4D-444A-BD5F-7E90E397EBED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3ADC01FC-F982-4237-BDF8-E3C4DBDBF102}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3ADC01FC-F982-4237-BDF8-E3C4DBDBF102}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3ADC01FC-F982-4237-BDF8-E3C4DBDBF102}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3ADC01FC-F982-4237-BDF8-E3C4DBDBF102}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8AEC190A-95D7-49E7-A5E1-98F82712FA0B} = {D0D920DF-B6E6-4EA7-ADB6-59322520735D}
@@ -84,7 +84,7 @@ Global
 		{F5709DBB-90D6-4944-B8DC-E6C1A6780932} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
 		{53C022CB-0BC4-4EC7-9E3D-0EAAC7F8DEBD} = {D0D920DF-B6E6-4EA7-ADB6-59322520735D}
 		{C386FA90-0784-4A66-B38D-0B7E06BC39DB} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
-		{50346C62-34CC-4A5D-A922-EBFDB3637E2A} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
 		{E06AD19F-0E4D-444A-BD5F-7E90E397EBED} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
+		{3ADC01FC-F982-4237-BDF8-E3C4DBDBF102} = {40D54F45-125A-4C06-84E1-71C46C0F677C}
 	EndGlobalSection
 EndGlobal

@@ -31,4 +31,4 @@ docker network create -d overlay --attachable --driver overlay net
 # Run Aspire Dashboard
 echo "Running Aspire Dashboard"
 env ASPIRE_BROWSER_TOKEN=$ASPIRE_BROWSER_TOKEN \
-    docker stack deploy --compose-file infrastructure/aspire/aspire.stack.debug.yaml otel-collector
+    docker stack deploy --compose-file infrastructure/otel-collector/aspire.stack.debug.yaml otel-collector

@@ -192,7 +192,7 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth())
 
       act(() => {
-        result.current.handlePasswordSignUpFlow()
+        result.current.handlePasswordSignFlowStart()
       })
 
       expect(result.current.signupMethod).toBe('password')
@@ -203,7 +203,7 @@ describe('useAuth', () => {
       const { result } = renderHook(() => useAuth())
 
       act(() => {
-        result.current.handlePasswordlessSignUpFlow()
+        result.current.handlePasswordlessSignUpFlowStart()
       })
 
       expect(result.current.signupMethod).toBe('passwordless')

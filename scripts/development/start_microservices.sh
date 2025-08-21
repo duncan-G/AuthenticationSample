@@ -48,8 +48,7 @@ stop_client() {
 
 # Set up trap for cleanup only when not containerized
 if [ "$containerize_microservices" = false ]; then
-    trap stop_microservices INT TERM EXIT
-    trap stop_client INT TERM EXIT
+    trap "stop_microservices; stop_client" INT TERM EXIT
 fi
 
 # Start Postgres
@@ -85,7 +84,8 @@ else
 
     (
         cd "$working_dir/microservices/Auth"
-        nohup env $DOTNET_ENV_VARS dotnet watch run \
+        # Start watcher as a new session leader so we can signal its entire process group
+        nohup setsid env $DOTNET_ENV_VARS dotnet watch run \
             --project src/Auth.Grpc/Auth.Grpc.csproj \
             >>"$logfile" 2>&1 &
         echo $! > "$pidfile"

@@ -16,6 +16,7 @@ interface SignUpPasswordProps {
   onPasswordSignUp: () => Promise<void>
   onBack: () => void
   isLoading: boolean
+  serverError?: string
 }
 
 export function SignUpPassword({
@@ -26,7 +27,8 @@ export function SignUpPassword({
   onPasswordConfirmationChange,
   onPasswordSignUp,
   onBack,
-  isLoading
+  isLoading,
+  serverError
 }: SignUpPasswordProps) {
   const passwordInputRef = useRef<HTMLInputElement>(null)
   const [passwordErrors, setPasswordErrors] = useState<string[]>([])
@@ -84,7 +86,10 @@ export function SignUpPassword({
       />
 
       <AuthCard>
-        <p className="text-stone-200/90 text-center">Creating account for {email}</p>
+        {serverError && (
+          <div className="mb-4 text-sm text-red-400">{serverError}</div>
+        )}
+        <p className="text-stone-200/90 text-center">Creating account for <b>{email}</b></p>
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-6 mb-6">
@@ -144,6 +149,7 @@ export function SignUpPassword({
           <AuthButton
             type="submit"
             disabled={!password || !passwordConfirmation || isLoading}
+            loading={isLoading}
           >
             {isLoading ? "Creating account..." : "Create Account"}
           </AuthButton>
