@@ -79,8 +79,10 @@ resource "aws_cognito_user_pool" "this" {
   email_configuration {
     email_sending_account = "DEVELOPER"
     from_email_address    = "no-reply@${var.domain_name}"
-    source_arn            = aws_ses_domain_identity.this.arn
+    source_arn            = aws_ses_domain_identity_verification.this.arn
   }
+
+  depends_on = [aws_ses_domain_identity_verification.this]
 
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
