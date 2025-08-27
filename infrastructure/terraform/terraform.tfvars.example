@@ -1,0 +1,69 @@
+# =============================================================================
+# Example Terraform Variables File
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values
+# =============================================================================
+
+# Core configuration
+region        = "us-west-1"
+project_name  = "auth-sample"
+env           = "stage"
+domain_name   = "ultramotiontech.com"
+
+# Subdomain configuration
+api_subdomain  = "api"
+auth_subdomain = "auth"
+
+# Route53 configuration
+route53_hosted_zone_id = "YOUR_ROUTE53_HOSTED_ZONE_ID"
+
+# S3 bucket suffix (usually auto-generated)
+bucket_suffix = "YOUR_BUCKET_SUFFIX"
+
+# GitHub repository
+github_repository = "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME"
+
+# Vercel configuration (optional)
+vercel_api_token = "YOUR_VERCEL_API_TOKEN"
+vercel_root_directory = "clients/auth-sample"
+
+# CodeDeploy configuration
+codedeploy_bucket_name = "YOUR_CODEDEPLOY_BUCKET_NAME"
+
+# Microservices configuration
+microservices = ["auth"]
+microservices_with_logs = ["auth"]
+
+# Environment names
+staging_environment_name = "stage"
+production_environment_name = "prod"
+
+# Social identity providers (optional)
+idps = {
+  # google = {
+  #   client_id     = "YOUR_GOOGLE_CLIENT_ID"
+  #   client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
+  #   scopes        = "openid email profile"
+  #   provider_name = "Google"
+  #   provider_type = "Google"
+  # }
+  # apple = {
+  #   client_id     = "YOUR_APPLE_CLIENT_ID"
+  #   client_secret = "YOUR_APPLE_CLIENT_SECRET"
+  #   scopes        = "openid email name"
+  #   provider_name = "SignInWithApple"
+  #   provider_type = "SignInWithApple"
+  # }
+}
+
+# Cognito callback URLs (optional)
+auth_callback = [
+  "http://localhost:3000/auth/callback",
+  "https://YOUR_DOMAIN/auth/callback"
+]
+
+# Cognito logout URLs (optional)
+auth_logout = [
+  "http://localhost:3000/auth/logout",
+  "https://YOUR_DOMAIN/auth/logout"
+]
