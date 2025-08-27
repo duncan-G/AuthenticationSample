@@ -47,7 +47,7 @@ validate_ses_identity() {
         --identities "$DOMAIN_NAME" \
         --region "$AWS_REGION" \
         --profile "$AWS_PROFILE" \
-        --query 'VerificationAttributes["'"$DOMAIN_NAME"'"]'.VerificationStatus \
+        --query "VerificationAttributes.\"$DOMAIN_NAME\".VerificationStatus" \
         --output text 2>/dev/null || true)
 
     if [ -z "$status" ] || [ "$status" = "None" ] || [ "$status" = "NotFound" ]; then
@@ -164,7 +164,7 @@ create_codedeploy_bucket() {
 
 setup_oidc_infrastructure() {
     print_info "Setting up OIDC infrastructure (delegated script)..."
-    "$SCRIPT_DIR/setup-oidc-infrastructure.sh" \
+    "$SCRIPT_DIR/setup-oidc-infra.sh" \
         --aws-profile "$AWS_PROFILE" \
         --project-name "$PROJECT_NAME" \
         --github-repo "$GITHUB_REPO_FULL" \
@@ -263,27 +263,7 @@ show_usage() {
     echo "Prerequisites:"
     echo "  - AWS CLI configured with appropriate profile"
     echo "  - GitHub CLI authenticated"
-    echo "  - Docker installed and running"
     exit 1
-}
-
-# Function to check Docker availability
-check_docker() {
-    print_info "Checking Docker availability..."
-    
-    if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed or not in PATH"
-        print_error "Please install Docker and ensure it's running"
-        exit 1
-    fi
-    
-    if ! docker info &> /dev/null; then
-        print_error "Docker is not running or not accessible"
-        print_error "Please start Docker and ensure you have permissions to run docker commands"
-        exit 1
-    fi
-    
-    print_success "Docker is available and running"
 }
 
 # Main execution
@@ -294,7 +274,6 @@ main() {
     
     check_aws_cli
     check_github_cli
-    check_docker
 
     GITHUB_REPO_FULL=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
     if ! validate_repo "$GITHUB_REPO_FULL"; then
