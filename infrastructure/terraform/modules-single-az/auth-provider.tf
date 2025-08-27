@@ -87,7 +87,22 @@ resource "aws_cognito_user_pool" "this" {
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
     email_subject        = "Your ${var.project_name} verification code"
-    email_message        = "Your verification code is {####}"
+    email_message        = <<-HTML
+      <html>
+        <body style="margin:0;padding:24px;background:#f7f7f8;color:#111;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+          <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px;">
+            <h1 style="margin:0 0 12px;font-size:20px;line-height:1.2;">Verify your email</h1>
+            <p style="margin:0 0 18px;line-height:1.6;">Enter this one-time code to verify your email address:</p>
+            <div style="font-size:28px;letter-spacing:6px;font-weight:700;background:#111;color:#fff;display:inline-block;padding:10px 14px;border-radius:10px;">
+              {####}
+            </div>
+            <p style="margin:18px 0 0;color:#555;font-size:13px;line-height:1.6;">
+              This code expires soon. If you didn’t request it, you can ignore this email.
+            </p>
+          </div>
+        </body>
+      </html>
+    HTML
   }
 
   user_attribute_update_settings {
@@ -161,7 +176,6 @@ resource "aws_cognito_user_pool_client" "web" {
   supported_identity_providers = concat(["COGNITO"], local.social_idp_names)
 
   explicit_auth_flows = [
-    "ALLOW_CUSTOM_AUTH",
     "ALLOW_USER_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH"
   ]
