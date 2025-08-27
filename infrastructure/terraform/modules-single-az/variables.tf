@@ -9,7 +9,7 @@ variable "region" {
 }
 
 variable "project_name" {
-  description = "Project name used as a resource prefix"
+  description = "Project name for resource naming"
   type        = string
 
   validation {
@@ -36,6 +36,11 @@ variable "domain_name" {
     condition     = length(var.domain_name) > 0
     error_message = "Domain name must not be empty"
   }
+}
+
+variable "bucket_suffix" {
+  description = "Suffix to ensure unique S3 bucket names across envs"
+  type        = string
 }
 
 # Subdomain labels

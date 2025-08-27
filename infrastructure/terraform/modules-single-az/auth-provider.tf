@@ -94,6 +94,10 @@ resource "aws_cognito_user_pool" "this" {
     attributes_require_verification_before_update = ["email"]
   }
 
+  sign_in_policy {
+    allowed_first_auth_factors = ["PASSWORD", "EMAIL_OTP", "WEB_AUTHN"]
+  }
+
   tags = { Environment = each.value }
 }
 
