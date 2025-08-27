@@ -61,6 +61,7 @@ env:
   TF_VAR_auth_subdomain: 'auth'
   TF_VAR_auth_callback: '["https://auth.${{ vars.DOMAIN_NAME }}/auth/callback"]'
   TF_VAR_auth_logout: '["https://auth.${{ vars.DOMAIN_NAME }}/auth/logout-complete"]'
+  TF_VAR_ses_identity_arn: ${{ secrets.SES_IDENTITY_ARN }}
 
 permissions:
   contents: read

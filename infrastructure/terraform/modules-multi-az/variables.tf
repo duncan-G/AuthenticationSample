@@ -180,3 +180,10 @@ variable "authenticated_policy_arn" {
 }
 
 
+variable "ses_identity_arn" {
+  description = "SES identity ARN for the from domain. Leave empty to use Cognito default email."
+  type        = string
+  default     = ""
+}
+
+

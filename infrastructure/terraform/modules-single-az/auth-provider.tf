@@ -77,9 +77,9 @@ resource "aws_cognito_user_pool" "this" {
   }
 
   email_configuration {
-    email_sending_account = "DEVELOPER"
-    from_email_address    = "no-reply@${var.domain_name}"
-    source_arn            = aws_ses_domain_identity.this.arn
+    email_sending_account = var.ses_identity_arn == "" ? "COGNITO_DEFAULT" : "DEVELOPER"
+    from_email_address    = var.ses_identity_arn == "" ? null : "no-reply@${var.domain_name}"
+    source_arn            = var.ses_identity_arn == "" ? null : var.ses_identity_arn
   }
 
   verification_message_template {

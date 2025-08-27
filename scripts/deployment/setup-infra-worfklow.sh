@@ -38,6 +38,34 @@ get_route53_hosted_zone_id() {
     fi
 }
 
+# Validate SES identity exists and is verified; compute ARN
+validate_ses_identity() {
+    print_info "Validating SES domain identity for $DOMAIN_NAME in region $AWS_REGION"
+
+    local status
+    status=$(aws ses get-identity-verification-attributes \
+        --identities "$DOMAIN_NAME" \
+        --region "$AWS_REGION" \
+        --profile "$AWS_PROFILE" \
+        --query 'VerificationAttributes["'"$DOMAIN_NAME"'"]'.VerificationStatus \
+        --output text 2>/dev/null || true)
+
+    if [ -z "$status" ] || [ "$status" = "None" ] || [ "$status" = "NotFound" ]; then
+        print_error "SES identity for domain '$DOMAIN_NAME' not found in region '$AWS_REGION'."
+        print_info  "Run: scripts/deployment/setup_ses_email_identity.sh to create and verify the identity."
+        exit 1
+    fi
+
+    if [ "$status" != "Success" ]; then
+        print_error "SES identity for '$DOMAIN_NAME' exists but is not verified (status: $status)."
+        print_info  "Wait for verification or rerun scripts/deployment/setup_ses_email_identity.sh with DNS records in place."
+        exit 1
+    fi
+
+    SES_IDENTITY_ARN="arn:aws:ses:${AWS_REGION}:${AWS_ACCOUNT_ID}:identity/${DOMAIN_NAME}"
+    print_success "SES identity verified. ARN: $SES_IDENTITY_ARN"
+}
+
 # Function to get user input
 get_user_input() {
     print_info "Please provide the following information:"
@@ -157,7 +185,8 @@ setup_github_workflow() {
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
         "EDGE_SHARED_SECRET:$(openssl rand -hex 16)" \
-        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET"
+        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET" \
+        "SES_IDENTITY_ARN:$SES_IDENTITY_ARN"
 
     # Conditionally add Vercel secret only if provided
     if [ -n "${VERCEL_API_KEY}" ]; then
@@ -205,6 +234,7 @@ display_final_instructions() {
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
     echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
+    echo -e "${GREEN}   SES Identity ARN: $SES_IDENTITY_ARN${NC}"
     
     print_info "You can now use the GitHub Actions workflows!"
     echo "   • Terraform: Actions → 'Infrastructure Release' → Run workflow"
@@ -285,6 +315,9 @@ main() {
     
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
+    # Ensure SES identity exists and is verified before proceeding; provide guidance if not
+    validate_ses_identity
+
     create_terraform_state_backend
     create_codedeploy_bucket
     setup_oidc_infrastructure

@@ -48,3 +48,9 @@ variable "auth_subdomain" {
   description = "Auth subdomain label (e.g., 'auth')"
   type        = string
 }
+
+variable "ses_identity_arn" {
+  description = "SES identity ARN for the from domain. Leave empty to use Cognito default email."
+  type        = string
+  default     = ""
+}
