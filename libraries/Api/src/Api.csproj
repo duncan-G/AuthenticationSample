@@ -20,4 +20,8 @@
         <PackageReference Include="Grpc.Core.Api" Version="2.71.0"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\..\Exceptions\Exceptions.csproj" />
+    </ItemGroup>
+
 </Project>

@@ -4,7 +4,7 @@ import "./globals.css";
 import ThemeInitializer from "@/components/theme/theme-initializer";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import OidcProvider from "@/components/auth/oidc-provider";
-import TraceProvider from "@/components/telemetry/trace-provider";
+import { WorkflowProvider } from "@/lib/workflows";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,11 +34,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`} suppressHydrationWarning={true}
       >
       <ThemeInitializer />
-      <TraceProvider>
+      <WorkflowProvider>
         <OidcProvider>
           <ThemeProvider>{children}</ThemeProvider>
         </OidcProvider>
-      </TraceProvider>
+      </WorkflowProvider>
       </body>
     </html>
   );

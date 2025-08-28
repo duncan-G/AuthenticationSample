@@ -1,10 +1,13 @@
+using AuthSample.Exceptions;
+using Grpc.Core;
+
 namespace AuthSample.Auth.Core.Exceptions;
 
-public class VerificationCodeMismatchException : Exception
+public class VerificationCodeMismatchException(string? message = null)
+    : Exception(message ?? "The verification code is incorrect."), IHasGrpcClientError
 {
-    public VerificationCodeMismatchException(string? message = null) : base(message ?? "The verification code is incorrect.")
-    {
-    }
+    public GrpcErrorDescriptor ToGrpcError() =>
+        new (StatusCode.InvalidArgument, ErrorCodes.VerificationCodeMismatch, Message);
 }
 
 

@@ -22,8 +22,7 @@ export interface AuthHandlers {
   // Sign-up handlers
   handleGoogleSignUp: () => Promise<void>
   handleAppleSignUp: () => Promise<void>
-  handleEmailSignUp: () => void
-  handlePasswordSignFlowStart: () => void
+  handlePasswordSignUpFlowStart: () => void
   handlePasswordlessSignUpFlowStart: () => void
   handlePasswordEmailContinue: () => Promise<void>
   handlePasswordlessEmailContinue: () => Promise<void>
@@ -34,4 +33,4 @@ export interface AuthHandlers {
   setPassword: (password: string) => void
   setPasswordConfirmation: (passwordConfirmation: string) => void
   setOtpCode: (code: string) => void
-} 
+}

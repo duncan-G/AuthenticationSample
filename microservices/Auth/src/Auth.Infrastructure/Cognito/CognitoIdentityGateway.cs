@@ -59,8 +59,11 @@ public sealed class CognitoIdentityGateway(
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
-        }
+            throw new CognitoOperationFailedException(
+                nameof(cognitoIdentityProvider.AdminGetUserAsync),
+                null,
+                "Failed to initiate sign up",
+                ex);        }
     }
 
     public async Task<Guid> InitiateSignUpAsync(InitiateSignUpRequest request,
@@ -129,7 +132,11 @@ public sealed class CognitoIdentityGateway(
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
+            throw new CognitoOperationFailedException(
+                nameof(cognitoIdentityProvider.SignUpAsync),
+                null,
+                "Failed to initiate sign up",
+                ex);
         }
     }
 
@@ -271,8 +278,11 @@ public sealed class CognitoIdentityGateway(
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
-        }
+            throw new CognitoOperationFailedException(
+                nameof(cognitoIdentityProvider.ResendConfirmationCodeAsync),
+                null,
+                "Failed to send verification email.",
+                ex);        }
     }
 
     public async Task UpdatePasswordAsync(InitiateSignUpRequest request, CancellationToken cancellationToken = default)

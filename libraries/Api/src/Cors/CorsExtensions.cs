@@ -18,7 +18,7 @@ public static class CorsExtensions
             policyBuilder.WithOrigins(options.AllowedOrigins.ToArray())
                 .AllowAnyMethod()
                 .AllowAnyHeader()
-                .WithExposedHeaders("Grpc-Status", "Grpc-Message", "Grpc-Encoding", "Grpc-Accept-Encoding");
+                .WithExposedHeaders("Grpc-Status", "Grpc-Message", "Grpc-Encoding", "Grpc-Accept-Encoding", "Error-Code");
         }));
 
         return services;

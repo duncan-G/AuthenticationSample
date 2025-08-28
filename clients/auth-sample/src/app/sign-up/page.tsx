@@ -59,7 +59,7 @@ export default function SignUpPage() {
             <MainSignUp
               onGoogleSignUp={auth.handleGoogleSignUp}
               onAppleSignUp={auth.handleAppleSignUp}
-              onPasswordSignUp={auth.handlePasswordSignFlowStart}
+              onPasswordSignUp={auth.handlePasswordSignUpFlowStart}
               onPasswordlessSignUp={auth.handlePasswordlessSignUpFlowStart}
               isLoading={auth.isLoading}
             />

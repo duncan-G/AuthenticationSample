@@ -1,5 +1,6 @@
 using Amazon.CognitoIdentityProvider;
 using AuthSample.Api.Cors;
+using AuthSample.Api.Exceptions;
 using AuthSample.Api.Secrets;
 using AuthSample.Auth.Core;
 using AuthSample.Auth.Grpc.Services;
@@ -9,7 +10,6 @@ using AuthSample.Infrastructure;
 using AuthSample.Logging;
 using AuthSample.Api.Validation;
 using FluentValidation;
-using AuthSample.Auth.Grpc.Validators.SignUp;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +31,7 @@ builder.AddLogging(options => builder.Configuration.GetSection("ApplicationLoggi
 builder.Services.AddGrpc(options =>
 {
     options.Interceptors.Add<ValidationInterceptor>();
+    options.Interceptors.Add<ExceptionsInterceptor>();
 });
 builder.Services.Configure<CognitoOptions>(builder.Configuration.GetSection("Cognito"));
 builder.Services.AddAWSService<IAmazonCognitoIdentityProvider>();

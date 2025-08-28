@@ -13,10 +13,10 @@ jest.mock('@/lib/validation', () => ({
   validateEmail: jest.fn(() => true),
 }))
 
-// Helper component to test the complete auth flow  
+// Helper component to test the complete auth flow
 function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string }) {
   const auth = useAuth()
-  
+
   // Set the initial flow immediately
   React.useEffect(() => {
     auth.setCurrentFlow(initialFlow as AuthFlow)
@@ -38,7 +38,7 @@ function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string 
           <MainSignUp
             onGoogleSignUp={auth.handleGoogleSignUp}
             onAppleSignUp={auth.handleAppleSignUp}
-            onPasswordSignUp={auth.handlePasswordSignFlowStart}
+            onPasswordSignUp={auth.handlePasswordSignUpFlowStart}
             onPasswordlessSignUp={auth.handlePasswordlessSignUpFlowStart}
             isLoading={auth.isLoading}
           />
@@ -310,4 +310,4 @@ describe('Authentication Flow Integration Tests', () => {
       expect(emailInputAgain.value).toBe('persistent@example.com')
     })
   })
-}) 
+})

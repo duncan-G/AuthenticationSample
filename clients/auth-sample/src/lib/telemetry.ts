@@ -12,7 +12,7 @@ import { B3Propagator } from "@opentelemetry/propagator-b3";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { CompositePropagator } from "@opentelemetry/core";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { context, trace, SpanStatusCode } from "@opentelemetry/api";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 import type { Context as OtelContext, Span } from "@opentelemetry/api";
 import { config } from "@/lib/config";
 import { isBrowser } from "@/lib/utils";
@@ -157,28 +157,6 @@ export function getTracer(name: string = "web") {
   return trace.getTracer(name);
 }
 
-export function runWithTracing<T>(name: string, fn: () => Promise<T> | T) {
-  const tracer = getTracer("workflow");
-  const span = tracer.startSpan(name);
-  return context.with(trace.setSpan(context.active(), span), async () => {
-    try {
-      const result = await fn();
-      span.setStatus({ code: SpanStatusCode.OK });
-      return result;
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        span.recordException(err);
-        span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
-      } else {
-        const message = String(err);
-        span.recordException(message);
-        span.setStatus({ code: SpanStatusCode.ERROR, message });
-      }
-      throw err;
-    } finally {
-      span.end();
-    }
-  });
-}
+// runWithTracing removed in favor of workflow-based tracing
 
 
