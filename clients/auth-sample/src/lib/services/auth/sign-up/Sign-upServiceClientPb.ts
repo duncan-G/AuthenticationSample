@@ -44,28 +44,28 @@ export class SignUpManagerClient {
     '/auth.SignUpManager/InitiateSignUpAsync',
     grpcWeb.MethodType.UNARY,
     sign$up_pb.InitiateSignUpRequest,
-    google_protobuf_empty_pb.Empty,
+    sign$up_pb.InitiateSignUpResponse,
     (request: sign$up_pb.InitiateSignUpRequest) => {
       return request.serializeBinary();
     },
-    google_protobuf_empty_pb.Empty.deserializeBinary
+    sign$up_pb.InitiateSignUpResponse.deserializeBinary
   );
 
   initiateSignUpAsync(
     request: sign$up_pb.InitiateSignUpRequest,
-    metadata?: grpcWeb.Metadata | null): Promise<google_protobuf_empty_pb.Empty>;
+    metadata?: grpcWeb.Metadata | null): Promise<sign$up_pb.InitiateSignUpResponse>;
 
   initiateSignUpAsync(
     request: sign$up_pb.InitiateSignUpRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: google_protobuf_empty_pb.Empty) => void): grpcWeb.ClientReadableStream<google_protobuf_empty_pb.Empty>;
+               response: sign$up_pb.InitiateSignUpResponse) => void): grpcWeb.ClientReadableStream<sign$up_pb.InitiateSignUpResponse>;
 
   initiateSignUpAsync(
     request: sign$up_pb.InitiateSignUpRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: google_protobuf_empty_pb.Empty) => void) {
+               response: sign$up_pb.InitiateSignUpResponse) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
@@ -124,49 +124,6 @@ export class SignUpManagerClient {
     request,
     metadata || {},
     this.methodDescriptorVerifyAndSignUpAsync);
-  }
-
-  methodDescriptorIsEmailTakenAsync = new grpcWeb.MethodDescriptor(
-    '/auth.SignUpManager/IsEmailTakenAsync',
-    grpcWeb.MethodType.UNARY,
-    sign$up_pb.IsEmailTakenRequest,
-    sign$up_pb.IsEmailTakenReply,
-    (request: sign$up_pb.IsEmailTakenRequest) => {
-      return request.serializeBinary();
-    },
-    sign$up_pb.IsEmailTakenReply.deserializeBinary
-  );
-
-  isEmailTakenAsync(
-    request: sign$up_pb.IsEmailTakenRequest,
-    metadata?: grpcWeb.Metadata | null): Promise<sign$up_pb.IsEmailTakenReply>;
-
-  isEmailTakenAsync(
-    request: sign$up_pb.IsEmailTakenRequest,
-    metadata: grpcWeb.Metadata | null,
-    callback: (err: grpcWeb.RpcError,
-               response: sign$up_pb.IsEmailTakenReply) => void): grpcWeb.ClientReadableStream<sign$up_pb.IsEmailTakenReply>;
-
-  isEmailTakenAsync(
-    request: sign$up_pb.IsEmailTakenRequest,
-    metadata?: grpcWeb.Metadata | null,
-    callback?: (err: grpcWeb.RpcError,
-               response: sign$up_pb.IsEmailTakenReply) => void) {
-    if (callback !== undefined) {
-      return this.client_.rpcCall(
-        this.hostname_ +
-          '/auth.SignUpManager/IsEmailTakenAsync',
-        request,
-        metadata || {},
-        this.methodDescriptorIsEmailTakenAsync,
-        callback);
-    }
-    return this.client_.unaryCall(
-    this.hostname_ +
-      '/auth.SignUpManager/IsEmailTakenAsync',
-    request,
-    metadata || {},
-    this.methodDescriptorIsEmailTakenAsync);
   }
 
 }

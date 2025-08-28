@@ -7,29 +7,29 @@ option csharp_namespace = "AuthSample.Auth.Grpc.Protos";
 package auth;
 
 service SignUpManager {
-  rpc InitiateSignUpAsync (InitiateSignUpRequest) returns (google.protobuf.Empty);
+  rpc InitiateSignUpAsync (InitiateSignUpRequest) returns (InitiateSignUpResponse);
 
   rpc VerifyAndSignUpAsync (VerifyAndSignUpRequest) returns (google.protobuf.Empty);
-
-  rpc IsEmailTakenAsync (IsEmailTakenRequest) returns (IsEmailTakenReply);
 }
 
-// The request message containing the user's name.
+enum SignUpStep {
+  UNSPECIFIED = 0;
+  PASSWORD_REQUIRED = 1;
+  VERIFICATION_REQUIRED = 2;
+}
+
 message InitiateSignUpRequest {
   string email_address = 1;
-  optional string password = 2;
+  bool require_password = 2;
+  optional string password = 3;
+}
+
+message InitiateSignUpResponse {
+  SignUpStep next_step = 1;
 }
 
 message VerifyAndSignUpRequest {
   string email_address = 1;
   string name = 3;
   string verification_code = 2;
-}
-
-message IsEmailTakenRequest {
-  string email_address = 1;
-}
-
-message IsEmailTakenReply {
-  bool taken = 1;
 }

@@ -86,9 +86,6 @@ export function SignUpPassword({
       />
 
       <AuthCard>
-        {serverError && (
-          <div className="mb-4 text-sm text-red-400">{serverError}</div>
-        )}
         <p className="text-stone-200/90 text-center">Creating account for <b>{email}</b></p>
 
         <form onSubmit={handleSubmit} noValidate>
@@ -146,6 +143,9 @@ export function SignUpPassword({
             </div>
           </div>
 
+          {serverError && (
+            <div className="mb-4 text-sm text-red-400">{serverError}</div>
+          )}
           <AuthButton
             type="submit"
             disabled={!password || !passwordConfirmation || isLoading}

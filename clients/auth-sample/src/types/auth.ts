@@ -1,4 +1,4 @@
-export type AuthFlow = "main" | "email-options" | "password" | "passwordless" | "passkey" | "signup-main" | "signup-email-options" | "signup-password" | "signup-passwordless"
+export type AuthFlow = "main" | "email-options" | "password" | "passwordless" | "passkey" | "signup-main" | "signup-email" | "signup-password" | "signup-verification"
 
 export interface AuthState {
   currentFlow: AuthFlow

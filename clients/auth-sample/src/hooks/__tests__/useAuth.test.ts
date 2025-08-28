@@ -186,7 +186,7 @@ describe('useAuth', () => {
       })
 
       expect(result.current.signupMethod).toBe('password')
-      expect(result.current.currentFlow).toBe('signup-email-options')
+      expect(result.current.currentFlow).toBe('signup-email')
     })
 
     it('should handle passwordless sign-up flow setup', () => {
@@ -197,7 +197,7 @@ describe('useAuth', () => {
       })
 
       expect(result.current.signupMethod).toBe('passwordless')
-      expect(result.current.currentFlow).toBe('signup-email-options')
+      expect(result.current.currentFlow).toBe('signup-email')
     })
 
     it('should handle password sign-up with email and password', async () => {
@@ -223,7 +223,7 @@ describe('useAuth', () => {
       })
 
       await act(async () => {
-        await result.current.handlePasswordlessSignUp()
+        await result.current.handlePasswordlessSignUpFlowStart()
       })
 
       expect(console.log).toHaveBeenCalledWith('Sending verification email to:', 'test@example.com')

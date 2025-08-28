@@ -6,7 +6,7 @@ import { AuthHeader } from "./auth-header"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-interface SignUpPasswordlessProps {
+  interface SignUpVerificationProps {
   email: string
   otpCode: string
   onOtpChange: (code: string) => void
@@ -17,7 +17,7 @@ interface SignUpPasswordlessProps {
   serverError?: string
 }
 
-export function SignUpPasswordless({
+export function SignUpVerification({
   email,
   otpCode,
   onOtpChange,
@@ -26,7 +26,7 @@ export function SignUpPasswordless({
   onBack,
   isLoading,
   serverError
-}: SignUpPasswordlessProps) {
+}: SignUpVerificationProps) {
   const [emailSent, setEmailSent] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const otpInputRef = useRef<HTMLInputElement>(null)

@@ -5,11 +5,12 @@ import { createSignUpManagerClient } from "@/lib/services/grpc-clients"
 import {
   InitiateSignUpRequest,
   VerifyAndSignUpRequest,
-  IsEmailTakenRequest,
+  SignUpStep,
 } from "@/lib/services/auth/sign-up/sign-up_pb"
 import { startWorkflow } from "@/lib/workflows"
 import type { WorkflowHandle } from "@/lib/workflows"
-import {handleApiError} from "@/lib/services/handle-api-error";
+import {friendlyMessageFor, handleApiError} from "@/lib/services/handle-api-error";
+import { AuthErrorCodes } from "@/lib/services/auth/error-codes"
 
 /** Wrap an async handler with loading toggles. */
 const withLoading =
@@ -92,14 +93,14 @@ export function useAuth(): AuthState & AuthHandlers {
     setErrorMessage(undefined)
     setSignupMethod("password")
     ensureSignupWorkflow({ method: "password" }, true)
-    setCurrentFlow("signup-email-options")
+    setCurrentFlow("signup-email")
   }
 
   const handlePasswordlessSignUpFlowStart = () => {
     setErrorMessage(undefined)
     setSignupMethod("passwordless")
     ensureSignupWorkflow({ method: "passwordless" }, true)
-    setCurrentFlow("signup-email-options")
+    setCurrentFlow("signup-email")
   }
 
   /** After email entered (password flow): check availability. */
@@ -108,27 +109,28 @@ export function useAuth(): AuthState & AuthHandlers {
     const step = signupWorkflowRef.current?.startStep("checkEmailAvailability")
 
     try {
-      const request = new IsEmailTakenRequest()
+      const request = new InitiateSignUpRequest()
       request.setEmailAddress(email)
+      request.setRequirePassword(true)
 
       const response = await runInStep(step, () =>
-        client.isEmailTakenAsync(request, {})
+        client.initiateSignUpAsync(request, {})
       )
-      const isTaken = response.getTaken()
+      const nextStep = response.getNextStep()
 
-      if (isTaken) {
-        step?.fail(
-          "EMAIL_TAKEN",
-          "An account with this email already exists.",
-          { email }
-        )
-        setErrorMessage("An account with this email already exists.")
+      if (nextStep === SignUpStep.PASSWORD_REQUIRED) {
+        setCurrentFlow("signup-password")
+      } else if (nextStep === SignUpStep.VERIFICATION_REQUIRED) {
+        setCurrentFlow("signup-verification")
+      } else {
+        step?.fail(AuthErrorCodes.Unexpected, "Unknown error")
+        setErrorMessage(friendlyMessageFor[AuthErrorCodes.Unexpected])
         return
       }
 
       step?.succeed({ email })
-      setErrorMessage(undefined)
-      setCurrentFlow("signup-password")
+      setErrorMessage(undefined)  
+
     } catch (err: unknown) {
         handleApiError(err, setErrorMessage, step)
     }
@@ -149,7 +151,7 @@ export function useAuth(): AuthState & AuthHandlers {
 
           step?.succeed({email})
           setErrorMessage(undefined)
-          setCurrentFlow("signup-passwordless")
+          setCurrentFlow("signup-verification")
       } catch (err) {
           handleApiError(err, setErrorMessage, step)
       }
@@ -165,13 +167,14 @@ export function useAuth(): AuthState & AuthHandlers {
         const request = new InitiateSignUpRequest()
         request.setEmailAddress(email)
         request.setPassword(password)
+        request.setRequirePassword(true)
 
         await runInStep(step, () => client.initiateSignUpAsync(request, {}))
 
         step?.succeed({email})
         setErrorMessage(undefined)
         // Keeping original flow transition as in provided code.
-        setCurrentFlow("signup-passwordless")
+        setCurrentFlow("signup-verification")
     } catch (err) {
         handleApiError(err, setErrorMessage, step)
     }

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { SignUpEmailOptions } from '../signup-email-options'
+import { SignUpEmail } from '../signup-email'
 
 // Mock the validation function
 jest.mock('@/lib/validation', () => ({
@@ -10,7 +10,7 @@ jest.mock('@/lib/validation', () => ({
 import { validateEmail } from '@/lib/validation'
 const mockValidateEmail = validateEmail as jest.MockedFunction<typeof validateEmail>
 
-describe('SignUpEmailOptions', () => {
+describe('SignUpEmail', () => {
   const mockProps = {
     email: '',
     onEmailChange: jest.fn(),
@@ -29,7 +29,7 @@ describe('SignUpEmailOptions', () => {
 
   describe('rendering', () => {
     it('should render default title and button text when no signup method specified', () => {
-      render(<SignUpEmailOptions {...mockProps} />)
+      render(<SignUpEmail {...mockProps} />)
 
       expect(screen.getByText('Create your account')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument()
@@ -37,7 +37,7 @@ describe('SignUpEmailOptions', () => {
     })
 
     it('should render password-specific title and button when password method specified', () => {
-      render(<SignUpEmailOptions {...mockProps} signupMethod="password" />)
+      render(<SignUpEmail {...mockProps} signupMethod="password" />)
 
       expect(screen.getByText('Create account with password')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
@@ -45,7 +45,7 @@ describe('SignUpEmailOptions', () => {
     })
 
     it('should render passwordless-specific title and button when passwordless method specified', () => {
-      render(<SignUpEmailOptions {...mockProps} signupMethod="passwordless" />)
+      render(<SignUpEmail {...mockProps} signupMethod="passwordless" />)
 
       expect(screen.getByText('Create passwordless account')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Send verification email' })).toBeInTheDocument()
@@ -53,7 +53,7 @@ describe('SignUpEmailOptions', () => {
     })
 
     it('should render email input with correct attributes', () => {
-      render(<SignUpEmailOptions {...mockProps} />)
+      render(<SignUpEmail {...mockProps} />)
 
       const emailInput = screen.getByLabelText('Email address')
       expect(emailInput).toBeInTheDocument()
@@ -64,7 +64,7 @@ describe('SignUpEmailOptions', () => {
     })
 
     it('should show back button', () => {
-      render(<SignUpEmailOptions {...mockProps} />)
+      render(<SignUpEmail {...mockProps} />)
 
       // The back button is the first button element (has arrow-left icon)
       const backButton = screen.getAllByRole('button')[0]
@@ -76,7 +76,7 @@ describe('SignUpEmailOptions', () => {
   describe('email input handling', () => {
     it('should call onEmailChange when email input changes', async () => {
       const user = userEvent.setup()
-      render(<SignUpEmailOptions {...mockProps} />)
+      render(<SignUpEmail {...mockProps} />)
 
       const emailInput = screen.getByLabelText('Email address')
       await user.type(emailInput, 'test')
@@ -91,7 +91,7 @@ describe('SignUpEmailOptions', () => {
     })
 
     it('should display current email value', () => {
-      render(<SignUpEmailOptions {...mockProps} email="test@example.com" />)
+      render(<SignUpEmail {...mockProps} email="test@example.com" />)
 
       const emailInput = screen.getByLabelText('Email address') as HTMLInputElement
       expect(emailInput.value).toBe('test@example.com')
@@ -101,7 +101,7 @@ describe('SignUpEmailOptions', () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(false)
       
-      render(<SignUpEmailOptions {...mockProps} email="invalid" />)
+      render(<SignUpEmail {...mockProps} email="invalid" />)
 
       // Trigger validation first by trying to submit
       const submitButton = screen.getByRole('button', { name: 'Create Account' })
@@ -123,7 +123,7 @@ describe('SignUpEmailOptions', () => {
   describe('form validation', () => {
     it('should prevent form submission when email is empty', async () => {
       const user = userEvent.setup()
-      render(<SignUpEmailOptions {...mockProps} email="" />)
+      render(<SignUpEmail {...mockProps} email="" />)
 
       const submitButton = screen.getByRole('button', { name: 'Create Account' })
       await user.click(submitButton)
@@ -137,7 +137,7 @@ describe('SignUpEmailOptions', () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(false)
       
-      render(<SignUpEmailOptions {...mockProps} email="invalid-email" />)
+      render(<SignUpEmail {...mockProps} email="invalid-email" />)
 
       const submitButton = screen.getByRole('button', { name: 'Create Account' })
       await user.click(submitButton)
@@ -150,7 +150,7 @@ describe('SignUpEmailOptions', () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(true)
       
-      render(<SignUpEmailOptions {...mockProps} email="test@example.com" />)
+      render(<SignUpEmail {...mockProps} email="test@example.com" />)
 
       const submitButton = screen.getByRole('button', { name: 'Create Account' })
       await user.click(submitButton)
@@ -162,7 +162,7 @@ describe('SignUpEmailOptions', () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(true)
       
-      render(<SignUpEmailOptions {...mockProps} email="test@example.com" signupMethod="password" />)
+      render(<SignUpEmail {...mockProps} email="test@example.com" signupMethod="password" />)
 
       const submitButton = screen.getByRole('button', { name: 'Continue' })
       await user.click(submitButton)
@@ -174,7 +174,7 @@ describe('SignUpEmailOptions', () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(true)
       
-      render(<SignUpEmailOptions {...mockProps} email="test@example.com" signupMethod="passwordless" />)
+      render(<SignUpEmail {...mockProps} email="test@example.com" signupMethod="passwordless" />)
 
       const submitButton = screen.getByRole('button', { name: 'Send verification email' })
       await user.click(submitButton)
@@ -188,7 +188,7 @@ describe('SignUpEmailOptions', () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(true)
       
-      render(<SignUpEmailOptions {...mockProps} email="test@example.com" />)
+      render(<SignUpEmail {...mockProps} email="test@example.com" />)
 
       const emailInput = screen.getByLabelText('Email address')
       await user.type(emailInput, '{enter}')
@@ -200,7 +200,7 @@ describe('SignUpEmailOptions', () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(false)
       
-      render(<SignUpEmailOptions {...mockProps} email="invalid" />)
+      render(<SignUpEmail {...mockProps} email="invalid" />)
 
       const emailInput = screen.getByLabelText('Email address')
       await user.type(emailInput, '{enter}')
@@ -211,20 +211,20 @@ describe('SignUpEmailOptions', () => {
 
   describe('loading states', () => {
     it('should disable submit button when loading', () => {
-      render(<SignUpEmailOptions {...mockProps} isLoading={true} email="test@example.com" />)
+      render(<SignUpEmail {...mockProps} isLoading={true} email="test@example.com" />)
 
       const submitButton = screen.getByRole('button', { name: 'Creating account...' })
       expect(submitButton).toBeDisabled()
     })
 
     it('should show loading text based on signup method', () => {
-      render(<SignUpEmailOptions {...mockProps} isLoading={true} signupMethod="passwordless" />)
+      render(<SignUpEmail {...mockProps} isLoading={true} signupMethod="passwordless" />)
 
       expect(screen.getByRole('button', { name: 'Sending verification...' })).toBeInTheDocument()
     })
 
     it('should disable alternative option when loading', () => {
-      render(<SignUpEmailOptions {...mockProps} isLoading={true} email="test@example.com" />)
+      render(<SignUpEmail {...mockProps} isLoading={true} email="test@example.com" />)
 
       const altButton = screen.getByRole('button', { name: 'Send verification email' })
       expect(altButton).toBeDisabled()
@@ -234,7 +234,7 @@ describe('SignUpEmailOptions', () => {
   describe('back button', () => {
     it('should call onBack when back button is clicked', async () => {
       const user = userEvent.setup()
-      render(<SignUpEmailOptions {...mockProps} />)
+      render(<SignUpEmail {...mockProps} />)
 
       // The back button is the first button element
       const backButton = screen.getAllByRole('button')[0]
@@ -246,7 +246,7 @@ describe('SignUpEmailOptions', () => {
 
   describe('error handling', () => {
     it('should display server error when provided', async () => {
-      render(<SignUpEmailOptions {...mockProps} serverError="Server error occurred" />)
+      render(<SignUpEmail {...mockProps} serverError="Server error occurred" />)
 
       // Server errors might be displayed differently, let's check if it appears
       await waitFor(() => {
@@ -264,7 +264,7 @@ describe('SignUpEmailOptions', () => {
 
   describe('accessibility', () => {
     it('should have proper form structure', () => {
-      render(<SignUpEmailOptions {...mockProps} />)
+      render(<SignUpEmail {...mockProps} />)
 
       const form = document.querySelector('form')
       expect(form).toBeInTheDocument()
@@ -272,14 +272,14 @@ describe('SignUpEmailOptions', () => {
     })
 
     it('should have proper label association', () => {
-      render(<SignUpEmailOptions {...mockProps} />)
+        render(<SignUpEmail {...mockProps} />)
 
       const emailInput = screen.getByLabelText('Email address')
       expect(emailInput).toHaveAttribute('id', 'email')
     })
 
     it('should reserve space for error messages to prevent layout shift', () => {
-      render(<SignUpEmailOptions {...mockProps} />)
+      render(<SignUpEmail {...mockProps} />)
 
       // Check that error container exists with proper height class
       const errorContainer = document.querySelector('.h-6.flex.items-center')

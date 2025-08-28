@@ -7,6 +7,9 @@ export class InitiateSignUpRequest extends jspb.Message {
   getEmailAddress(): string;
   setEmailAddress(value: string): InitiateSignUpRequest;
 
+  getRequirePassword(): boolean;
+  setRequirePassword(value: boolean): InitiateSignUpRequest;
+
   getPassword(): string;
   setPassword(value: string): InitiateSignUpRequest;
   hasPassword(): boolean;
@@ -23,12 +26,31 @@ export class InitiateSignUpRequest extends jspb.Message {
 export namespace InitiateSignUpRequest {
   export type AsObject = {
     emailAddress: string,
+    requirePassword: boolean,
     password?: string,
   }
 
   export enum PasswordCase { 
     _PASSWORD_NOT_SET = 0,
-    PASSWORD = 2,
+    PASSWORD = 3,
+  }
+}
+
+export class InitiateSignUpResponse extends jspb.Message {
+  getNextStep(): SignUpStep;
+  setNextStep(value: SignUpStep): InitiateSignUpResponse;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): InitiateSignUpResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: InitiateSignUpResponse): InitiateSignUpResponse.AsObject;
+  static serializeBinaryToWriter(message: InitiateSignUpResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): InitiateSignUpResponse;
+  static deserializeBinaryFromReader(message: InitiateSignUpResponse, reader: jspb.BinaryReader): InitiateSignUpResponse;
+}
+
+export namespace InitiateSignUpResponse {
+  export type AsObject = {
+    nextStep: SignUpStep,
   }
 }
 
@@ -58,39 +80,8 @@ export namespace VerifyAndSignUpRequest {
   }
 }
 
-export class IsEmailTakenRequest extends jspb.Message {
-  getEmailAddress(): string;
-  setEmailAddress(value: string): IsEmailTakenRequest;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): IsEmailTakenRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: IsEmailTakenRequest): IsEmailTakenRequest.AsObject;
-  static serializeBinaryToWriter(message: IsEmailTakenRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): IsEmailTakenRequest;
-  static deserializeBinaryFromReader(message: IsEmailTakenRequest, reader: jspb.BinaryReader): IsEmailTakenRequest;
+export enum SignUpStep { 
+  UNSPECIFIED = 0,
+  PASSWORD_REQUIRED = 1,
+  VERIFICATION_REQUIRED = 2,
 }
-
-export namespace IsEmailTakenRequest {
-  export type AsObject = {
-    emailAddress: string,
-  }
-}
-
-export class IsEmailTakenReply extends jspb.Message {
-  getTaken(): boolean;
-  setTaken(value: boolean): IsEmailTakenReply;
-
-  serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): IsEmailTakenReply.AsObject;
-  static toObject(includeInstance: boolean, msg: IsEmailTakenReply): IsEmailTakenReply.AsObject;
-  static serializeBinaryToWriter(message: IsEmailTakenReply, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): IsEmailTakenReply;
-  static deserializeBinaryFromReader(message: IsEmailTakenReply, reader: jspb.BinaryReader): IsEmailTakenReply;
-}
-
-export namespace IsEmailTakenReply {
-  export type AsObject = {
-    taken: boolean,
-  }
-}
-

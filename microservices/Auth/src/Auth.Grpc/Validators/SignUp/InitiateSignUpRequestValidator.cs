@@ -18,7 +18,11 @@ public sealed class InitiateSignUpRequestValidator : AbstractValidator<InitiateS
 				.MinimumLength(8).WithMessage("Password must be at least 8 characters when provided.")
 				.Matches("[A-Za-z]").WithMessage("Password must contain at least one letter when provided.")
 				.Matches("\\d").WithMessage("Password must contain at least one number when provided.");
-		});
+
+            RuleFor(x => x.RequirePassword)
+                .Must(x => x)
+                .WithMessage("Requires password must be true, when password is provided");
+        });
 	}
 }
 

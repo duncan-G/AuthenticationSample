@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Amazon.CognitoIdentityProvider;
@@ -95,15 +94,6 @@ public sealed class CognitoIdentityGateway(
         try
         {
             var response = await cognitoIdentityProvider.SignUpAsync(signUpRequest, cancellationToken).ConfigureAwait(false);
-            if (response.HttpStatusCode != HttpStatusCode.OK)
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, "Cognito SignUp returned non-OK");
-                throw new CognitoOperationFailedException(
-                    nameof(cognitoIdentityProvider.SignUpAsync),
-                    response.HttpStatusCode,
-                    "Failed to initiate sign up due to an unknown reason.");
-            }
-
             activity?.SetTag("cognito.user_sub", response.UserSub);
             activity?.AddEvent(new ActivityEvent(
                 "verification.code_sent",
@@ -140,7 +130,7 @@ public sealed class CognitoIdentityGateway(
         }
     }
 
-    public async Task VerifySignUpAsync(VerifySignUpRequest request, CancellationToken cancellationToken = default)
+    public async Task<string> VerifySignUpAsync(VerifySignUpRequest request, CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity(
             $"{nameof(CognitoIdentityGateway)}.{nameof(VerifySignUpAsync)}");
@@ -160,14 +150,7 @@ public sealed class CognitoIdentityGateway(
         {
             var response = await cognitoIdentityProvider.ConfirmSignUpAsync(signUpRequest, cancellationToken)
                 .ConfigureAwait(false);
-            if (response.HttpStatusCode != HttpStatusCode.OK)
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, "Cognito ConfirmSignUp returned non-OK");
-                throw new CognitoOperationFailedException(
-                    nameof(cognitoIdentityProvider.ConfirmSignUpAsync),
-                    response.HttpStatusCode,
-                    "Failed to verify sign up due to an unknown reason.");
-            }
+            return response.Session;
         }
         catch (AliasExistsException ex)
         {
@@ -294,22 +277,21 @@ public sealed class CognitoIdentityGateway(
         activity?.SetTag("enduser.id", MaskEmail(request.EmailAddress));
 
         var updatePasswordRequest = new AdminSetUserPasswordRequest {
+            UserPoolId = authOptions.Value.UserPoolId,
             Username = request.EmailAddress,
             Password = request.Password,
             Permanent = true
         };
 
+        var confirmSignUpRequest = new AdminConfirmSignUpRequest
+        {
+            UserPoolId = authOptions.Value.UserPoolId, Username = request.EmailAddress,
+        };
+
         try
         {
-            var response = await cognitoIdentityProvider.AdminSetUserPasswordAsync(updatePasswordRequest, cancellationToken).ConfigureAwait(false);
-            if (response.HttpStatusCode != HttpStatusCode.OK)
-            {
-                activity?.SetStatus(ActivityStatusCode.Error, "Cognito AdminSetUserPassword returned non-OK");
-                throw new CognitoOperationFailedException(
-                    nameof(cognitoIdentityProvider.AdminSetUserPasswordAsync),
-                    response.HttpStatusCode,
-                    "Failed to update password due to an unknown reason.");
-            }
+            await cognitoIdentityProvider.AdminSetUserPasswordAsync(updatePasswordRequest, cancellationToken).ConfigureAwait(false);
+            await cognitoIdentityProvider.AdminConfirmSignUpAsync(confirmSignUpRequest, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -319,6 +301,71 @@ public sealed class CognitoIdentityGateway(
                 nameof(cognitoIdentityProvider.AdminSetUserPasswordAsync),
                 null,
                 "Failed to update password.",
+                ex);
+        }
+    }
+
+    public async Task ConfirmUserAsync(string emailAddress, CancellationToken cancellationToken = default)
+    {
+        using var activity = ActivitySource.StartActivity(
+            $"{nameof(CognitoIdentityGateway)}.{nameof(UpdatePasswordAsync)}");
+
+        activity?.SetTag("aws.cognito.operation", "AdminConfirmUser");
+        activity?.SetTag("enduser.id", MaskEmail(emailAddress));
+
+        var confirmSignUpRequest = new AdminConfirmSignUpRequest
+        {
+            UserPoolId = authOptions.Value.UserPoolId, Username = emailAddress,
+        };
+
+        try
+        {
+            await cognitoIdentityProvider.AdminConfirmSignUpAsync(confirmSignUpRequest, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw new CognitoOperationFailedException(
+                nameof(cognitoIdentityProvider.AdminSetUserPasswordAsync),
+                null,
+                "Failed to confirm user.",
+                ex);
+        }
+    }
+
+    public async Task InitiateAuthAsync(string emailAddress, string sessionId, CancellationToken cancellationToken = default)
+    {
+        using var activity = ActivitySource.StartActivity(
+            $"{nameof(CognitoIdentityGateway)}.{nameof(InitiateAuthAsync)}");
+
+        activity?.SetTag("aws.cognito.operation", "InitiateAuth");
+
+        var initiateAuthRequest = new InitiateAuthRequest
+        {
+            Session = sessionId,
+            AuthFlow = AuthFlowType.USER_AUTH,
+            ClientId = authOptions.Value.ClientId,
+            AuthParameters = new Dictionary<string, string>
+            {
+                { "USERNAME", emailAddress  },
+                { "SECRET_HASH", ComputeSecretHash(emailAddress) }
+            },
+        };
+
+        try
+        {
+            var response = await cognitoIdentityProvider.InitiateAuthAsync(initiateAuthRequest, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw new CognitoOperationFailedException(
+                nameof(cognitoIdentityProvider.AdminSetUserPasswordAsync),
+                null,
+                "Failed to initiate authentication.",
                 ex);
         }
     }

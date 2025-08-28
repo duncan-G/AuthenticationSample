@@ -8,14 +8,17 @@ public sealed class InitiateSignUpRequest
     {
     }
 
-    public InitiateSignUpRequest(string emailAddress, IPAddress ipAddress, string? password = null)
+    public InitiateSignUpRequest(string emailAddress, IPAddress ipAddress, bool requirePassword, string? password = null)
     {
         EmailAddress = emailAddress;
         IpAddress = ipAddress;
         Password = password;
+        RequirePassword = requirePassword;
     }
 
-    public string EmailAddress { get; set; } = null!;
-    public IPAddress IpAddress { get; set; } = null!;
+    public required string EmailAddress { get; set; }
+    public required IPAddress IpAddress { get; set; }
+
+    public bool RequirePassword { get; set; }
     public string? Password { get; set; }
 }

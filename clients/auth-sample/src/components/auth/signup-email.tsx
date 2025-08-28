@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { validateEmail } from "@/lib/validation"
 
-interface SignUpEmailOptionsProps {
+interface SignUpEmailProps {
   email: string
   onEmailChange: (email: string) => void
   onPasswordFlowContinue: () => Promise<void>
@@ -19,7 +19,7 @@ interface SignUpEmailOptionsProps {
   signupMethod?: "password" | "passwordless"
 }
 
-export function SignUpEmailOptions({
+export function SignUpEmail({
   email,
   onEmailChange,
   onPasswordFlowContinue,
@@ -28,7 +28,7 @@ export function SignUpEmailOptions({
   isLoading,
   serverError,
   signupMethod
-}: SignUpEmailOptionsProps) {
+}: SignUpEmailProps) {
   
   
   const [emailError, setEmailError] = useState<string>("")

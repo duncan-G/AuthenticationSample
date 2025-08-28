@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { AuthFlow } from '@/types/auth'
 import { MainSignIn } from '@/components/auth/main-sign-in'
 import { MainSignUp } from '@/components/auth/main-sign-up'
-import { SignUpEmailOptions } from '@/components/auth/signup-email-options'
+import { SignUpEmail } from '@/components/auth/signup-email'
 import { PasswordSignIn } from '@/components/auth/password-sign-in'
 
 // Mock the validation function
@@ -43,13 +43,13 @@ function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string 
             isLoading={auth.isLoading}
           />
         )
-      case 'signup-email-options':
+      case 'signup-email':
         return (
-          <SignUpEmailOptions
+          <SignUpEmail
             email={auth.email}
             onEmailChange={auth.setEmail}
             onPasswordFlow={() => auth.setCurrentFlow('signup-password')}
-            onPasswordlessFlow={auth.handlePasswordlessSignUp}
+            onPasswordlessFlow={() => auth.setCurrentFlow('signup-verification')}
             onBack={() => auth.setCurrentFlow('signup-main')}
             isLoading={auth.isLoading}
             signupMethod={auth.signupMethod}
@@ -146,7 +146,7 @@ describe('Authentication Flow Integration Tests', () => {
 
       // Should navigate to email options with password method
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
         expect(screen.getByTestId('signup-method')).toHaveTextContent('password')
       })
 
@@ -164,7 +164,7 @@ describe('Authentication Flow Integration Tests', () => {
 
       // Should navigate to email options with passwordless method
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
         expect(screen.getByTestId('signup-method')).toHaveTextContent('passwordless')
       })
 
@@ -181,7 +181,7 @@ describe('Authentication Flow Integration Tests', () => {
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Enter email
@@ -212,7 +212,7 @@ describe('Authentication Flow Integration Tests', () => {
       await user.click(passwordlessButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Enter email
@@ -236,7 +236,7 @@ describe('Authentication Flow Integration Tests', () => {
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Go back
@@ -260,7 +260,7 @@ describe('Authentication Flow Integration Tests', () => {
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Try to submit without email
@@ -271,7 +271,7 @@ describe('Authentication Flow Integration Tests', () => {
       expect(screen.getByText('Email address is required')).toBeInTheDocument()
 
       // Should not navigate away
-      expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+      expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
     })
   })
 
@@ -285,7 +285,7 @@ describe('Authentication Flow Integration Tests', () => {
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Enter email
@@ -301,7 +301,7 @@ describe('Authentication Flow Integration Tests', () => {
       await user.click(passwordButtonAgain)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Email should be preserved

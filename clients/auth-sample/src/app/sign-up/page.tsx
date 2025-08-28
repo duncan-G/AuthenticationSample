@@ -4,9 +4,9 @@ import { useAuth } from "@/hooks/useAuth"
 import { useState, useEffect } from "react"
 import {
   MainSignUp,
-  SignUpEmailOptions,
+  SignUpEmail,
   SignUpPassword,
-  SignUpPasswordless,
+  SignUpVerification,
   AuthFlowTransition
 } from "@/components/auth"
 
@@ -65,14 +65,14 @@ export default function SignUpPage() {
             />
           </AuthFlowTransition>
         )
-      case "signup-email-options":
+      case "signup-email":
         return (
           <AuthFlowTransition
-            flowKey="signup-email-options"
+            flowKey="signup-email"
             direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
-            <SignUpEmailOptions
+            <SignUpEmail
               email={auth.email}
               onEmailChange={auth.setEmail}
               onPasswordFlowContinue={auth.handlePasswordEmailContinue}
@@ -98,26 +98,26 @@ export default function SignUpPage() {
               onPasswordChange={auth.setPassword}
               onPasswordConfirmationChange={auth.setPasswordConfirmation}
               onPasswordSignUp={auth.handlePasswordSignUp}
-              onBack={() => auth.setCurrentFlow("signup-email-options")}
+              onBack={() => auth.setCurrentFlow("signup-email")}
               isLoading={auth.isLoading}
               serverError={auth.errorMessage}
             />
           </AuthFlowTransition>
         )
-      case "signup-passwordless":
+      case "signup-verification":
         return (
           <AuthFlowTransition
-            flowKey="signup-passwordless"
+            flowKey="signup-verification"
             direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
-            <SignUpPasswordless
+            <SignUpVerification
               email={auth.email}
               otpCode={auth.otpCode}
               onOtpChange={auth.setOtpCode}
               onResendEmail={auth.handlePasswordlessEmailContinue}
               onVerifyOtp={auth.handleSignUpOtpVerification}
-              onBack={() => auth.setCurrentFlow("signup-email-options")}
+              onBack={() => auth.setCurrentFlow("signup-email")}
               isLoading={auth.isLoading}
               serverError={auth.errorMessage}
             />
