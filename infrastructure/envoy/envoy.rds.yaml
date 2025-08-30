@@ -22,6 +22,30 @@ resources:
             value: 'h3=":443"; ma=86400'
       routes:
         - match:
+            prefix: "/auth/auth.SignUpManager/"
+          route:
+            cluster: authentication_cluster
+            prefix_rewrite: "/auth.SignUpManager/"
+            timeout: 0s
+            max_stream_duration:
+              grpc_timeout_header_max: 0s
+          typed_per_filter_config:
+            envoy.filters.http.local_ratelimit:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+              stat_prefix: http_local_rate_limiter
+              token_bucket:
+                max_tokens: 50
+                tokens_per_fill: 50
+                fill_interval: 1s
+              filter_enabled:
+                default_value:
+                  numerator: 100
+                  denominator: HUNDRED
+              filter_enforced:
+                default_value:
+                  numerator: 100
+                  denominator: HUNDRED
+        - match:
             prefix: "/auth/" 
           route:
             cluster: authentication_cluster

@@ -50,10 +50,6 @@ export function initWebTelemetry(serviceName: string = "auth-sample-web") {
   }
 
   const shouldExportSpan = (span: ReadableSpan): boolean => {
-    const methodAttr = span.attributes["http.request.method"] ?? span.attributes["http.method"];
-    if (typeof methodAttr === "string") {
-      return false;
-    }
     return true;
   };
 

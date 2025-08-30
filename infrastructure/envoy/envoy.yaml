@@ -49,6 +49,10 @@ static_resources:
               - name: envoy.filters.http.grpc_web
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
+              - name: envoy.filters.http.local_ratelimit
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+                  stat_prefix: http_local_rate_limiter
               - name: envoy.filters.http.router
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -123,6 +127,10 @@ static_resources:
               - name: envoy.filters.http.grpc_web
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
+              - name: envoy.filters.http.local_ratelimit
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+                  stat_prefix: http_local_rate_limiter
               - name: envoy.filters.http.router
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
