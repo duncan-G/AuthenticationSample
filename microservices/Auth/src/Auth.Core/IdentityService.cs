@@ -56,7 +56,7 @@ public class IdentityService(
                     await identityGateway.ResendSignUpVerificationAsync(request, cancellationToken).ConfigureAwait(false);
                     return SignUpStep.VerificationRequired;
                 case AvailabilityStatus.AlreadySignedUp:
-                    throw new DuplicateEmailException(request.EmailAddress);
+                    throw new DuplicateEmailException();
                 default:
                     throw new NotSupportedException();
             }

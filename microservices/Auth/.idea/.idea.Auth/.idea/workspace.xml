@@ -10,47 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="be6fae81-c3e9-4005-a034-879191f1bd73" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../../clients/auth-sample/.env.local.template" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.sds.yaml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../infrastructure/redis/redis.stack.debug.yaml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/EmailRateLimitingActionFilter.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/EmailRateLimitingEndpointFilter.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimitingApplicationBuilderExtensions.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimitingExtensions.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimitingHttpContextExtensions.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimitingMiddleware.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RedisRateLimitingOptions.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RedisScriptRateLimiter.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/Scripts.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../scripts/development/restart_microservice.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/.env.template.dev" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/telemetry.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/telemetry.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/.env.template.dev" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/.env.template.dev" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.cds.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.cds.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.rds.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.rds.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.stack.debug.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.stack.debug.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.stack.release.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.stack.release.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../libraries/Api/src/Api.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Api/src/Api.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../.env.template.dev" beforeDir="false" afterPath="$PROJECT_DIR$/../.env.template.dev" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Properties/launchSettings.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Properties/launchSettings.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/SignUpManagerService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/SignUpManagerService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/appsettings.Development.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/appsettings.Development.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/appsettings.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/appsettings.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/setup.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/setup.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/start.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_backend_environment.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_backend_environment.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_client.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_client.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/stop_client.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/stop_client.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -224,7 +184,7 @@
       <workItem from="1755623357992" duration="1065000" />
       <workItem from="1755787591171" duration="1544000" />
       <workItem from="1756324082972" duration="31619000" />
-      <workItem from="1756495235114" duration="3482000" />
+      <workItem from="1756495235114" duration="4197000" />
     </task>
     <task id="LOCAL-00001" summary="clean terraform config">
       <option name="closed" value="true" />

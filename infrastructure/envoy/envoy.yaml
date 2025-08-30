@@ -54,12 +54,6 @@ static_resources:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
             access_log:
             - name: envoy.access_loggers.open_telemetry
-              filter:
-                header_filter:
-                  header:
-                    name: ":path"
-                    prefix_match: "/otlp/"
-                    invert_match: true
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.access_loggers.open_telemetry.v3.OpenTelemetryAccessLogConfig
                 common_config:
@@ -134,12 +128,6 @@ static_resources:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
             access_log:
             - name: envoy.access_loggers.open_telemetry
-              filter:
-                header_filter:
-                  header:
-                    name: ":path"
-                    prefix_match: "/otlp/"
-                    invert_match: true
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.access_loggers.open_telemetry.v3.OpenTelemetryAccessLogConfig
                 common_config:
