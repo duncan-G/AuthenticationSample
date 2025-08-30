@@ -178,36 +178,26 @@ describe('useAuth', () => {
       expect(console.log).toHaveBeenCalledWith('Apple sign up')
     })
 
-    it('should handle email sign-up flow transition', () => {
-      const { result } = renderHook(() => useAuth())
-
-      act(() => {
-        result.current.handleEmailSignUp()
-      })
-
-      expect(result.current.currentFlow).toBe('signup-email-options')
-    })
-
     it('should handle password sign-up flow setup', () => {
       const { result } = renderHook(() => useAuth())
 
       act(() => {
-        result.current.handlePasswordSignUpFlow()
+        result.current.handlePasswordSignUpFlowStart()
       })
 
       expect(result.current.signupMethod).toBe('password')
-      expect(result.current.currentFlow).toBe('signup-email-options')
+      expect(result.current.currentFlow).toBe('signup-email')
     })
 
     it('should handle passwordless sign-up flow setup', () => {
       const { result } = renderHook(() => useAuth())
 
       act(() => {
-        result.current.handlePasswordlessSignUpFlow()
+        result.current.handlePasswordlessSignUpFlowStart()
       })
 
       expect(result.current.signupMethod).toBe('passwordless')
-      expect(result.current.currentFlow).toBe('signup-email-options')
+      expect(result.current.currentFlow).toBe('signup-email')
     })
 
     it('should handle password sign-up with email and password', async () => {
@@ -233,7 +223,7 @@ describe('useAuth', () => {
       })
 
       await act(async () => {
-        await result.current.handlePasswordlessSignUp()
+        await result.current.handlePasswordlessSignUpFlowStart()
       })
 
       expect(console.log).toHaveBeenCalledWith('Sending verification email to:', 'test@example.com')
@@ -262,7 +252,7 @@ describe('useAuth', () => {
         await result.current.handleGoogleSignIn()
       })
 
-      // Since the function is mocked and completes immediately, 
+      // Since the function is mocked and completes immediately,
       // we can't easily test the intermediate loading state
       // but we can verify it ends in the correct state
       expect(result.current.isLoading).toBe(false)
@@ -288,4 +278,4 @@ describe('useAuth', () => {
       expect(result.current.isLoading).toBe(false)
     })
   })
-}) 
+})

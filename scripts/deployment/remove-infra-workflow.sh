@@ -146,7 +146,7 @@ delete_oidc_provider() {
 # Function to cleanup OIDC infrastructure
 cleanup_oidc_infrastructure() {
     print_info "Cleaning up OIDC infrastructure (delegated script)..."
-    "$SCRIPT_DIR/remove-oidc-infrastructure.sh" \
+    "$SCRIPT_DIR/remove-oidc-infra.sh" \
         --aws-profile "$AWS_PROFILE" \
         --aws-account-id "$AWS_ACCOUNT_ID"
 }

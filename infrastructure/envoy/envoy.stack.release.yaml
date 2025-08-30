@@ -6,7 +6,7 @@ services:
     networks:
       - net
     ports:
-      - "80:80"       # HTTP Application Service
+      - "443:443"       # HTTP Application Service
     configs:
       - source: envoy_config
         target: /etc/envoy/envoy.yaml

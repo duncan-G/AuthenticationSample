@@ -31,3 +31,30 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+      - name: Test external libraries referenced by solution
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Discovering projects in solution..."
+        # Collect projects that are outside the microservice directory (start with ../ or /)
+        mapfile -t external_projects < <(dotnet sln list | awk '$0 ~ /^\.\.\// || $0 ~ /^\//')
+        if [ ${#external_projects[@]} -eq 0 ]; then
+          echo "No external library projects found."
+          exit 0
+        fi
+
+        echo "Found ${#external_projects[@]} external project(s). Searching for their tests..."
+        shopt -s nullglob globstar
+        for proj in "${external_projects[@]}"; do
+          echo "Processing external project: $proj"
+          # Infer the library root by trimming everything after /src/
+          lib_root="${proj%%/src/*}"
+          test_projects=( "$lib_root"/tests/**/*.csproj )
+
+          if [ ${#test_projects[@]} -gt 0 ]; then
+            for test_proj in "${test_projects[@]}"; do
+              echo "Running tests in: $test_proj"
+              dotnet test "$test_proj" --verbosity normal
+            done
+          fi
+        done

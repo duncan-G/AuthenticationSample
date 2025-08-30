@@ -10,6 +10,7 @@ docker network prune -f
 # Pull images
 docker pull mcr.microsoft.com/dotnet/aspire-dashboard:latest
 docker pull envoyproxy/envoy:v1.34-latest
+docker pull redis:latest
 
 # Pull mcp servers
 docker pull mcp/aws-documentation:latest

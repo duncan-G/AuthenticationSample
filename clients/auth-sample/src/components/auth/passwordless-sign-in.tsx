@@ -4,7 +4,7 @@ import { AuthButton } from "./auth-button"
 import { AuthHeader } from "./auth-header"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mail, Check } from "lucide-react"
+import { Mail, Check, AlertCircle } from "lucide-react"
 
 interface PasswordlessSignInProps {
   email: string
@@ -14,6 +14,7 @@ interface PasswordlessSignInProps {
   onVerifyOtp: () => Promise<void>
   onBack: () => void
   isLoading: boolean
+  serverError?: string
 }
 
 export function PasswordlessSignIn({
@@ -23,7 +24,8 @@ export function PasswordlessSignIn({
   onResendEmail,
   onVerifyOtp,
   onBack,
-  isLoading
+  isLoading,
+  serverError
 }: PasswordlessSignInProps) {
   const [resendSuccess, setResendSuccess] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -86,7 +88,7 @@ export function PasswordlessSignIn({
             onVerifyOtp()
           }
         }} noValidate>
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3 mb-4">
             <Label htmlFor="otp" className="text-stone-100 font-medium text-base">
               6-digit verification code
             </Label>
@@ -101,9 +103,20 @@ export function PasswordlessSignIn({
             />
           </div>
 
+          {/* Server error below input */}
+          <div className="min-h-6 mb-4 flex items-center">
+            {serverError && (
+              <div className="flex items-center space-x-2 text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{serverError}</span>
+              </div>
+            )}
+          </div>
+
           <AuthButton
             type="submit"
             disabled={otpCode.length !== 6 || isLoading}
+            loading={isLoading}
           >
             {isLoading ? "Verifying..." : "Verify Code"}
           </AuthButton>

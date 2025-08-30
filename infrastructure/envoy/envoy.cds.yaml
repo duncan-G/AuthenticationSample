@@ -11,10 +11,16 @@ resources:
         explicit_http_config:
           http2_protocol_options: { }
     type: logical_dns
+    dns_lookup_family: V4_ONLY
     lb_policy: round_robin
     load_assignment:
       cluster_name: authentication_cluster
       endpoints:
       - lb_endpoints:
         - endpoint:
-            address: { socket_address: { address: authentication_app, port_value: 80 } }
+            address: { socket_address: { address: $AUTH_HOST, port_value: $AUTH_PORT } }
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+        common_tls_context: {}

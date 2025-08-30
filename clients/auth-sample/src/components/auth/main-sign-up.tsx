@@ -52,6 +52,7 @@ export function MainSignUp({
             type="button"
             onClick={onPasswordSignUp}
             disabled={isLoading}
+            loading={isLoading}
           >
             <Lock className="w-5 h-5 mr-3" />
             Sign up with Password
@@ -62,6 +63,7 @@ export function MainSignUp({
             variant="secondary"
             onClick={onPasswordlessSignUp}
             disabled={isLoading}
+            loading={isLoading}
           >
             <Mail className="w-5 h-5 mr-3" />
             Sign up Passwordless

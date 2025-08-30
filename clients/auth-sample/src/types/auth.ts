@@ -1,4 +1,4 @@
-export type AuthFlow = "main" | "email-options" | "password" | "passwordless" | "passkey" | "signup-main" | "signup-email-options" | "signup-password" | "signup-passwordless"
+export type AuthFlow = "main" | "email-options" | "password" | "passwordless" | "passkey" | "signup-main" | "signup-email" | "signup-password" | "signup-verification"
 
 export interface AuthState {
   currentFlow: AuthFlow
@@ -8,6 +8,7 @@ export interface AuthState {
   otpCode: string
   isLoading: boolean
   signupMethod?: "password" | "passwordless"
+  errorMessage?: string
 }
 
 export interface AuthHandlers {
@@ -21,15 +22,15 @@ export interface AuthHandlers {
   // Sign-up handlers
   handleGoogleSignUp: () => Promise<void>
   handleAppleSignUp: () => Promise<void>
-  handleEmailSignUp: () => void
-  handlePasswordSignUpFlow: () => void
-  handlePasswordlessSignUpFlow: () => void
+  handlePasswordSignUpFlowStart: () => void
+  handlePasswordlessSignUpFlowStart: () => void
+  handlePasswordEmailContinue: () => Promise<void>
+  handlePasswordlessEmailContinue: () => Promise<void>
   handlePasswordSignUp: () => Promise<void>
-  handlePasswordlessSignUp: () => Promise<void>
   handleSignUpOtpVerification: () => Promise<void>
   setCurrentFlow: (flow: AuthFlow) => void
   setEmail: (email: string) => void
   setPassword: (password: string) => void
   setPasswordConfirmation: (passwordConfirmation: string) => void
   setOtpCode: (code: string) => void
-} 
+}

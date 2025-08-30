@@ -178,5 +178,3 @@ variable "authenticated_policy_arn" {
   type        = string
   default     = ""
 }
-
-

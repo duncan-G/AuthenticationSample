@@ -73,6 +73,7 @@ export function PasswordSignIn({
           <AuthButton
             type="submit"
             disabled={!password || isLoading}
+            loading={isLoading}
           >
             {isLoading ? "Signing in..." : "Sign In"}
           </AuthButton>

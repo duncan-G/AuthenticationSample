@@ -58,4 +58,3 @@ output "authenticated_role_arn" {
   description = "ARN of the IAM role for authenticated Cognito users"
 }
 
-

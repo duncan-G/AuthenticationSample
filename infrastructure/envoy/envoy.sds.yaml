@@ -1,0 +1,10 @@
+# Envoy secrets discovery configuration file that defines TLS certificates for secure communication.
+
+resources:
+  - "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.Secret"
+    name: tls_sds
+    tls_certificate:
+      certificate_chain:
+        filename: /etc/envoy/certs/fullchain.pem
+      private_key:
+        filename: /etc/envoy/certs/cert.key

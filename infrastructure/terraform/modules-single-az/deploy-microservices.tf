@@ -15,11 +15,6 @@
 
 #region Configuration
 
-variable "bucket_suffix" {
-  description = "Suffix to ensure unique S3 bucket names across envs"
-  type        = string
-}
-
 variable "microservices" {
   description = "List of microservices to deploy/build (also used to create ECR repos)"
   type        = list(string)
