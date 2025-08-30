@@ -248,3 +248,5 @@ certificates
 # Pids
 pids
 
+# tmp
+tmp/

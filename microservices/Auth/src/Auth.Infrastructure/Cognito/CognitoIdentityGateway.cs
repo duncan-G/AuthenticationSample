@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Amazon.CognitoIdentityProvider;
 using Amazon.CognitoIdentityProvider.Model;
+using Amazon.Runtime;
 using AuthSample.Auth.Core;
 using AuthSample.Auth.Core.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -30,8 +31,9 @@ public sealed class CognitoIdentityGateway(
 
         try
         {
-            var user = await cognitoIdentityProvider.AdminGetUserAsync(request, cancellationToken).ConfigureAwait(false);
-            var userIdString = user.UserAttributes.FirstOrDefault(a => a.Name == "sub")?.Value;
+            var response = await cognitoIdentityProvider.AdminGetUserAsync(request, cancellationToken)
+                .ConfigureAwait(false);
+            var userIdString = response.UserAttributes.FirstOrDefault(a => a.Name == "sub")?.Value;
             if (!Guid.TryParse(userIdString, out var userId))
             {
                 activity?.SetStatus(ActivityStatusCode.Error, "Invalid Cognito user sub format");
@@ -41,12 +43,13 @@ public sealed class CognitoIdentityGateway(
                     $"Cognito user found, but their 'sub' attribute ('{userIdString}') could not be parsed as a Guid.");
             }
 
-            var status = user.UserStatus == UserStatusType.UNCONFIRMED
+            var status = response.UserStatus == UserStatusType.UNCONFIRMED
                 ? AvailabilityStatus.PendingConfirm
                 : AvailabilityStatus.AlreadySignedUp;
 
             activity?.SetTag("user.exists", true);
-            activity?.SetTag("user.status", user.UserStatus.ToString());
+            activity?.SetTag("user.status", response.UserStatus.ToString());
+            activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
             return new SignUpAvailability(status, userId);
         }
         catch (UserNotFoundException)
@@ -54,15 +57,17 @@ public sealed class CognitoIdentityGateway(
             activity?.SetTag("user.exists", false);
             return new SignUpAvailability(AvailabilityStatus.NewUser, null);
         }
-        catch (Exception ex)
+        catch (AmazonServiceException ex)
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("aws.request_id", ex.RequestId);
             throw new CognitoOperationFailedException(
                 nameof(cognitoIdentityProvider.AdminGetUserAsync),
                 null,
                 "Failed to initiate sign up",
-                ex);        }
+                ex);
+        }
     }
 
     public async Task<Guid> InitiateSignUpAsync(InitiateSignUpRequest request,
@@ -94,6 +99,7 @@ public sealed class CognitoIdentityGateway(
         try
         {
             var response = await cognitoIdentityProvider.SignUpAsync(signUpRequest, cancellationToken).ConfigureAwait(false);
+            activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
             activity?.SetTag("cognito.user_sub", response.UserSub);
             activity?.AddEvent(new ActivityEvent(
                 "verification.code_sent",
@@ -118,10 +124,11 @@ public sealed class CognitoIdentityGateway(
             activity?.SetTag("business.duplicate_email", true);
             throw new DuplicateEmailException();
         }
-        catch (Exception ex)
+        catch (AmazonServiceException ex)
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("aws.request_id", ex.RequestId);
             throw new CognitoOperationFailedException(
                 nameof(cognitoIdentityProvider.SignUpAsync),
                 null,
@@ -150,6 +157,8 @@ public sealed class CognitoIdentityGateway(
         {
             var response = await cognitoIdentityProvider.ConfirmSignUpAsync(signUpRequest, cancellationToken)
                 .ConfigureAwait(false);
+            activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
+
             return response.Session;
         }
         catch (AliasExistsException ex)
@@ -201,10 +210,11 @@ public sealed class CognitoIdentityGateway(
             logger.LogWarning(ex, "User not found during verification");
             throw new UserWithEmailNotFoundException();
         }
-        catch (Exception ex)
+        catch (AmazonServiceException ex)
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("aws.request_id", ex.RequestId);
             throw new CognitoOperationFailedException(
                 nameof(cognitoIdentityProvider.ConfirmSignUpAsync),
                 null,
@@ -234,6 +244,7 @@ public sealed class CognitoIdentityGateway(
         try
         {
             var response = await cognitoIdentityProvider.ResendConfirmationCodeAsync(resendRequest, cancellationToken).ConfigureAwait(false);
+            activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
             activity?.AddEvent(new ActivityEvent(
                 "verification.code_sent",
                 tags: new ActivityTagsCollection
@@ -257,10 +268,11 @@ public sealed class CognitoIdentityGateway(
             logger.LogError(ex, "Cognito code delivery throttled");
             throw new VerificationCodeDeliveryTooSoonException();
         }
-        catch (Exception ex)
+        catch (AmazonServiceException ex)
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("aws.request_id", ex.RequestId);
             throw new CognitoOperationFailedException(
                 nameof(cognitoIdentityProvider.ResendConfirmationCodeAsync),
                 null,
@@ -268,47 +280,10 @@ public sealed class CognitoIdentityGateway(
                 ex);        }
     }
 
-    public async Task UpdatePasswordAsync(InitiateSignUpRequest request, CancellationToken cancellationToken = default)
-    {
-        using var activity = ActivitySource.StartActivity(
-            $"{nameof(CognitoIdentityGateway)}.{nameof(UpdatePasswordAsync)}");
-
-        activity?.SetTag("aws.cognito.operation", "AdminSetUserPassword");
-        activity?.SetTag("enduser.id", MaskEmail(request.EmailAddress));
-
-        var updatePasswordRequest = new AdminSetUserPasswordRequest {
-            UserPoolId = authOptions.Value.UserPoolId,
-            Username = request.EmailAddress,
-            Password = request.Password,
-            Permanent = true
-        };
-
-        var confirmSignUpRequest = new AdminConfirmSignUpRequest
-        {
-            UserPoolId = authOptions.Value.UserPoolId, Username = request.EmailAddress,
-        };
-
-        try
-        {
-            await cognitoIdentityProvider.AdminSetUserPasswordAsync(updatePasswordRequest, cancellationToken).ConfigureAwait(false);
-            await cognitoIdentityProvider.AdminConfirmSignUpAsync(confirmSignUpRequest, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            activity?.AddException(ex);
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw new CognitoOperationFailedException(
-                nameof(cognitoIdentityProvider.AdminSetUserPasswordAsync),
-                null,
-                "Failed to update password.",
-                ex);
-        }
-    }
-
     public async Task ConfirmUserAsync(string emailAddress, CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity(
-            $"{nameof(CognitoIdentityGateway)}.{nameof(UpdatePasswordAsync)}");
+            $"{nameof(CognitoIdentityGateway)}.{nameof(ConfirmUserAsync)}");
 
         activity?.SetTag("aws.cognito.operation", "AdminConfirmUser");
         activity?.SetTag("enduser.id", MaskEmail(emailAddress));
@@ -320,12 +295,14 @@ public sealed class CognitoIdentityGateway(
 
         try
         {
-            await cognitoIdentityProvider.AdminConfirmSignUpAsync(confirmSignUpRequest, cancellationToken).ConfigureAwait(false);
+            var response = await cognitoIdentityProvider.AdminConfirmSignUpAsync(confirmSignUpRequest, cancellationToken).ConfigureAwait(false);
+            activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
         }
-        catch (Exception ex)
+        catch (AmazonServiceException ex)
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("aws.request_id", ex.RequestId);
             throw new CognitoOperationFailedException(
                 nameof(cognitoIdentityProvider.AdminSetUserPasswordAsync),
                 null,
@@ -357,11 +334,13 @@ public sealed class CognitoIdentityGateway(
         {
             var response = await cognitoIdentityProvider.InitiateAuthAsync(initiateAuthRequest, cancellationToken)
                 .ConfigureAwait(false);
+            activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
         }
-        catch (Exception ex)
+        catch (AmazonServiceException ex)
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("aws.request_id", ex.RequestId);
             throw new CognitoOperationFailedException(
                 nameof(cognitoIdentityProvider.AdminSetUserPasswordAsync),
                 null,

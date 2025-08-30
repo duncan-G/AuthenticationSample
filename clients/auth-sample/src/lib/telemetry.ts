@@ -27,7 +27,6 @@ export function initWebTelemetry(serviceName: string = "auth-sample-web") {
     headers: {},
   });
 
-  // Drop OPTIONS requests from export to avoid separate traces for preflight
   class PredicateSpanProcessor implements SpanProcessor {
     private _inner: SpanProcessor;
     private _predicate: (span: ReadableSpan) => boolean;
@@ -52,7 +51,7 @@ export function initWebTelemetry(serviceName: string = "auth-sample-web") {
 
   const shouldExportSpan = (span: ReadableSpan): boolean => {
     const methodAttr = span.attributes["http.request.method"] ?? span.attributes["http.method"];
-    if (typeof methodAttr === "string" && methodAttr.toUpperCase() === "OPTIONS") {
+    if (typeof methodAttr === "string") {
       return false;
     }
     return true;

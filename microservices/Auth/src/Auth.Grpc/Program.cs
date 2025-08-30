@@ -19,7 +19,6 @@ var awsOptions = builder.AddAwsOptions("AuthSample-AuthService");
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-    .AddEnvironmentVariables("Auth_")
     .AddSecretsManager(
         awsOptions,
         options => builder.Configuration.GetSection("Secrets").Bind(options));
@@ -39,12 +38,6 @@ builder.Services.AddScoped<IIdentityGateway, CognitoIdentityGateway>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// Add CORS policy
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddAuthSampleCors(options => builder.Configuration.GetSection("Cors").Bind(options));
-}
-
 // Add authentication and authorization
 builder.Services.AddAuthnAuthz(options => builder.Configuration.GetSection("Authentication").Bind(options));
 
@@ -58,23 +51,8 @@ app.Services.GetRequiredService<ILoggerFactory>()
     .ConfigureAWSSDKLogging();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseGrpcWeb();
-    app.UseCors(CorsExtensions.CorsPolicyName);
-    app.MapGrpcService<GreeterService>()
-        .EnableGrpcWeb()
-        .RequireCors();
-    app.MapGrpcService<SignUpManagerService>()
-        .EnableGrpcWeb()
-        .RequireCors();
-}
-else
-{
-    app.MapGrpcService<GreeterService>();
-    app.MapGrpcService<SignUpManagerService>();
-}
-
+app.MapGrpcService<GreeterService>();
+app.MapGrpcService<SignUpManagerService>();
 
 app.MapHealthChecks("/health");
 

@@ -2,6 +2,7 @@ using AuthSample.Auth.Core;
 using AuthSample.Auth.Grpc.Protos;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Microsoft.AspNetCore.RateLimiting;
 using InitiateSignUpRequest = AuthSample.Auth.Grpc.Protos.InitiateSignUpRequest;
 using SignUpStep = AuthSample.Auth.Grpc.Protos.SignUpStep;
 
@@ -11,6 +12,7 @@ public class SignUpManagerService(
     IIdentityService identityService,
     ILogger<SignUpManagerService> logger) : SignUpManager.SignUpManagerBase
 {
+    [EnableRateLimiting("initiate-signup")]
     public override async Task<InitiateSignUpResponse> InitiateSignUpAsync(InitiateSignUpRequest request, ServerCallContext context)
     {
         logger.LogInformation("Starting sign up");
@@ -30,6 +32,7 @@ public class SignUpManagerService(
         return new InitiateSignUpResponse { NextStep = (SignUpStep)nextStep };
     }
 
+    [EnableRateLimiting("confirm-user")]
     public override async Task<Empty> VerifyAndSignUpAsync(VerifyAndSignUpRequest request, ServerCallContext context)
     {
         await identityService
