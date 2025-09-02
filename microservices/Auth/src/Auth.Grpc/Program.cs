@@ -1,6 +1,6 @@
 using Amazon.CognitoIdentityProvider;
-using AuthSample.Api.Cors;
 using AuthSample.Api.Exceptions;
+using AuthSample.Api.RateLimiting;
 using AuthSample.Api.Secrets;
 using AuthSample.Auth.Core;
 using AuthSample.Auth.Grpc.Services;
@@ -9,7 +9,9 @@ using AuthSample.Authentication;
 using AuthSample.Infrastructure;
 using AuthSample.Logging;
 using AuthSample.Api.Validation;
+using AuthSample.Auth.Core.Identity;
 using FluentValidation;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,10 +23,14 @@ builder.Configuration
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
     .AddSecretsManager(
         awsOptions,
-        options => builder.Configuration.GetSection("Secrets").Bind(options));
+        options => builder.Configuration.Bind("Secrets", options));
 
 // Configure logging
-builder.AddLogging(options => builder.Configuration.GetSection("ApplicationLogging").Bind(options));
+builder.AddLogging(options => builder.Configuration.Bind("ApplicationLogging", options));
+
+// Configure cache
+builder.Services.AddRedisRateLimiter(options => builder.Configuration.Bind("Redis", options));
+builder.Services.AddStackExchangeRedisCache(options => builder.Configuration.Bind("Redis", options));
 
 // Add services to the container.
 builder.Services.AddGrpc(options =>
@@ -39,7 +45,7 @@ builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Add authentication and authorization
-builder.Services.AddAuthnAuthz(options => builder.Configuration.GetSection("Authentication").Bind(options));
+builder.Services.AddAuthnAuthz(options => builder.Configuration.Bind("Authentication", options));
 
 // Add health checks
 builder.Services.AddHealthChecks();
@@ -52,7 +58,8 @@ app.Services.GetRequiredService<ILoggerFactory>()
 
 // Configure the HTTP request pipeline.
 app.MapGrpcService<GreeterService>();
-app.MapGrpcService<SignUpManagerService>();
+app.MapGrpcService<SignUpManager>();
+app.MapGrpcService<AuthorizationManager>();
 
 app.MapHealthChecks("/health");
 

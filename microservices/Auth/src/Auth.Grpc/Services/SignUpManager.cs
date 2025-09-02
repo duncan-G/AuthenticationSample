@@ -1,25 +1,27 @@
+using AuthSample.Api.RateLimiting;
 using AuthSample.Auth.Core;
+using AuthSample.Auth.Core.Identity;
 using AuthSample.Auth.Grpc.Protos;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
-using Microsoft.AspNetCore.RateLimiting;
 using InitiateSignUpRequest = AuthSample.Auth.Grpc.Protos.InitiateSignUpRequest;
 using SignUpStep = AuthSample.Auth.Grpc.Protos.SignUpStep;
 
 namespace AuthSample.Auth.Grpc.Services;
 
-public class SignUpManagerService(
+public class SignUpManager(
     IIdentityService identityService,
-    ILogger<SignUpManagerService> logger) : SignUpManager.SignUpManagerBase
+    ILogger<SignUpManager> logger) : Protos.SignUpManager.SignUpManagerBase
 {
-    [EnableRateLimiting("initiate-signup")]
     public override async Task<InitiateSignUpResponse> InitiateSignUpAsync(InitiateSignUpRequest request, ServerCallContext context)
     {
-        logger.LogInformation("Starting sign up");
+        var httpContext = context.GetHttpContext();
+        await httpContext.EnforceFixedByEmailAsync(request.EmailAddress, 3600, 15, cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        var ipAddress = context.GetHttpContext().Connection.RemoteIpAddress!;
+        logger.LogInformation("Starting sign up");
+        var ipAddress = httpContext.Connection.RemoteIpAddress!;
         var nextStep = await identityService.InitiateSignUpAsync(
-            new Core.InitiateSignUpRequest
+            new Core.Identity.InitiateSignUpRequest
             {
                 EmailAddress = request.EmailAddress,
                 IpAddress = ipAddress,
@@ -32,9 +34,11 @@ public class SignUpManagerService(
         return new InitiateSignUpResponse { NextStep = (SignUpStep)nextStep };
     }
 
-    [EnableRateLimiting("confirm-user")]
     public override async Task<Empty> VerifyAndSignUpAsync(VerifyAndSignUpRequest request, ServerCallContext context)
     {
+        await context.GetHttpContext().EnforceFixedByEmailAsync(request.EmailAddress, 3600, 5, cancellationToken: context.CancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Verifying sign up");
         await identityService
             .VerifySignUpAndSignInAsync(request.EmailAddress, request.VerificationCode, context.CancellationToken)
             .ConfigureAwait(false);

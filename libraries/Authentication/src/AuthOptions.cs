@@ -2,7 +2,7 @@ namespace AuthSample.Authentication;
 
 public sealed class AuthOptions
 {
-    public string Authority { get; set; } = null!;
+    public required string Authority { get; set; }
 
-    public string Audience { get; set; } = null!;
+    public required string Audience { get; set; }
 }

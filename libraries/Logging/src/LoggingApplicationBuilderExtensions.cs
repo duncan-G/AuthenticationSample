@@ -71,7 +71,8 @@ public static class LoggingApplicationBuilderExtensions
                     .AddGrpcCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation(efiOption => { efiOption.SetDbStatementForText = true; })
-                    .AddSource("Npgsql");
+                    .AddSource("Npgsql")
+                    .AddRedisInstrumentation();
                 if (options.AddSemanticKernelInstrumentation)
                 {
                     traceBuilder.AddSource("Microsoft.SemanticKernel*");

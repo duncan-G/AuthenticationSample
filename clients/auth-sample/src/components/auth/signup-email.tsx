@@ -131,8 +131,8 @@ export function SignUpEmail({
               className="h-12 bg-stone-900/70 border-2 border-stone-700/50 text-stone-50 placeholder:text-stone-400/60 focus:border-stone-500/90 focus:ring-stone-500/30 rounded-lg text-base transition-all duration-200"
             />
             
-            {/* Reserved space for error message - prevents layout shift */}
-            <div className="min-h-6 flex items-center">
+            {/* Reserved space for error message - prevents layout shift (allow up to 2 lines) */}
+            <div className="min-h-[40px] flex items-center">
               {(showError && emailError) && (
                 <div className="flex items-center space-x-2 text-red-400 text-sm">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />

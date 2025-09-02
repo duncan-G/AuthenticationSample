@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>AuthSample.Auth.Grpc</RootNamespace>
+        <IncludeGoogleApiCommonProtos>true</IncludeGoogleApiCommonProtos>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,8 +13,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Grpc.AspNetCore" Version="2.64.0"/>
+        <PackageReference Include="Grpc.AspNetCore" Version="2.71.0"/>
         <PackageReference Include="Grpc.AspNetCore.Web" Version="2.71.0"/>
+        <PackageReference Include="Grpc.Tools" Version="2.72.0" PrivateAssets="All" />
+        <PackageReference Include="Google.Protobuf" Version="3.32.0" />
+        <PackageReference Include="Google.Api.CommonProtos" Version="2.17.0" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -22,10 +27,6 @@
         <ProjectReference Include="..\..\..\..\libraries\Logging\src\Logging.csproj"/>
         <ProjectReference Include="..\..\..\..\libraries\Authentication\src\Authentication.csproj"/>
         <ProjectReference Include="..\Auth.Infrastructure\Auth.Infrastructure.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Validators\SignUp\" />
     </ItemGroup>
 
 </Project>

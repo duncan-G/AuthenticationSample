@@ -16,7 +16,7 @@ stats_sinks:
     "@type": type.googleapis.com/envoy.extensions.stat_sinks.open_telemetry.v3.SinkConfig
     grpc_service:
       envoy_grpc:
-        cluster_name: otel_collector_grpc
+        cluster_name: otel_collector_grpc_cluster
 
 stats_flush_interval: 5s
 
@@ -49,6 +49,15 @@ static_resources:
               - name: envoy.filters.http.grpc_web
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
+              - name: envoy.filters.http.ext_authz
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                  transport_api_version: V3
+                  failure_mode_allow: false
+                  grpc_service:
+                    envoy_grpc:
+                      cluster_name: auth_cluster
+                    timeout: 0.5s
               - name: envoy.filters.http.local_ratelimit
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
@@ -63,7 +72,7 @@ static_resources:
                 common_config:
                   grpc_service:
                     envoy_grpc:
-                      cluster_name: otel_collector_grpc
+                      cluster_name: otel_collector_grpc_cluster
                     timeout: 0.5s
                   log_name: "ReverseProxy"
                 body:
@@ -90,7 +99,7 @@ static_resources:
                   service_name: "ReverseProxy"
                   grpc_service:
                     envoy_grpc:
-                      cluster_name: "otel_collector_grpc"
+                      cluster_name: "otel_collector_grpc_cluster"
                     timeout: 0.5s
       transport_socket:
         name: envoy.transport_sockets.tls
@@ -127,6 +136,15 @@ static_resources:
               - name: envoy.filters.http.grpc_web
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
+              - name: envoy.filters.http.ext_authz
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                  transport_api_version: V3
+                  failure_mode_allow: false
+                  grpc_service:
+                    envoy_grpc:
+                      cluster_name: auth_cluster
+                    timeout: 0.5s
               - name: envoy.filters.http.local_ratelimit
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
@@ -141,7 +159,7 @@ static_resources:
                 common_config:
                   grpc_service:
                     envoy_grpc:
-                      cluster_name: otel_collector_grpc
+                      cluster_name: otel_collector_grpc_cluster
                     timeout: 0.5s
                   log_name: "ReverseProxy"
                 body:
@@ -168,7 +186,7 @@ static_resources:
                   service_name: "ReverseProxy"
                   grpc_service:
                     envoy_grpc:
-                      cluster_name: "otel_collector_grpc"
+                      cluster_name: "otel_collector_grpc_cluster"
                     timeout: 0.5s
       transport_socket:
         name: envoy.transport_sockets.quic
@@ -183,7 +201,7 @@ static_resources:
                   path_config_source: { path: /etc/envoy/discovery/envoy.sds.yaml }
 
   clusters:
-    - name: otel_collector_grpc
+    - name: otel_collector_grpc_cluster
       type: strict_dns
       typed_extension_protocol_options:
         envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
@@ -192,13 +210,13 @@ static_resources:
             http2_protocol_options: { }
       lb_policy: round_robin
       load_assignment:
-        cluster_name: otel_collector_grpc
+        cluster_name: otel_collector_grpc_cluster
         endpoints:
         - lb_endpoints:
           - endpoint:
               address: { socket_address: { address: otel-collector_app, port_value: 4317 } }
 
-    - name: otel_collector_http
+    - name: otel_collector_http_cluster
       type: strict_dns
       typed_extension_protocol_options:
         envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
@@ -207,7 +225,7 @@ static_resources:
             http_protocol_options: { }
       lb_policy: round_robin
       load_assignment:
-        cluster_name: otel_collector_http
+        cluster_name: otel_collector_http_cluster
         endpoints:
         - lb_endpoints:
           - endpoint:

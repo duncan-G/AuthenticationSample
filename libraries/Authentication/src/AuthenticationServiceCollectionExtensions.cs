@@ -1,3 +1,4 @@
+using AuthSample.Auth.Grpc;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AuthSample.Authentication;
@@ -8,8 +9,9 @@ public static class AuthenticationServiceCollectionExtensions
         this IServiceCollection services,
         Action<AuthOptions> configureOptions)
     {
-        // TODO: Add Authn and Authz services here.
-        services.Configure(configureOptions);
+        services
+            .Configure(configureOptions)
+            .AddSingleton<TokenValidationParametersHelper>();
         return services;
     }
 }

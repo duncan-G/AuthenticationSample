@@ -6,6 +6,7 @@ using Amazon.CognitoIdentityProvider.Model;
 using Amazon.Runtime;
 using AuthSample.Auth.Core;
 using AuthSample.Auth.Core.Exceptions;
+using AuthSample.Auth.Core.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

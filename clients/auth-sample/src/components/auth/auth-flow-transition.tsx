@@ -21,7 +21,9 @@ export function AuthFlowTransition({
     <div 
       key={flowKey}
       className={`
-        ${isLoading ? 'pointer-events-none scale-[0.98] blur-[0.5px] transition-all duration-200 ease-out' : 'scale-100 blur-0 transition-all duration-200 ease-out'}
+        ${isLoading 
+          ? 'pointer-events-none transform-gpu will-change-transform scale-[0.98] opacity-95 transition-transform transition-opacity duration-200 ease-out' 
+          : 'transform-gpu will-change-transform scale-100 opacity-100 transition-transform transition-opacity duration-200 ease-out'}
         ${className}
       `.trim()}
     >

@@ -23,8 +23,12 @@ public sealed class ValidationInterceptor(IServiceProvider serviceProvider) : In
             return await continuation(request, context).ConfigureAwait(false);
         }
 
-        // Combine error messages
-        var errorMessages = string.Join("; ", result.Errors.Select(e => e.ErrorMessage));
-        throw new RpcException(new Status(StatusCode.InvalidArgument, errorMessages));
+        var errorCodes = result.Errors.Select(e => e.ErrorCode);
+        var errorMessages = result.Errors.Select(e => e.ErrorMessage);
+        var metadata = new Metadata {
+            { "Error-Codes", string.Join(",", errorCodes) },
+            { "Messages", string.Join(",", errorMessages) }
+        };
+        throw new RpcException(new Status(StatusCode.InvalidArgument, "Bad request"), metadata);
     }
 }

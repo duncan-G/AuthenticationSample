@@ -58,7 +58,9 @@ while IFS= read -r proto_file; do
     bash "$working_dir/scripts/development/gen-grpc-web.sh" \
         -i "$proto_file" \
         -o "$output_dir"
-done < <(find "$working_dir/microservices" -type f -name "*.proto" -path "*/Protos/*" | sort)
+done < <(find "$working_dir/microservices" -type f -name "*.proto" -path "*/Protos/*" -not -path "*/Protos/internal/*" | sort)
+
+node "$working_dir/scripts/development/generate_error_codes.js"
 
 # Final cleanup (no-op if already removed)
 docker container rm protoc-gen-grpc-web >/dev/null 2>&1 || true

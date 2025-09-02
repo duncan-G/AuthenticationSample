@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace AuthSample.Auth.Core;
+namespace AuthSample.Auth.Core.Identity;
 
 public sealed class InitiateSignUpRequest
 {

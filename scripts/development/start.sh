@@ -213,6 +213,14 @@ start_proxy() {
     "$SCRIPT_DIR/start_proxy.sh"
 }
 
+# Function to ensure backend environment is running
+ensure_backend_environment() {
+    if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
+        print_error "Docker Swarm is not active. Please run './start.sh -b' first to initialize the environment"
+        exit 1
+    fi
+}
+
 # Main execution
 cd "$working_dir"
 
@@ -239,12 +247,13 @@ fi
 load_secrets "auth-sample-secrets-development"
 
 # Start components based on flags
-if [ "$database" = true ]; then
-    start_database
-fi
-
 if [ "$backend_environment" = true ]; then
     start_backend_environment
+fi
+
+if [ "$database" = true ]; then
+    ensure_backend_environment
+    start_database
 fi
 
 if [ "$client" = true ]; then
@@ -252,10 +261,12 @@ if [ "$client" = true ]; then
 fi
 
 if [ "$proxy" = true ]; then
+    ensure_backend_environment
     start_proxy
 fi
 
 if [ "$microservices" = true ]; then
+    ensure_backend_environment
     start_microservices
 fi
 

@@ -21,13 +21,13 @@ public sealed class ExceptionsInterceptor(ILogger<ExceptionsInterceptor> logger)
             logger.LogWarning(ex, "Domain error: {Message}", ex.Message);
             throw mappedEx.ToGrpcError().ToRpcException();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not RpcException)
         {
             logger.LogError(ex, "Unhandled exception");
             // Fallback shape for unexpected errors
             var descriptor = new GrpcErrorDescriptor(
                 StatusCode.Internal,
-                "9999",
+                ErrorCodes.Unexpected,
                 Message: "An unexpected error occurred.");
             throw descriptor.ToRpcException();
         }

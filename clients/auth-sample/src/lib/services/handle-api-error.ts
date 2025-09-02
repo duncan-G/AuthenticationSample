@@ -1,16 +1,20 @@
 import {WorkflowHandle} from "@/lib/workflows";
-import {AuthErrorCodes, KnownAuthErrorCode} from "@/lib/services/auth/error-codes";
+import { ErrorCodes, KnownErrorCode } from "./error-codes";
 
-export const friendlyMessageFor: Record<KnownAuthErrorCode, string> = {
-    [AuthErrorCodes.DuplicateEmail]: "An account with this email already exists.",
-    [AuthErrorCodes.UserNotFound]: "We couldn’t find an account with that email.",
-    [AuthErrorCodes.VerificationCodeMismatch]: "That code doesn’t look right. Please try again.",
-    [AuthErrorCodes.VerificationCodeExpired]: "That code has expired. Request a new one to continue.",
-    [AuthErrorCodes.VerificationAttemptsExceeded]:
-        "You’ve entered too many incorrect codes. Please request a new code later.",
-    [AuthErrorCodes.VerificationCodeDeliveryFailed]:
+export const friendlyMessageFor: Record<KnownErrorCode, string> = {
+    [ErrorCodes.MissingParameter]: "A required parameter is missing.",
+    [ErrorCodes.InvalidParameter]: "An invalid parameter was provided.",
+    [ErrorCodes.InvalidLength]: "An invalid length was provided.",
+    [ErrorCodes.DuplicateEmail]: "An account with this email already exists.",
+    [ErrorCodes.UserNotFound]: "We couldn't find an account with that email.",
+    [ErrorCodes.VerificationCodeMismatch]: "That code doesn't look right. Please try again.",
+    [ErrorCodes.VerificationCodeExpired]: "That code has expired. Request a new one to continue.",
+    [ErrorCodes.VerificationAttemptsExceeded]:
+        "You've entered too many incorrect codes. Please request a new code later.",
+    [ErrorCodes.VerificationCodeDeliveryFailed]:
         "We couldn't send a verification code. Please try again later.",
-    [AuthErrorCodes.Unexpected]: "Something went wrong. Please try again in a moment.",
+    [ErrorCodes.ResourceExhausted]: "You've reached the maximum number of attempts. Please wait a few minutes before trying again.",
+    [ErrorCodes.Unexpected]: "Something went wrong. Please try again in a moment.",
 }
 
 
@@ -60,7 +64,7 @@ export const handleApiError = (
 
     const friendly =
         (code && (friendlyMessageFor as Record<string, string>)[code]) ||
-        friendlyMessageFor[AuthErrorCodes.Unexpected]
+        friendlyMessageFor[ErrorCodes.Unexpected]
 
     // Mark workflow step (use code if present, otherwise UNKNOWN)
     step?.fail(code ?? "UNKNOWN", serverMessage ?? friendly)

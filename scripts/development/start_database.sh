@@ -55,14 +55,14 @@ if [ "$clean_database" = true ]; then
     fi
 fi
 
-# Start Postgres and pgAdmin
-env PGADMIN_PATH="$working_dir/microservices/.builds/postgres/pg_admin" \
-    PGADMIN_DEFAULT_EMAIL=$PGADMIN_DEFAULT_EMAIL \
-    PGADMIN_DEFAULT_PASSWORD=$PGADMIN_DEFAULT_PASSWORD \
-    DATABASE_NAME=$DATABASE_NAME \
+# Start Postgres
+env DATABASE_NAME=$DATABASE_NAME \
     DATABASE_USER=$DATABASE_USER \
     DATABASE_PASSWORD=$DATABASE_PASSWORD \
     docker stack deploy --compose-file infrastructure/postgres/postgres.stack.debug.yaml postgres
+
+# Start Redis
+env docker stack deploy --compose-file infrastructure/redis/redis.stack.debug.yaml redis
 
 # Run Schema Builders
 if [ "$rebuild" = true ]; then

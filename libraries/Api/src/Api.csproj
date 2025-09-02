@@ -16,9 +16,7 @@
         <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.0.13"/>
         <PackageReference Include="FluentValidation" Version="12.0.0"/>
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0"/>
-        <PackageReference Include="Google.Protobuf" Version="3.31.0"/>
-        <PackageReference Include="Grpc.Core.Api" Version="2.71.0"/>
-        <PackageReference Include="StackExchange.Redis" Version="2.9.11" />
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.8" />
     </ItemGroup>
 
     <ItemGroup>

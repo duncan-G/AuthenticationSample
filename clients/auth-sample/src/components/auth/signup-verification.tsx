@@ -112,8 +112,8 @@ export function SignUpVerification({
             />
           </div>
 
-          {/* Server error below input */}
-          <div className="min-h-6 mb-4 flex items-center">
+          {/* Server error below input - reserve space for up to 2 lines */}
+          <div className="min-h-[40px] mb-4 flex items-center">
             {serverError && (
               <div className="flex items-center space-x-2 text-red-400 text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.RateLimiting;
 using StackExchange.Redis;
 
@@ -8,7 +9,8 @@ internal sealed class RedisScriptRateLimiter(
     LuaScript script,
     string key,
     int windowSeconds,
-    int maxRequests)
+    int maxRequests,
+    string algorithm)
     : RateLimiter
 {
     public override TimeSpan? IdleDuration => null;
@@ -34,17 +36,35 @@ internal sealed class RedisScriptRateLimiter(
 
     private bool EvaluateScriptSync()
     {
+        var activity = Activity.Current;
+        activity?.SetTag("rate.limit.key", key);
+        activity?.SetTag("rate.limit.window_seconds", windowSeconds);
+        activity?.SetTag("rate.limit.max_requests", maxRequests);
+        activity?.SetTag("rate.limit.algorithm", algorithm);
+
         var result = (int)database.ScriptEvaluate(script, new
         {
             key = (RedisKey)key,
             window = windowSeconds,
             max_requests = maxRequests
         });
-        return result == 0;
+        var allowed = result == 0;
+        activity?.SetTag("rate.limit.allowed", allowed);
+        if (!allowed)
+        {
+            activity?.AddEvent(new ActivityEvent("rate_limit.blocked"));
+        }
+        return allowed;
     }
 
     private async Task<bool> EvaluateScriptAsync(CancellationToken cancellationToken)
     {
+        var activity = Activity.Current;
+        activity?.SetTag("rate.limit.key", key);
+        activity?.SetTag("rate.limit.window_seconds", windowSeconds);
+        activity?.SetTag("rate.limit.max_requests", maxRequests);
+        activity?.SetTag("rate.limit.algorithm", algorithm);
+
         var task = database.ScriptEvaluateAsync(script, new
         {
             key = (RedisKey)key,
@@ -52,7 +72,13 @@ internal sealed class RedisScriptRateLimiter(
             max_requests = maxRequests
         });
         var result = (int)await task.ConfigureAwait(false);
-        return result == 0;
+        var allowed = result == 0;
+        activity?.SetTag("rate.limit.allowed", allowed);
+        if (!allowed)
+        {
+            activity?.AddEvent(new ActivityEvent("rate_limit.blocked"));
+        }
+        return allowed;
     }
 
     private sealed class SimpleLease(bool isAcquired) : RateLimitLease

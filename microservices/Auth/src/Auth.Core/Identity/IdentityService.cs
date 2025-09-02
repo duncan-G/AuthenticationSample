@@ -1,7 +1,7 @@
 using AuthSample.Auth.Core.Exceptions;
 using Microsoft.Extensions.Logging;
 
-namespace AuthSample.Auth.Core;
+namespace AuthSample.Auth.Core.Identity;
 
 public class IdentityService(
     IIdentityGateway identityGateway,

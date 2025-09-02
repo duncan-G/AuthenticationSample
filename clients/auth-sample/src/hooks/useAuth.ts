@@ -10,7 +10,7 @@ import {
 import { startWorkflow } from "@/lib/workflows"
 import type { WorkflowHandle } from "@/lib/workflows"
 import {friendlyMessageFor, handleApiError} from "@/lib/services/handle-api-error";
-import { AuthErrorCodes } from "@/lib/services/auth/error-codes"
+import { ErrorCodes } from "@/lib/services/error-codes"
 
 /** Wrap an async handler with loading toggles. */
 const withLoading =
@@ -123,8 +123,8 @@ export function useAuth(): AuthState & AuthHandlers {
       } else if (nextStep === SignUpStep.VERIFICATION_REQUIRED) {
         setCurrentFlow("signup-verification")
       } else {
-        step?.fail(AuthErrorCodes.Unexpected, "Unknown error")
-        setErrorMessage(friendlyMessageFor[AuthErrorCodes.Unexpected])
+        step?.fail(ErrorCodes.Unexpected, "Unknown error")
+        setErrorMessage(friendlyMessageFor[ErrorCodes.Unexpected])
         return
       }
 

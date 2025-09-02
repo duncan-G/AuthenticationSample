@@ -8,7 +8,7 @@ namespace AuthSample.Infrastructure;
 /// <summary>
 ///     Extension methods for configuring AWS options
 /// </summary>
-public static class AwsOptionsExtensions
+public static class AwsOptionsApplicationBuilderExtensions
 {
     /// <summary>
     ///     Adds AWS options from environment variables and configures credentials

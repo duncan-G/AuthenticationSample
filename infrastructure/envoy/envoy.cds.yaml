@@ -3,7 +3,7 @@
 
 resources:
   - "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
-    name: authentication_cluster
+    name: auth_cluster
     connect_timeout: 1s
     typed_extension_protocol_options:
       envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
@@ -14,7 +14,7 @@ resources:
     dns_lookup_family: V4_ONLY
     lb_policy: round_robin
     load_assignment:
-      cluster_name: authentication_cluster
+      cluster_name: auth_cluster
       endpoints:
       - lb_endpoints:
         - endpoint:
