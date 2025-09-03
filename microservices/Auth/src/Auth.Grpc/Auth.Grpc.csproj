@@ -25,7 +25,6 @@
         <ProjectReference Include="..\..\..\..\libraries\Api\src\Api.csproj"/>
         <ProjectReference Include="..\..\..\..\libraries\Infrastructure\src\Infrastructure.csproj"/>
         <ProjectReference Include="..\..\..\..\libraries\Logging\src\Logging.csproj"/>
-        <ProjectReference Include="..\..\..\..\libraries\Authentication\src\Authentication.csproj"/>
         <ProjectReference Include="..\Auth.Infrastructure\Auth.Infrastructure.csproj" />
     </ItemGroup>
 

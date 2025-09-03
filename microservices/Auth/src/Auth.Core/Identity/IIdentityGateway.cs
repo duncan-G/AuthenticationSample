@@ -1,3 +1,5 @@
+using AuthSample.Authentication;
+
 namespace AuthSample.Auth.Core.Identity;
 
 public interface IIdentityGateway
@@ -10,5 +12,5 @@ public interface IIdentityGateway
     Task ResendSignUpVerificationAsync(InitiateSignUpRequest request, CancellationToken cancellationToken = default);
     Task ConfirmUserAsync(string emailAddress, CancellationToken cancellationToken = default);
 
-    Task InitiateAuthAsync(string emailAddress, string sessionId, CancellationToken cancellationToken = default);
+    Task<SessionData> InitiateAuthAsync(string emailAddress, string sessionId, CancellationToken cancellationToken = default);
 }

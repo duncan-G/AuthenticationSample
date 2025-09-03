@@ -4,9 +4,9 @@ using FluentValidation;
 
 namespace AuthSample.Auth.Grpc.Validators.SignUp;
 
-public sealed class VerifyAndSignUpRequestValidator : AbstractValidator<VerifyAndSignUpRequest>
+public sealed class VerifyAndSignInRequestValidator : AbstractValidator<VerifyAndSignInRequest>
 {
-	public VerifyAndSignUpRequestValidator()
+	public VerifyAndSignInRequestValidator()
 	{
 		RuleFor(x => x.EmailAddress)
 			.NotEmpty().WithErrorCode(ErrorCodes.MissingParameter).WithMessage("Email address is required.")

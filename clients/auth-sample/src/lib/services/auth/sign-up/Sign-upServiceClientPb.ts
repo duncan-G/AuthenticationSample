@@ -21,7 +21,7 @@ import * as sign$up_pb from './sign-up_pb'; // proto import: "sign-up.proto"
 import * as google_protobuf_empty_pb from 'google-protobuf/google/protobuf/empty_pb'; // proto import: "google/protobuf/empty.proto"
 
 
-export class SignUpManagerClient {
+export class SignUpServiceClient {
   client_: grpcWeb.AbstractClientBase;
   hostname_: string;
   credentials_: null | { [index: string]: string; };
@@ -41,7 +41,7 @@ export class SignUpManagerClient {
   }
 
   methodDescriptorInitiateSignUpAsync = new grpcWeb.MethodDescriptor(
-    '/auth.SignUpManager/InitiateSignUpAsync',
+    '/auth.SignUpService/InitiateSignUpAsync',
     grpcWeb.MethodType.UNARY,
     sign$up_pb.InitiateSignUpRequest,
     sign$up_pb.InitiateSignUpResponse,
@@ -69,7 +69,7 @@ export class SignUpManagerClient {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
-          '/auth.SignUpManager/InitiateSignUpAsync',
+          '/auth.SignUpService/InitiateSignUpAsync',
         request,
         metadata || {},
         this.methodDescriptorInitiateSignUpAsync,
@@ -77,53 +77,53 @@ export class SignUpManagerClient {
     }
     return this.client_.unaryCall(
     this.hostname_ +
-      '/auth.SignUpManager/InitiateSignUpAsync',
+      '/auth.SignUpService/InitiateSignUpAsync',
     request,
     metadata || {},
     this.methodDescriptorInitiateSignUpAsync);
   }
 
-  methodDescriptorVerifyAndSignUpAsync = new grpcWeb.MethodDescriptor(
-    '/auth.SignUpManager/VerifyAndSignUpAsync',
+  methodDescriptorVerifyAndSignInAsync = new grpcWeb.MethodDescriptor(
+    '/auth.SignUpService/VerifyAndSignInAsync',
     grpcWeb.MethodType.UNARY,
-    sign$up_pb.VerifyAndSignUpRequest,
+    sign$up_pb.VerifyAndSignInRequest,
     google_protobuf_empty_pb.Empty,
-    (request: sign$up_pb.VerifyAndSignUpRequest) => {
+    (request: sign$up_pb.VerifyAndSignInRequest) => {
       return request.serializeBinary();
     },
     google_protobuf_empty_pb.Empty.deserializeBinary
   );
 
-  verifyAndSignUpAsync(
-    request: sign$up_pb.VerifyAndSignUpRequest,
+  verifyAndSignInAsync(
+    request: sign$up_pb.VerifyAndSignInRequest,
     metadata?: grpcWeb.Metadata | null): Promise<google_protobuf_empty_pb.Empty>;
 
-  verifyAndSignUpAsync(
-    request: sign$up_pb.VerifyAndSignUpRequest,
+  verifyAndSignInAsync(
+    request: sign$up_pb.VerifyAndSignInRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
                response: google_protobuf_empty_pb.Empty) => void): grpcWeb.ClientReadableStream<google_protobuf_empty_pb.Empty>;
 
-  verifyAndSignUpAsync(
-    request: sign$up_pb.VerifyAndSignUpRequest,
+  verifyAndSignInAsync(
+    request: sign$up_pb.VerifyAndSignInRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
                response: google_protobuf_empty_pb.Empty) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
-          '/auth.SignUpManager/VerifyAndSignUpAsync',
+          '/auth.SignUpService/VerifyAndSignInAsync',
         request,
         metadata || {},
-        this.methodDescriptorVerifyAndSignUpAsync,
+        this.methodDescriptorVerifyAndSignInAsync,
         callback);
     }
     return this.client_.unaryCall(
     this.hostname_ +
-      '/auth.SignUpManager/VerifyAndSignUpAsync',
+      '/auth.SignUpService/VerifyAndSignInAsync',
     request,
     metadata || {},
-    this.methodDescriptorVerifyAndSignUpAsync);
+    this.methodDescriptorVerifyAndSignInAsync);
   }
 
 }

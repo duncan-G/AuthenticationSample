@@ -6,10 +6,10 @@ option csharp_namespace = "AuthSample.Auth.Grpc.Protos";
 
 package auth;
 
-service SignUpManager {
+service SignUpService {
   rpc InitiateSignUpAsync (InitiateSignUpRequest) returns (InitiateSignUpResponse);
 
-  rpc VerifyAndSignUpAsync (VerifyAndSignUpRequest) returns (google.protobuf.Empty);
+  rpc VerifyAndSignInAsync (VerifyAndSignInRequest) returns (google.protobuf.Empty);
 }
 
 enum SignUpStep {
@@ -28,7 +28,7 @@ message InitiateSignUpResponse {
   SignUpStep next_step = 1;
 }
 
-message VerifyAndSignUpRequest {
+message VerifyAndSignInRequest {
   string email_address = 1;
   string name = 3;
   string verification_code = 2;

@@ -4,9 +4,9 @@ using System.Text;
 using Amazon.CognitoIdentityProvider;
 using Amazon.CognitoIdentityProvider.Model;
 using Amazon.Runtime;
-using AuthSample.Auth.Core;
 using AuthSample.Auth.Core.Exceptions;
 using AuthSample.Auth.Core.Identity;
+using AuthSample.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -49,7 +49,7 @@ public sealed class CognitoIdentityGateway(
                 : AvailabilityStatus.AlreadySignedUp;
 
             activity?.SetTag("user.exists", true);
-            activity?.SetTag("user.status", response.UserStatus.ToString());
+            activity?.SetTag("user.status", response.UserStatus);
             activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
             return new SignUpAvailability(status, userId);
         }
@@ -312,7 +312,7 @@ public sealed class CognitoIdentityGateway(
         }
     }
 
-    public async Task InitiateAuthAsync(string emailAddress, string sessionId, CancellationToken cancellationToken = default)
+    public async Task<SessionData> InitiateAuthAsync(string emailAddress, string sessionId, CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity(
             $"{nameof(CognitoIdentityGateway)}.{nameof(InitiateAuthAsync)}");
@@ -336,6 +336,12 @@ public sealed class CognitoIdentityGateway(
             var response = await cognitoIdentityProvider.InitiateAuthAsync(initiateAuthRequest, cancellationToken)
                 .ConfigureAwait(false);
             activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
+            return new SessionData(
+                response.AuthenticationResult.AccessToken,
+                response.AuthenticationResult.IdToken,
+                response.AuthenticationResult.RefreshToken,
+                DateTime.UtcNow.AddSeconds((double)response.AuthenticationResult.ExpiresIn!),
+                emailAddress);
         }
         catch (AmazonServiceException ex)
         {

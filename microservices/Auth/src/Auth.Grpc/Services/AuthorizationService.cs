@@ -9,10 +9,10 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AuthSample.Auth.Grpc.Services;
 
-public sealed class AuthorizationManager(
+public sealed class AuthorizationService(
     IConnectionMultiplexer cache,
     TokenValidationParametersHelper tokenParameterHelper,
-    ILogger<AuthorizationManager> logger) : Authorization.AuthorizationBase
+    ILogger<AuthorizationService> logger) : Authorization.AuthorizationBase
 {
     private readonly IDatabase _redisDb = cache.GetDatabase();
 
@@ -70,7 +70,6 @@ public sealed class AuthorizationManager(
     {
         var okResponse = new OkHttpResponse();
         okResponse.Headers.Add(new HeaderValueOption { Header = new HeaderValue { Key = "x-user-sub", Value = data.Sub } });
-        okResponse.Headers.Add(new HeaderValueOption { Header = new HeaderValue { Key = "x-user-email", Value = data.Email } });
 
         return new CheckResponse
         {

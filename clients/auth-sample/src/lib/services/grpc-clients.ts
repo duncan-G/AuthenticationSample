@@ -1,25 +1,25 @@
 import { createTraceUnaryInterceptor } from '@/lib/services/trace-interceptor';
 import { GreeterClient } from '@/lib/services/auth/greet/GreetServiceClientPb';
-import { SignUpManagerClient } from '@/lib/services/auth/sign-up/Sign-upServiceClientPb';
+import { SignUpServiceClient } from '@/lib/services/auth/sign-up/Sign-upServiceClientPb';
 import { config } from '../config';
 
 export function createGreeterClient() {
   assertConfig(config)
 
   return new GreeterClient(
-    config.authServiceUrl,
+    config.authServiceUrl!,
     null,
-    { unaryInterceptors: [createTraceUnaryInterceptor()] }
+    { unaryInterceptors: [createTraceUnaryInterceptor()], withCredentials: true }
   );
 }
 
-export function createSignUpManagerClient() {
+export function createSignUpServiceClient() {
   assertConfig(config)
 
-  return new SignUpManagerClient(
-      config.authServiceUrl,
+  return new SignUpServiceClient(
+      config.authServiceUrl!,
       null,
-      { unaryInterceptors: [createTraceUnaryInterceptor()] }
+      { unaryInterceptors: [createTraceUnaryInterceptor()], withCredentials: true }
   );
 }
 

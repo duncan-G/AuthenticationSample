@@ -1,10 +1,10 @@
 import { useRef, useState } from "react"
 import { useAuth as useOidcAuth } from "react-oidc-context"
 import type { AuthFlow, AuthState, AuthHandlers } from "@/types/auth"
-import { createSignUpManagerClient } from "@/lib/services/grpc-clients"
+import { createSignUpServiceClient } from "@/lib/services/grpc-clients"
 import {
   InitiateSignUpRequest,
-  VerifyAndSignUpRequest,
+  VerifyAndSignInRequest,
   SignUpStep,
 } from "@/lib/services/auth/sign-up/sign-up_pb"
 import { startWorkflow } from "@/lib/workflows"
@@ -46,7 +46,7 @@ export function useAuth(): AuthState & AuthHandlers {
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
   const oidc = useOidcAuth()
-  const client = createSignUpManagerClient()
+  const client = createSignUpServiceClient()
   const signupWorkflowRef = useRef<WorkflowHandle | null>(null)
 
   /** Ensure a workflow exists (optionally forcing a fresh one). */
@@ -187,7 +187,7 @@ export function useAuth(): AuthState & AuthHandlers {
       ensureSignupWorkflow()
       const step = signupWorkflowRef.current?.startStep("verifyAndCreateAccount")
       try {
-          const request = new VerifyAndSignUpRequest()
+          const request = new VerifyAndSignInRequest()
           request.setEmailAddress(email)
           request.setVerificationCode(otpCode)
 
@@ -195,7 +195,7 @@ export function useAuth(): AuthState & AuthHandlers {
           const derivedName = email.includes("@") ? email.split("@")[0] : email
           request.setName(derivedName || "User")
 
-          await runInStep(step, () => client.verifyAndSignUpAsync(request, {}))
+          await runInStep(step, () => client.verifyAndSignInAsync(request, {}))
 
           step?.succeed({email})
           signupWorkflowRef.current?.succeed()

@@ -54,25 +54,25 @@ export namespace InitiateSignUpResponse {
   }
 }
 
-export class VerifyAndSignUpRequest extends jspb.Message {
+export class VerifyAndSignInRequest extends jspb.Message {
   getEmailAddress(): string;
-  setEmailAddress(value: string): VerifyAndSignUpRequest;
+  setEmailAddress(value: string): VerifyAndSignInRequest;
 
   getName(): string;
-  setName(value: string): VerifyAndSignUpRequest;
+  setName(value: string): VerifyAndSignInRequest;
 
   getVerificationCode(): string;
-  setVerificationCode(value: string): VerifyAndSignUpRequest;
+  setVerificationCode(value: string): VerifyAndSignInRequest;
 
   serializeBinary(): Uint8Array;
-  toObject(includeInstance?: boolean): VerifyAndSignUpRequest.AsObject;
-  static toObject(includeInstance: boolean, msg: VerifyAndSignUpRequest): VerifyAndSignUpRequest.AsObject;
-  static serializeBinaryToWriter(message: VerifyAndSignUpRequest, writer: jspb.BinaryWriter): void;
-  static deserializeBinary(bytes: Uint8Array): VerifyAndSignUpRequest;
-  static deserializeBinaryFromReader(message: VerifyAndSignUpRequest, reader: jspb.BinaryReader): VerifyAndSignUpRequest;
+  toObject(includeInstance?: boolean): VerifyAndSignInRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: VerifyAndSignInRequest): VerifyAndSignInRequest.AsObject;
+  static serializeBinaryToWriter(message: VerifyAndSignInRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): VerifyAndSignInRequest;
+  static deserializeBinaryFromReader(message: VerifyAndSignInRequest, reader: jspb.BinaryReader): VerifyAndSignInRequest;
 }
 
-export namespace VerifyAndSignUpRequest {
+export namespace VerifyAndSignInRequest {
   export type AsObject = {
     emailAddress: string,
     name: string,

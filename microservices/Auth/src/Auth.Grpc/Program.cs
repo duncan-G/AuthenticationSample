@@ -58,8 +58,8 @@ app.Services.GetRequiredService<ILoggerFactory>()
 
 // Configure the HTTP request pipeline.
 app.MapGrpcService<GreeterService>();
-app.MapGrpcService<SignUpManager>();
-app.MapGrpcService<AuthorizationManager>();
+app.MapGrpcService<SignUpService>();
+app.MapGrpcService<AuthorizationService>();
 
 app.MapHealthChecks("/health");
 

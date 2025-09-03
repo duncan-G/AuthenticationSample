@@ -1,24 +1,22 @@
 using AuthSample.Auth.Grpc.Protos;
 using AuthSample.Auth.Grpc.Validators.SignUp;
-using FluentValidation;
-using Xunit;
 
 namespace AuthSample.Auth.UnitTests.Validators.SignUp;
 
-public class VerifyAndSignUpRequestValidatorTests
+public class VerifyAndSignInRequestValidatorTests
 {
-    private readonly VerifyAndSignUpRequestValidator _validator;
+    private readonly VerifyAndSignInRequestValidator _validator;
 
-    public VerifyAndSignUpRequestValidatorTests()
+    public VerifyAndSignInRequestValidatorTests()
     {
-        _validator = new VerifyAndSignUpRequestValidator();
+        _validator = new VerifyAndSignInRequestValidator();
     }
 
     [Fact]
     public void Should_Pass_When_All_Fields_Are_Valid()
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = "123456",
@@ -38,7 +36,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Fail_When_Email_Is_Empty_Or_Whitespace(string email)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = email,
             VerificationCode = "123456",
@@ -64,7 +62,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Fail_When_Email_Is_Invalid(string email)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = email,
             VerificationCode = "123456",
@@ -93,7 +91,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Pass_When_Email_Is_Valid(string email)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = email,
             VerificationCode = "123456",
@@ -113,7 +111,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Fail_When_VerificationCode_Is_Empty_Or_Whitespace(string verificationCode)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = verificationCode,
@@ -136,7 +134,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Fail_When_VerificationCode_Is_Invalid(string verificationCode)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = verificationCode,
@@ -160,7 +158,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Pass_When_VerificationCode_Is_Valid(string verificationCode)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = verificationCode,
@@ -180,7 +178,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Fail_When_Name_Is_Empty_Or_Whitespace(string name)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = "123456",
@@ -208,7 +206,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Pass_When_Name_Is_Valid(string name)
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = "123456",
@@ -227,7 +225,7 @@ public class VerifyAndSignUpRequestValidatorTests
     {
         // Arrange
         var longName = new string('A', 101); // 101 characters
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = "123456",
@@ -249,7 +247,7 @@ public class VerifyAndSignUpRequestValidatorTests
     {
         // Arrange
         var maxLengthName = new string('A', 100); // Exactly 100 characters
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = "123456",
@@ -267,7 +265,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Have_Correct_Error_Message_For_VerificationCode_Too_Short()
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = "12345",
@@ -288,7 +286,7 @@ public class VerifyAndSignUpRequestValidatorTests
     public void Should_Have_Correct_Error_Message_For_VerificationCode_Too_Long()
     {
         // Arrange
-        var request = new VerifyAndSignUpRequest
+        var request = new VerifyAndSignInRequest
         {
             EmailAddress = "test@example.com",
             VerificationCode = "1234567",

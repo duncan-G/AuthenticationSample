@@ -1,12 +1,18 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using AuthSample.Auth.Core.Exceptions;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace AuthSample.Auth.Core.Identity;
 
 public class IdentityService(
+    IConnectionMultiplexer  cache,
     IIdentityGateway identityGateway,
     ILogger<IdentityService> logger) : IIdentityService
 {
+    private readonly IDatabase _cacheDb = cache.GetDatabase();
+
     public async Task<SignUpStep> InitiateSignUpAsync(InitiateSignUpRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -18,20 +24,22 @@ public class IdentityService(
         return await InitiatePasswordlessSignUpAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task VerifySignUpAndSignInAsync(string emailAddress, string verificationCode,
+    public async Task<SessionId> VerifySignUpAndSignInAsync(string emailAddress, string verificationCode,
         CancellationToken cancellationToken = default)
     {
-        var session = await identityGateway.VerifySignUpAsync(
+        var signUpSession = await identityGateway.VerifySignUpAsync(
             new VerifySignUpRequest(emailAddress, verificationCode),
             cancellationToken).ConfigureAwait(false);
 
-        await identityGateway.InitiateAuthAsync(emailAddress, session, cancellationToken).ConfigureAwait(false);
-    }
+        var sessionData = await identityGateway.InitiateAuthAsync(emailAddress, signUpSession, cancellationToken).ConfigureAwait(false);
+        var sessionId = GenerateSessionId();
+        var cacheKey = $"sess:{sessionId}";
+        var payload = JsonSerializer.Serialize(sessionData);
+        var ttl = sessionData.Expiry - DateTime.UtcNow;
 
-    public async Task<bool> IsEmailTakenAsync(string emailAddress, CancellationToken cancellationToken = default)
-    {
-        var availability = await identityGateway.GetSignUpAvailabilityAsync(emailAddress, cancellationToken).ConfigureAwait(false);
-        return availability.Status == AvailabilityStatus.AlreadySignedUp;
+        await _cacheDb.StringSetAsync(cacheKey, payload, ttl).ConfigureAwait(false);
+
+        return new SessionId(sessionId, sessionData.Expiry);
     }
 
     private async Task<SignUpStep> InitiatePasswordSignUpAsync(InitiateSignUpRequest request,
@@ -109,5 +117,12 @@ public class IdentityService(
 
             return SignUpStep.VerificationRequired;
         }
+    }
+
+    private static string GenerateSessionId(int numBytes = 32)
+    {
+        var bytes = RandomNumberGenerator.GetBytes(numBytes);
+        var base64 = Convert.ToBase64String(bytes);
+        return base64.Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
 }
