@@ -91,6 +91,19 @@ static_resources:
                       value: { string_value: "ReverseProxy" }
                     - key: "service.instance.id"
                       value: { string_value: "ReverseProxy" }
+              filter:
+                and_filter:
+                  filters:
+                    - header_filter:
+                        header:
+                          name: ":path"
+                          prefix_match: "/otlp/"
+                          invert_match: true
+                    - header_filter:
+                        header:
+                          name: "x-envoy-original-path"
+                          prefix_match: "/otlp/"
+                          invert_match: true
             tracing:
               provider:
                 name: envoy.tracers.opentelemetry
@@ -178,6 +191,19 @@ static_resources:
                       value: { string_value: "ReverseProxy" }
                     - key: "service.instance.id"
                       value: { string_value: "ReverseProxy" }
+              filter:
+                and_filter:
+                  filters:
+                    - header_filter:
+                        header:
+                          name: ":path"
+                          prefix_match: "/otlp/"
+                          invert_match: true
+                    - header_filter:
+                        header:
+                          name: "x-envoy-original-path"
+                          prefix_match: "/otlp/"
+                          invert_match: true
             tracing:
               provider:
                 name: envoy.tracers.opentelemetry

@@ -98,6 +98,7 @@ export function initWebTelemetry(serviceName: string = "auth-sample-web") {
     }
   } catch {}
 
+  // Register instrumentations without wrapping them in the 'page' span context
   registerInstrumentations({
     instrumentations: [
       new DocumentLoadInstrumentation(),
@@ -152,6 +153,5 @@ export function getTracer(name: string = "web") {
   return trace.getTracer(name);
 }
 
-// runWithTracing removed in favor of workflow-based tracing
 
 

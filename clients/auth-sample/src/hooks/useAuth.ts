@@ -208,6 +208,11 @@ export function useAuth(): AuthState & AuthHandlers {
           setSignupMethod(undefined)
           setCurrentFlow("signup-main")
           setErrorMessage(undefined)
+
+          // Redirect to home after successful sign up
+          if (typeof window !== "undefined") {
+            window.location.replace("/")
+          }
       } catch (err) {
           handleApiError(err, setErrorMessage, step)
       }

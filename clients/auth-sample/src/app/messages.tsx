@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { createGreeterClient } from "@/lib/services/grpc-clients";
-import { HelloRequest } from "@/components/services/auth/greet/greet_pb";
+import { HelloRequest } from "@/lib/services/auth/greet/greet_pb";
 import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 interface Message {

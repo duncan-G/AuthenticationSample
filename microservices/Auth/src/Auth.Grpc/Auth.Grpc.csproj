@@ -10,6 +10,13 @@
 
     <ItemGroup>
         <Protobuf Include="Protos\**\*.proto" GrpcServices="Server" ProtoRoot="Protos"/>
+        <Protobuf Update="Protos\authz.proto">
+          <Access>Public</Access>
+          <ProtoCompile>True</ProtoCompile>
+          <CompileOutputs>True</CompileOutputs>
+          <OutputDir>obj\Debug/net9.0/</OutputDir>
+          <Generator>MSBuild:Compile</Generator>
+        </Protobuf>
     </ItemGroup>
 
     <ItemGroup>
