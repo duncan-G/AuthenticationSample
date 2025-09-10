@@ -1,5 +1,5 @@
 /**
- * @fileoverview gRPC-Web generated client stub for auth
+ * @fileoverview gRPC-Web generated client stub for greet
  * @enhanceable
  * @public
  */
@@ -8,7 +8,7 @@
 // versions:
 // 	protoc-gen-grpc-web v1.5.0
 // 	protoc              v6.31.0
-// source: authz.proto
+// source: greet.proto
 
 
 /* eslint-disable */
@@ -17,10 +17,10 @@
 
 import * as grpcWeb from 'grpc-web';
 
-import * as google_protobuf_empty_pb from 'google-protobuf/google/protobuf/empty_pb'; // proto import: "google/protobuf/empty.proto"
+import * as greet_pb from './greet_pb'; // proto import: "greet.proto"
 
 
-export class AuthorizationServiceClient {
+export class GreeterClient {
   client_: grpcWeb.AbstractClientBase;
   hostname_: string;
   credentials_: null | { [index: string]: string; };
@@ -39,47 +39,47 @@ export class AuthorizationServiceClient {
     this.options_ = options;
   }
 
-  methodDescriptorCheck = new grpcWeb.MethodDescriptor(
-    '/auth.AuthorizationService/Check',
+  methodDescriptorSayHello = new grpcWeb.MethodDescriptor(
+    '/greet.Greeter/SayHello',
     grpcWeb.MethodType.UNARY,
-    google_protobuf_empty_pb.Empty,
-    google_protobuf_empty_pb.Empty,
-    (request: google_protobuf_empty_pb.Empty) => {
+    greet_pb.HelloRequest,
+    greet_pb.HelloReply,
+    (request: greet_pb.HelloRequest) => {
       return request.serializeBinary();
     },
-    google_protobuf_empty_pb.Empty.deserializeBinary
+    greet_pb.HelloReply.deserializeBinary
   );
 
-  check(
-    request: google_protobuf_empty_pb.Empty,
-    metadata?: grpcWeb.Metadata | null): Promise<google_protobuf_empty_pb.Empty>;
+  sayHello(
+    request: greet_pb.HelloRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<greet_pb.HelloReply>;
 
-  check(
-    request: google_protobuf_empty_pb.Empty,
+  sayHello(
+    request: greet_pb.HelloRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: google_protobuf_empty_pb.Empty) => void): grpcWeb.ClientReadableStream<google_protobuf_empty_pb.Empty>;
+               response: greet_pb.HelloReply) => void): grpcWeb.ClientReadableStream<greet_pb.HelloReply>;
 
-  check(
-    request: google_protobuf_empty_pb.Empty,
+  sayHello(
+    request: greet_pb.HelloRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: google_protobuf_empty_pb.Empty) => void) {
+               response: greet_pb.HelloReply) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +
-          '/auth.AuthorizationService/Check',
+          '/greet.Greeter/SayHello',
         request,
         metadata || {},
-        this.methodDescriptorCheck,
+        this.methodDescriptorSayHello,
         callback);
     }
     return this.client_.unaryCall(
     this.hostname_ +
-      '/auth.AuthorizationService/Check',
+      '/greet.Greeter/SayHello',
     request,
     metadata || {},
-    this.methodDescriptorCheck);
+    this.methodDescriptorSayHello);
   }
 
 }

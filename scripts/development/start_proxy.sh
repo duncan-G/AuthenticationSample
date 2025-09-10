@@ -25,6 +25,8 @@ export PROCESSED_ORIGINS=$(echo -e "$ORIGIN_YAML" | sed '$d') # Remove last newl
 
 export AUTH_HOST=host.docker.internal
 export AUTH_PORT=10000
+export GREETER_HOST=host.docker.internal
+export GREETER_PORT=10001
 
 echo "Starting Envoy proxy with unified configuration"
 
@@ -39,8 +41,8 @@ envsubst < infrastructure/envoy/envoy.cds.yaml > "$TEMP_DIR/envoy.cds.yaml"
 envsubst < infrastructure/envoy/envoy.yaml > "$TEMP_DIR/envoy.yaml"
 envsubst < infrastructure/envoy/envoy.sds.yaml > "$TEMP_DIR/envoy.sds.yaml"
 
-# Create docker configs - process RDS, directly use others
-docker config create envoy_config_$VERSION infrastructure/envoy/envoy.yaml
+# Create docker configs using processed files
+docker config create envoy_config_$VERSION "$TEMP_DIR/envoy.yaml"
 docker config create envoy_clusters_$VERSION "$TEMP_DIR/envoy.cds.yaml"
 docker config create envoy_routes_$VERSION "$TEMP_DIR/envoy.rds.yaml"
 docker config create envoy_secrets_$VERSION "$TEMP_DIR/envoy.sds.yaml"
@@ -67,4 +69,5 @@ if [ "$CURRENT_VERSION" -gt 0 ]; then
     delete_config "envoy_clusters_$CURRENT_VERSION"
     delete_config "envoy_routes_$CURRENT_VERSION"
     delete_config "envoy_secrets_$CURRENT_VERSION"
+    delete_config "envoy_ca_secrets_$CURRENT_VERSION"
 fi

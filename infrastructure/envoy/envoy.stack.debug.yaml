@@ -24,6 +24,8 @@ services:
         target: /etc/envoy/certs/fullchain.pem
       - source: cert.key
         target: /etc/envoy/certs/cert.key
+      - source: ca.crt
+        target: /etc/envoy/certs/ca.crt
     deploy:
       labels:
         version: ${VERSION}
@@ -68,4 +70,6 @@ secrets:
   cert.pem:
     external: true
   cert.key:
+    external: true
+  ca.crt:
     external: true

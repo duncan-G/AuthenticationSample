@@ -50,6 +50,7 @@ export function initWebTelemetry(serviceName: string = "auth-sample-web") {
   }
 
   const shouldExportSpan = (span: ReadableSpan): boolean => {
+    // Restrict spans here
     return true;
   };
 
@@ -104,44 +105,17 @@ export function initWebTelemetry(serviceName: string = "auth-sample-web") {
       new DocumentLoadInstrumentation(),
       new FetchInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
+        ignoreUrls: [
+          /otlp/,
+        ],
         clearTimingResources: true,
-        applyCustomAttributesOnSpan: (span, request, result) => {
-          try {
-            span.setAttribute("http.request.method", (request as Request).method);
-            const res = result as Response | { response?: { status?: number } } | undefined | null;
-            const status = res instanceof Response ? res.status : res?.response?.status;
-            if (typeof status === "number") {
-              span.setAttribute("http.response.status_code", status);
-              if (status >= 400) {
-                span.setStatus({ code: SpanStatusCode.ERROR });
-                span.addEvent("exception", {
-                  "exception.type": "HTTPError",
-                  "exception.message": `HTTP ${status}`,
-                  "exception.escaped": true,
-                });
-              }
-            }
-          } catch {}
-        },
       }),
       new XMLHttpRequestInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
-        applyCustomAttributesOnSpan: (span, xhr) => {
-          try {
-            const status = xhr.status;
-            if (typeof status === "number") {
-              span.setAttribute("http.response.status_code", status);
-              if (status >= 400) {
-                span.setStatus({ code: SpanStatusCode.ERROR });
-                span.addEvent("exception", {
-                  "exception.type": "HTTPError",
-                  "exception.message": `HTTP ${status}`,
-                  "exception.escaped": true,
-                });
-              }
-            }
-          } catch {}
-        },
+        ignoreUrls: [
+          /otlp/,
+        ],
+        clearTimingResources: true,
       }),
     ],
   });

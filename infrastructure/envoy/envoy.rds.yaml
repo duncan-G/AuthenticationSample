@@ -50,10 +50,10 @@ $PROCESSED_ORIGINS
               "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
               disabled: true
         - match:
-            prefix: "/auth/auth.AuthorizationService/"
+            prefix: "/auth/"
           route:
             cluster: auth_cluster
-            prefix_rewrite: "/auth.AuthorizationService/"
+            prefix_rewrite: "/"
             timeout: 0s
             max_stream_duration:
               grpc_timeout_header_max: 0s
@@ -62,9 +62,9 @@ $PROCESSED_ORIGINS
               "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
               disabled: true
         - match:
-            prefix: "/auth/" 
+            prefix: "/greet/"
           route:
-            cluster: auth_cluster
+            cluster: greeter_cluster
             prefix_rewrite: "/"
             timeout: 0s
             max_stream_duration:

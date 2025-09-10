@@ -1,25 +1,40 @@
+using System.Linq;
 using Google.Rpc;
 using Grpc.Core;
 using StackExchange.Redis;
 using Envoy.Service.Auth.V3;
 using AuthSample.Authentication;
+using Microsoft.Extensions.Options;
 
 namespace AuthSample.Auth.Grpc.Services.Internal;
 
-public sealed class AuthorizationService(
+public sealed class InternalAuthorizationService(
     IConnectionMultiplexer cache,
     TokenValidationParametersHelper tokenParameterHelper,
+    IOptions<AuthOptions> authOptions,
     ILogger<AuthorizationService> logger) : Authorization.AuthorizationBase
 {
     public override async Task<CheckResponse> Check(CheckRequest request, ServerCallContext context)
     {
-        var cookieHeader = request.Attributes.Request.Http.Headers
-            .FirstOrDefault(h => h.Key.Equals("cookie", StringComparison.OrdinalIgnoreCase)).Value;
+        // Safely read the cookie header from ext_authz request attributes
+        string? cookieHeader = null;
+        var httpAttributes = request.Attributes?.Request?.Http;
+        if (httpAttributes?.Headers != null)
+        {
+            // Try direct map lookup (case-sensitive)
+            if (!httpAttributes.Headers.TryGetValue("cookie", out cookieHeader))
+            {
+                // Fallback to case-insensitive search
+                cookieHeader = httpAttributes.Headers
+                    .FirstOrDefault(h => h.Key.Equals("cookie", StringComparison.OrdinalIgnoreCase)).Value;
+            }
+        }
 
         var result = await AuthorizationValidationHelper.ValidateFromCookieHeaderAsync(
             cookieHeader,
             cache,
             tokenParameterHelper,
+            authOptions.Value,
             logger,
             context.CancellationToken).ConfigureAwait(false);
 
@@ -35,6 +50,8 @@ public sealed class AuthorizationService(
     {
         var okResponse = new OkHttpResponse();
         okResponse.Headers.Add(new HeaderValueOption { Header = new HeaderValue { Key = "x-user-sub", Value = data.Sub } });
+        // Instruct Envoy to add the access token as an Authorization header to the upstream request
+        okResponse.Headers.Add(new HeaderValueOption { Header = new HeaderValue { Key = "authorization", Value = $"Bearer {data.AccessToken}" } });
 
         return new CheckResponse
         {

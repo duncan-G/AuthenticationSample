@@ -82,9 +82,11 @@ else
 
   declare -A SERVICE_DIRS=(
     [auth]="Auth"
+    [greeter]="Greeter"
   )
   declare -A SERVICE_CSPROJ=(
     [auth]="src/Auth.Grpc/Auth.Grpc.csproj"
+    [greeter]="Greeter/Greeter.csproj"
   )
 
   mkdir -p "$LOG_DIR" "$PID_DIR"

@@ -85,7 +85,7 @@ public static class RateLimiterHttpContextExtensions
         RateLimiter limiter,
         CancellationToken cancellationToken = default)
     {
-        using var activity = ActivitySource.StartActivity("rate_limit.enforce", ActivityKind.Internal);
+        using var activity = ActivitySource.StartActivity("rate_limit.enforce");
         activity?.SetTag("http.request.method", context.Request.Method);
         activity?.SetTag("http.route", context.Request.Path.ToString());
         var userId = context.GetUserIdentifier();

@@ -10,19 +10,36 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="be6fae81-c3e9-4005-a034-879191f1bd73" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.node.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/server/trace.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_grpc_pb.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../Greeter/Greeter/Greeter.csproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/package-lock.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/app/messages.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/app/messages.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/hooks/useAuth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/hooks/useAuth.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.node.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.node.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/AuthzServiceClientPb.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_pb.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_pb.js" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_pb.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/grpc-clients.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/grpc-clients.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/telemetry.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/telemetry.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.cds.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.cds.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.rds.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.rds.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libraries/Authentication/src/AuthenticationServiceCollectionExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Authentication/src/AuthenticationServiceCollectionExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libraries/Authentication/src/TokenValidationParametersHelper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Authentication/src/TokenValidationParametersHelper.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Auth.Grpc.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Auth.Grpc.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Protos/internal/authz.proto" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Protos/authz.proto" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Protos/greet.proto" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationValidationHelper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationValidationHelper.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/GreeterService.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/Internal/AuthorizationService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/Internal/InternalAuthorizationService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/restart_microservice.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/restart_microservice.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/setup.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/setup.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_client.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_client.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -55,6 +72,7 @@
 }</component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/1ddf2618918a42e096014b866fb9d45b24200/31/fdd1ed18/RateLimiter.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/457530be4752476295767457c3639889d1a000/d9/37c880c5/ConfiguredTaskAwaitable`1.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/4dc5d2f96678478cb8386b88493a3620d19e00/38/462a09d5/StackFrameIterator.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/4dc5d2f96678478cb8386b88493a3620d19e00/80/c738c3cc/DateTime.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/4dc5d2f96678478cb8386b88493a3620d19e00/b4/1f860b01/ConfiguredTaskAwaitable`1.cs" root0="FORCE_HIGHLIGHTING" />
@@ -89,6 +107,7 @@
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/9acbe04d54c9624a0c3fdeece5e7efe272818734f307f1323a72dabb733c3b4/Unmarshaller.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/9e86c3ea3ae433bc7c87cfb655f15d439c9e4a23166e4f22bb595d9df620b1/IDistributedCache.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/a948f60d7c0236066732525221e6a2b86f43638979726a3794b5bc42f7b7e46/ErrorHandler.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/a9541a905a749c8682a75c2948742a74fa5943b26d7f24babdb22e17506370e1/ActivityExtensions.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/af76282f2695155c6dd85e826debe1f42914c99cfc2d722529a5668964be/AdminSetUserPasswordRequest.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/b1474476e53b8b178d66423312d5b1b8235e2dc7078962c644d7e9d372159/ErrorCallbackHandler.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/b4551a744f1657d9db0021157c2a94bbe07a991ec6fc6e7f1ccb692efa417/InitiateAuthRequest.cs" root0="FORCE_HIGHLIGHTING" />
@@ -116,7 +135,6 @@
     <setting file="file://$PROJECT_DIR$/src/Auth.Core/Identity/SessionId.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Auth.Core/Identity/SignUpStep.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file:///usr/lib/dotnet/sdk/9.0.108/Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_9_default.globalconfig" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
   <component name="ProjectColorInfo">{
@@ -127,39 +145,46 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    ".NET Launch Settings Profile.Authentication.Grpc: https.executor": "Debug",
-    "Attach to Process.1153809:Auth.executor": "Debug",
-    "Attach to Process.140293:Auth.executor": "Debug",
-    "Attach to Process.169668:Auth.executor": "Debug",
-    "Attach to Process.288637:Auth.executor": "Debug",
-    "Attach to Process.297635:Auth.executor": "Debug",
-    "Attach to Process.29949:Auth.executor": "Debug",
-    "Attach to Process.304234:Auth.executor": "Debug",
-    "Attach to Process.345825:Auth.executor": "Debug",
-    "Attach to Process.360587:Auth.executor": "Debug",
-    "Attach to Process.364836:Auth.executor": "Debug",
-    "Attach to Process.389504:Auth.executor": "Debug",
-    "Attach to Process.394046:Auth.executor": "Debug",
-    "Attach to Process.396394:Auth.executor": "Debug",
-    "Attach to Process.399707:Auth.executor": "Debug",
-    "Attach to Process.90744:Auth.executor": "Debug",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "#79 on feature/sign-up",
-    "last_opened_file_path": "/home/duncan/Projects/AuthenticationSample/libraries/Api/src/Api.csproj",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "reference.settings.ide.settings.notifications",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;.NET Launch Settings Profile.Authentication.Grpc: https.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1153809:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.140293:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.169668:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.287496:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.288637:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.294547:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.297635:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.29949:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.304234:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.321483:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.336501:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.345825:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.350719:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.360587:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.364836:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.389504:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.394046:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.396394:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.399707:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.39980:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.526698:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.90744:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;#79 on feature/sign-up&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/duncan/Projects/AuthSample/microservices/GreeterService/GreeterService.sln&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settings.ide.settings.notifications&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected=".NET Launch Settings Profile.Authentication.Grpc: https">
     <configuration name="Authentication.SchemaBuilder" type="DotNetProject" factoryName=".NET Project">
       <option name="EXE_PATH" value="" />
@@ -228,6 +253,10 @@
       <workItem from="1756762407050" duration="19470000" />
       <workItem from="1756830158820" duration="13250000" />
       <workItem from="1756916078849" duration="4574000" />
+      <workItem from="1757028008574" duration="212000" />
+      <workItem from="1757130865078" duration="14000" />
+      <workItem from="1757292507911" duration="7376000" />
+      <workItem from="1757313023567" duration="2187000" />
     </task>
     <task id="LOCAL-00001" summary="clean terraform config">
       <option name="closed" value="true" />
@@ -353,17 +382,30 @@
           <option name="timeStamp" value="23" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs</url>
-          <line>14</line>
-          <properties documentPath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" containingFunctionPresentation="Method 'Check'">
+          <url>file://$PROJECT_DIR$/src/Auth.Grpc/Services/Internal/InternalAuthorizationService.cs</url>
+          <line>17</line>
+          <properties documentPath="$PROJECT_DIR$/src/Auth.Grpc/Services/Internal/InternalAuthorizationService.cs" containingFunctionPresentation="Method 'Check'">
             <startOffsets>
-              <option value="463" />
+              <option value="586" />
             </startOffsets>
             <endOffsets>
-              <option value="506" />
+              <option value="744" />
             </endOffsets>
           </properties>
-          <option name="timeStamp" value="24" />
+          <option name="timeStamp" value="29" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs</url>
+          <line>17</line>
+          <properties documentPath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" containingFunctionPresentation="Method 'Check'">
+            <startOffsets>
+              <option value="571" />
+            </startOffsets>
+            <endOffsets>
+              <option value="614" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="30" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

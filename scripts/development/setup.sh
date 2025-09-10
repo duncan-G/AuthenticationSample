@@ -29,3 +29,4 @@ postgres_image_name="auth-sample/postgres"
 cd "infrastructure/postgres"
 docker build -t $postgres_image_name:latest .
 cd $working_dir
+

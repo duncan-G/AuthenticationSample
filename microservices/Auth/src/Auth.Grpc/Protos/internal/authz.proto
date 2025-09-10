@@ -2,6 +2,7 @@ syntax = "proto3";
 
 option csharp_namespace = "Envoy.Service.Auth.V3";
 
+import "google/protobuf/struct.proto";
 import "google/protobuf/wrappers.proto";
 import "google/rpc/status.proto";
 
@@ -19,14 +20,30 @@ message CheckResponse {
   google.rpc.Status status = 1;
 
   oneof http_response {
-    OkHttpResponse ok_response = 2;
+    // Must be field 2 per Envoy v3 API
+    DeniedHttpResponse denied_response = 2;
+    // Must be field 3 per Envoy v3 API
+    OkHttpResponse ok_response = 3;
   }
+
+  // Field 4 per Envoy v3 API (optional)
+  google.protobuf.Struct dynamic_metadata = 4;
 }
 
 message OkHttpResponse {
-  // A list of headers to be added to the upstream request.
+  // Field 2 per Envoy v3 API: request headers to add/override
   repeated HeaderValueOption headers = 2;
+
+  // Field 5 per Envoy v3 API: headers to remove
+  repeated string headers_to_remove = 5;
+
+  // Field 6 per Envoy v3 API: response headers to add to downstream on success
+  repeated HeaderValueOption response_headers_to_add = 6;
 }
+
+// Minimal placeholder to keep oneof tag alignment with Envoy v3 API.
+// We don't set this from server responses today.
+message DeniedHttpResponse {}
 
 message HeaderValueOption {
   HeaderValue header = 1;
@@ -40,11 +57,13 @@ message HeaderValue {
 
 message AttributeContext {
   message Request {
-    message Http {
+    message HttpRequest {
       // All the request headers.
       map<string, string> headers = 3;
     }
-    Http http = 4;
+    // Must be field 2 per Envoy v3 API
+    HttpRequest http = 2;
   }
-  Request request = 2;
+  // Must be field 4 per Envoy v3 API
+  Request request = 4;
 }

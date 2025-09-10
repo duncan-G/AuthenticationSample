@@ -2,8 +2,8 @@ using Amazon.CognitoIdentityProvider;
 using AuthSample.Api.Exceptions;
 using AuthSample.Api.RateLimiting;
 using AuthSample.Api.Secrets;
-using AuthSample.Auth.Core;
 using AuthSample.Auth.Grpc.Services;
+using AuthSample.Auth.Grpc.Services.Internal;
 using AuthSample.Auth.Infrastructure.Cognito;
 using AuthSample.Authentication;
 using AuthSample.Infrastructure;
@@ -11,7 +11,6 @@ using AuthSample.Logging;
 using AuthSample.Api.Validation;
 using AuthSample.Auth.Core.Identity;
 using FluentValidation;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,9 +27,8 @@ builder.Configuration
 // Configure logging
 builder.AddLogging(options => builder.Configuration.Bind("ApplicationLogging", options));
 
-// Configure cache
+// Configure rate limiting
 builder.Services.AddRedisRateLimiter(options => builder.Configuration.Bind("Redis", options));
-builder.Services.AddStackExchangeRedisCache(options => builder.Configuration.Bind("Redis", options));
 
 // Add services to the container.
 builder.Services.AddGrpc(options =>
@@ -57,9 +55,9 @@ app.Services.GetRequiredService<ILoggerFactory>()
     .ConfigureAWSSDKLogging();
 
 // Configure the HTTP request pipeline.
-app.MapGrpcService<GreeterService>();
 app.MapGrpcService<SignUpService>();
 app.MapGrpcService<AuthorizationService>();
+app.MapGrpcService<InternalAuthorizationService>();
 
 app.MapHealthChecks("/health");
 

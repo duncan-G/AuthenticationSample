@@ -1,8 +1,9 @@
+using AuthSample.Greeter.Protos;
 using Grpc.Core;
 
-namespace AuthSample.Auth.Grpc.Services;
+namespace AuthSample.Greeter.Services;
 
-public class GreeterService(ILogger<GreeterService> logger) : Greeter.GreeterBase
+public class GreeterService(ILogger<GreeterService> logger) : Protos.Greeter.GreeterBase
 {
     private static readonly string[] Greetings =
     [

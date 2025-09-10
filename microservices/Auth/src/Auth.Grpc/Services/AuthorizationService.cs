@@ -1,5 +1,7 @@
+using AuthSample.Authentication;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace AuthSample.Auth.Grpc.Services;
@@ -7,6 +9,7 @@ namespace AuthSample.Auth.Grpc.Services;
 public sealed class AuthorizationService(
     IConnectionMultiplexer cache,
     TokenValidationParametersHelper tokenParametersHelper,
+    IOptions<AuthOptions> authOptions,
     ILogger<AuthorizationService> logger)
     : Protos.AuthorizationService.AuthorizationServiceBase
 {
@@ -19,6 +22,7 @@ public sealed class AuthorizationService(
             cookieHeader,
             cache,
             tokenParametersHelper,
+            authOptions.Value,
             logger,
             context.CancellationToken).ConfigureAwait(false);
 

@@ -20,12 +20,15 @@ containerize_microservices=false
 # Service registry (extend as more microservices are added)
 SERVICES=(
   auth
+  greeter
 )
 
 declare -A SERVICE_DIRS=(
-    [auth]="Auth")
+    [auth]="Auth"
+    [greeter]="Greeter")
 declare -A SERVICE_CSPROJ=(
     [auth]="src/Auth.Grpc/Auth.Grpc.csproj"
+    [greeter]="Greeter/Greeter.csproj"
 )
 
 # Parse options

@@ -1,16 +1,25 @@
-using AuthSample.Authentication;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 
-namespace AuthSample.Auth.Grpc;
+namespace AuthSample.Authentication;
 
-public sealed class TokenValidationParametersHelper(IOptions<AuthOptions> options)
+public sealed class TokenValidationParametersHelper
 {
-    public async Task<TokenValidationParameters> GetTokenValidationParameters(CancellationToken ct = default)
+    private readonly IOptions<AuthOptions> _options;
+    private readonly ConfigurationManager<OpenIdConnectConfiguration> _configurationManager;
+
+    public TokenValidationParametersHelper(IOptions<AuthOptions> options)
     {
-        var authority = options.Value.Authority.TrimEnd('/');
+        _options = options;
+
+        var authority = _options.Value.Authority?.TrimEnd('/') ?? string.Empty;
+        if (string.IsNullOrEmpty(authority))
+        {
+            throw new InvalidOperationException("Authority is not configured. Check your Authentication configuration section.");
+        }
+
         var metadataAddress = $"{authority}/.well-known/openid-configuration";
 
         var httpRetriever = new HttpDocumentRetriever
@@ -18,14 +27,26 @@ public sealed class TokenValidationParametersHelper(IOptions<AuthOptions> option
             RequireHttps = true
         };
 
-        var configurationManager =
-            new ConfigurationManager<OpenIdConnectConfiguration>(
-                metadataAddress,
-                new OpenIdConnectConfigurationRetriever(),
-                httpRetriever
-            );
+        _configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+            metadataAddress,
+            new OpenIdConnectConfigurationRetriever(),
+            httpRetriever
+        )
+        {
+            // Cache metadata/JWKS; adjust as needed for your rotation cadence
+            AutomaticRefreshInterval = TimeSpan.FromHours(12),
+            RefreshInterval = TimeSpan.FromHours(1)
+        };
+    }
 
-        var discoveryDocument = await configurationManager.GetConfigurationAsync(ct).ConfigureAwait(false);
+    public async Task<TokenValidationParameters> GetTokenValidationParameters(CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(_options.Value.Audience))
+        {
+            throw new InvalidOperationException($"Audience is not configured. Check your Authentication configuration section. Authority: {_options.Value.Authority}");
+        }
+
+        var discoveryDocument = await _configurationManager.GetConfigurationAsync(ct).ConfigureAwait(false);
 
         return new TokenValidationParameters
         {
@@ -36,8 +57,7 @@ public sealed class TokenValidationParametersHelper(IOptions<AuthOptions> option
             // Prefer the discovered issuer to avoid subtle mismatches
             ValidIssuer = discoveryDocument.Issuer,
 
-            ValidateAudience = true,
-            ValidAudience = options.Value.Audience,
+            ValidateAudience = false,
 
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(60)

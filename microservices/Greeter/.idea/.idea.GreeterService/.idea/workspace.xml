@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="35a29c76-35d0-4f07-b980-713ca761490b" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/server/trace.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_grpc_pb.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Greeter/Greeter.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/app/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/app/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.node.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.node.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/instrumentation.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/AuthzServiceClientPb.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_pb.d.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_pb.js" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/authz/authz_pb.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/grpc-clients.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/grpc-clients.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/telemetry.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/telemetry.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.cds.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.cds.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.rds.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../../infrastructure/envoy/envoy.rds.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libraries/Authentication/src/AuthenticationServiceCollectionExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Authentication/src/AuthenticationServiceCollectionExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libraries/Authentication/src/TokenValidationParametersHelper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Authentication/src/TokenValidationParametersHelper.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Auth/.idea/.idea.Auth/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../Auth/.idea/.idea.Auth/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Program.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Protos/greet.proto" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Services/AuthorizationService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Services/AuthorizationService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Services/AuthorizationValidationHelper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Services/AuthorizationValidationHelper.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Services/GreeterService.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Services/Internal/AuthorizationService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../Auth/src/Auth.Grpc/Services/Internal/InternalAuthorizationService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/restart_microservice.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/restart_microservice.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/setup.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/setup.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_client.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_client.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "duncan-G"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/duncan-G/AuthenticationSample.git",
+    "accountId": "844a64a4-2ea3-4500-b90d-9f0ce28d9d86"
+  }
+}]]></component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="Toolset" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 1
+}]]></component>
+  <component name="ProjectId" id="32PAyNupmeI4GHMPAWkH10os7rr" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "#79 on feature/sign-up",
+    "last_opened_file_path": "/home/duncan/Projects/AuthSample/libraries/Logging/src/Logging.csproj",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager" selected=".NET Launch Settings Profile.GreeterService: http">
+    <configuration name="GreeterService: http" type="LaunchSettings" factoryName=".NET Launch Settings Profile">
+      <option name="LAUNCH_PROFILE_PROJECT_FILE_PATH" value="$PROJECT_DIR$/Greeter/Greeter.csproj" />
+      <option name="LAUNCH_PROFILE_TFM" value="net9.0" />
+      <option name="LAUNCH_PROFILE_NAME" value="http" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="USE_MONO" value="0" />
+      <option name="RUNTIME_ARGUMENTS" value="" />
+      <option name="GENERATE_APPLICATIONHOST_CONFIG" value="1" />
+      <option name="SHOW_IIS_EXPRESS_OUTPUT" value="0" />
+      <option name="SEND_DEBUG_REQUEST" value="1" />
+      <option name="ADDITIONAL_IIS_EXPRESS_ARGUMENTS" value="" />
+      <option name="AUTO_ATTACH_CHILDREN" value="0" />
+      <method v="2">
+        <option name="Build" />
+      </method>
+    </configuration>
+    <configuration name="GreeterService: https" type="LaunchSettings" factoryName=".NET Launch Settings Profile">
+      <option name="LAUNCH_PROFILE_PROJECT_FILE_PATH" value="$PROJECT_DIR$/Greeter/Greeter.csproj" />
+      <option name="LAUNCH_PROFILE_TFM" value="net9.0" />
+      <option name="LAUNCH_PROFILE_NAME" value="https" />
+      <option name="USE_EXTERNAL_CONSOLE" value="0" />
+      <option name="USE_MONO" value="0" />
+      <option name="RUNTIME_ARGUMENTS" value="" />
+      <option name="GENERATE_APPLICATIONHOST_CONFIG" value="1" />
+      <option name="SHOW_IIS_EXPRESS_OUTPUT" value="0" />
+      <option name="SEND_DEBUG_REQUEST" value="1" />
+      <option name="ADDITIONAL_IIS_EXPRESS_ARGUMENTS" value="" />
+      <option name="AUTO_ATTACH_CHILDREN" value="0" />
+      <method v="2">
+        <option name="Build" />
+      </method>
+    </configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="35a29c76-35d0-4f07-b980-713ca761490b" name="Changes" comment="" />
+      <created>1757312087464</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1757312087464</updated>
+      <workItem from="1757312088580" duration="3159000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="UnityProjectConfiguration" hasMinimizedUI="false" />
+</project>

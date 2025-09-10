@@ -69,6 +69,10 @@ generate_certificate() {
     
     # Also export in PEM format for other uses
     dotnet dev-certs https -ep "$cert_dir/cert.pem" --format PEM
+
+    # Create CA bundle for Envoy trust (use the same PEM as trusted CA in dev)
+    # In dev we accept the self-signed/root dev cert as a trusted CA
+    cp "$cert_dir/cert.pem" "$cert_dir/ca.crt"
     
     # Extract private key from PFX for Docker secrets
     openssl pkcs12 -in "$cert_dir/aspnetapp.pfx" -nocerts -out "$cert_dir/cert.key" -passin pass:"$cert_password" -passout pass: -nodes
@@ -124,7 +128,7 @@ generate_certificate "$cert_dir" "$CERTIFICATE_PASSWORD"
 
 # Create Docker secrets from the generated certificates
 # Remove existing secrets if they exist
-for secret in cert.pem cert.key aspnetapp.pfx; do
+for secret in cert.pem cert.key aspnetapp.pfx ca.crt; do
     if docker secret inspect "$secret" &>/dev/null; then
         docker secret rm "$secret"
     fi
@@ -134,6 +138,7 @@ done
 docker secret create cert.pem "$cert_dir/cert.pem"
 docker secret create cert.key "$cert_dir/cert.key"
 docker secret create aspnetapp.pfx "$cert_dir/aspnetapp.pfx"
+docker secret create ca.crt "$cert_dir/ca.crt"
 
 # Run Aspire Dashboard
 echo "Running Aspire Dashboard"
