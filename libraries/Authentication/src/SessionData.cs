@@ -7,4 +7,5 @@ public sealed record SessionData(
     DateTime AccessTokenExpiry,
     string RefreshToken,
     DateTime RefreshTokenExpiry,
-    string Sub);
+    string Sub,
+    string Email);

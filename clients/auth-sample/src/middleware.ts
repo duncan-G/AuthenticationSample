@@ -2,7 +2,7 @@ import {type NextRequest, NextResponse} from "next/server";
 import {trace, ROOT_CONTEXT, type TextMapGetter} from "@opentelemetry/api";
 import {W3CTraceContextPropagator} from "@opentelemetry/core";
 import {config as appConfig} from "@/lib/config";
-import {checkAuthentication} from "@/lib/server/authz-client";
+import {checkAuthentication, type AuthCheckResult} from "@/lib/server/authz-client";
 import {isProtectedRoute, isAuthRoute, createSignInRedirectUrl, createHomeRedirectUrl} from "@/lib/server/route-utils";
 import {hasIncomingTrace, injectSpanContextHeaders} from "@/lib/server/trace-utils";
 
@@ -47,18 +47,22 @@ export default async function middleware(request: NextRequest) {
         const isAuth = isAuthRoute(pathname);
 
         const cookieHeader = request.headers.get("cookie") ?? "";
-        const isAuthenticated = await checkAuthentication(
+        const authResult: AuthCheckResult = await checkAuthentication(
             appConfig.authServiceUrl,
             middlewareSpan,
             {cookie: cookieHeader}
         );
 
-        if (isProtected && !isAuthenticated) {
-            return NextResponse.redirect(createSignInRedirectUrl(request.url, pathname));
+        if (isProtected && !authResult.isAuthenticated) {
+            const res = NextResponse.redirect(createSignInRedirectUrl(request.url, pathname));
+            for (const c of authResult.setCookies) res.headers.append("set-cookie", c);
+            return res;
         }
 
-        if (isAuth && isAuthenticated) {
-            return NextResponse.redirect(createHomeRedirectUrl(request.url));
+        if (isAuth && authResult.isAuthenticated) {
+            const res = NextResponse.redirect(createHomeRedirectUrl(request.url));
+            for (const c of authResult.setCookies) res.headers.append("set-cookie", c);
+            return res;
         }
 
         // Inject W3C trace context so downstream work continues this trace
@@ -67,7 +71,9 @@ export default async function middleware(request: NextRequest) {
             injectSpanContextHeaders(headers, middlewareSpan);
         }
 
-        return NextResponse.next({request: {headers}});
+        const res = NextResponse.next({request: {headers}});
+        for (const c of authResult.setCookies) res.headers.append("set-cookie", c);
+        return res;
     } catch (error) {
         // Log the error for debugging
         console.error("Authentication check failed:", error);

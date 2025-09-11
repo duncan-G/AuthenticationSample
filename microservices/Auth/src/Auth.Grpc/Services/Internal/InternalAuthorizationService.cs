@@ -1,11 +1,6 @@
-using System.Linq;
-using System.Text.Json;
 using Google.Rpc;
 using Grpc.Core;
-using StackExchange.Redis;
 using Envoy.Service.Auth.V3;
-using AuthSample.Authentication;
-using Microsoft.Extensions.Options;
 using AuthSample.Auth.Core.Identity;
 
 namespace AuthSample.Auth.Grpc.Services.Internal;
@@ -29,24 +24,33 @@ public sealed class InternalAuthorizationService(
             }
         }
 
-        var session = await identityService.ResolveSessionAsync(
+        var resolved = await identityService.ResolveSessionAsync(
             cookieHeader,
             context.CancellationToken).ConfigureAwait(false);
 
-        if (session is not null)
+        if (resolved?.Session is not null)
         {
-            return AllowedResponse(session);
+            return AllowedResponse(resolved);
         }
 
-        return DeniedResponse(StatusCode.PermissionDenied, "Unauthorized");
+        return DeniedResponse(StatusCode.PermissionDenied, "Unauthorized", resolved);
     }
 
-    private static CheckResponse AllowedResponse(SessionData data)
+    private static CheckResponse AllowedResponse(ResolvedSession resolved)
     {
+        var data = resolved.Session!;
         var okResponse = new OkHttpResponse();
+
         okResponse.Headers.Add(new HeaderValueOption { Header = new HeaderValue { Key = "x-user-sub", Value = data.Sub } });
-        // Instruct Envoy to add the access token as an Authorization header to the upstream request
         okResponse.Headers.Add(new HeaderValueOption { Header = new HeaderValue { Key = "authorization", Value = $"Bearer {data.AccessToken}" } });
+
+        if (!string.IsNullOrEmpty(resolved.NewAccessTokenId) && resolved.AccessTokenExpiry.HasValue)
+        {
+            okResponse.ResponseHeadersToAdd.Add(new HeaderValueOption { Header = new HeaderValue {
+                Key = "Set-Cookie",
+                Value = $"AT_SID={resolved.NewAccessTokenId!}; Path=/; HttpOnly; Secure; SameSite=Strict; Expires={resolved.AccessTokenExpiry.Value.ToUniversalTime().ToString("R")}"
+            }});
+        }
 
         return new CheckResponse
         {
@@ -55,11 +59,21 @@ public sealed class InternalAuthorizationService(
         };
     }
 
-    private static CheckResponse DeniedResponse(StatusCode statusCode, string message)
+    private static CheckResponse DeniedResponse(StatusCode statusCode, string message, ResolvedSession? resolved)
     {
+        var deniedResponse = new DeniedHttpResponse();
+        if (resolved is not null && resolved.ShouldClearRefreshCookie)
+        {
+            deniedResponse.Headers.Add(new HeaderValueOption { Header = new HeaderValue {
+                Key = "Set-Cookie",
+                Value = "RT_SID=; Path=/; HttpOnly; Secure; SameSite=Strict; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+            }});
+        }
+
         return new CheckResponse
         {
-            Status = new Google.Rpc.Status { Code = (int)statusCode, Message = message }
+            Status = new Google.Rpc.Status { Code = (int)statusCode, Message = message },
+            DeniedResponse = deniedResponse
         };
     }
 }

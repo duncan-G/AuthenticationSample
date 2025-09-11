@@ -37,13 +37,16 @@ message OkHttpResponse {
   // Field 5 per Envoy v3 API: headers to remove
   repeated string headers_to_remove = 5;
 
-  // Field 6 per Envoy v3 API: response headers to add to downstream on success
+  // Field 6 per Envoy v3 API: response headers to add to downstream client
   repeated HeaderValueOption response_headers_to_add = 6;
 }
 
 // Minimal placeholder to keep oneof tag alignment with Envoy v3 API.
 // We don't set this from server responses today.
-message DeniedHttpResponse {}
+message DeniedHttpResponse {
+  // Field 2 per Envoy v3 API: response headers to add to downstream client
+  repeated HeaderValueOption headers = 2;
+}
 
 message HeaderValueOption {
   HeaderValue header = 1;

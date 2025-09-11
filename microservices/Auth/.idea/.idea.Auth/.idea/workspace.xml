@@ -11,32 +11,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="be6fae81-c3e9-4005-a034-879191f1bd73" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/components/auth/signup-email.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/components/auth/signup-email.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/hooks/useAuth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/hooks/useAuth.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/sign-up/Sign-upServiceClientPb.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/sign-up/Sign-upServiceClientPb.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/sign-up/sign-up_pb.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/sign-up/sign-up_pb.d.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/sign-up/sign-up_pb.js" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/auth/sign-up/sign-up_pb.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/handle-api-error.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/handle-api-error.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/server/authz-client.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/server/authz-client.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../libraries/Authentication/src/SessionData.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Authentication/src/SessionData.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityGateway.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityGateway.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityService.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/IdentityService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/IdentityService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/SessionId.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/ClientSession.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/.env.template" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/.env.template" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Protos/sign-up.proto" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Protos/sign-up.proto" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/RefreshTokenRecord.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/RefreshTokenRecord.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Protos/internal/authz.proto" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Protos/internal/authz.proto" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/Internal/InternalAuthorizationService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/Internal/InternalAuthorizationService.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/SignUpService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/SignUpService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/appsettings.Development.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/appsettings.Development.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Infrastructure/Auth.Infrastructure.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Infrastructure/Auth.Infrastructure.csproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoOptions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoOptions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.SchemaBuilder/Auth.SchemaBuilder.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.SchemaBuilder/Auth.SchemaBuilder.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.SchemaBuilder/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.SchemaBuilder/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/setup.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/setup.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_database.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_database.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Infrastructure/DynamoDb/DynamoDbRefreshTokenStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Infrastructure/DynamoDb/DynamoDbRefreshTokenStore.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -106,6 +94,7 @@
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/8fd8535987ca3b82de1b365e78cf5ef6bd1905d3642a284de35eead6bb3f4/Status.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/9085ca9855d1f1ddabe676fa20717c422b4f5cc7989459fe424675a312474e6/MetricsHandler.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/93c4117df23eac83ff3f8ba21656ac5aea41368f545f5c6ffd4f12c9c6935/HttpDocumentRetriever.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/95e55ee65e1116b96bd4d77ba15aa4740f384741038a28c83a9db6b2cdba96/InitiateAuthResponse.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/96dcc9e57f1c97da5d6e55d45139b42bebd289a36680625852c9cc0286ff37/RpcException.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/9acbe04d54c9624a0c3fdeece5e7efe272818734f307f1323a72dabb733c3b4/Unmarshaller.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/9e86c3ea3ae433bc7c87cfb655f15d439c9e4a23166e4f22bb595d9df620b1/IDistributedCache.cs" root0="FORCE_HIGHLIGHTING" />
@@ -156,6 +145,14 @@
     "Attach to Process.1153809:Auth.executor": "Debug",
     "Attach to Process.140293:Auth.executor": "Debug",
     "Attach to Process.169668:Auth.executor": "Debug",
+    "Attach to Process.1810388:Auth.executor": "Debug",
+    "Attach to Process.1832919:Auth.executor": "Debug",
+    "Attach to Process.1846003:Auth.executor": "Debug",
+    "Attach to Process.2035581:Auth.executor": "Debug",
+    "Attach to Process.2057760:Auth.executor": "Debug",
+    "Attach to Process.2068742:Auth.executor": "Debug",
+    "Attach to Process.2083157:Auth.executor": "Debug",
+    "Attach to Process.2128545:Auth.executor": "Debug",
     "Attach to Process.287496:Auth.executor": "Debug",
     "Attach to Process.288637:Auth.executor": "Debug",
     "Attach to Process.294547:Auth.executor": "Debug",
@@ -183,6 +180,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
+    "XThreadsFramesViewSplitterKey": "0.40858504",
     "git-widget-placeholder": "#79 on feature/sign-up",
     "last_opened_file_path": "/home/duncan/Projects/TheDuncanGichimu/Microservices/AuthService/AuthService.sln",
     "node.js.detected.package.eslint": "true",
@@ -285,7 +283,7 @@
       <workItem from="1757313023567" duration="2187000" />
       <workItem from="1757525269770" duration="5257000" />
       <workItem from="1757533262564" duration="1078000" />
-      <workItem from="1757550078029" duration="10866000" />
+      <workItem from="1757550078029" duration="19925000" />
     </task>
     <task id="LOCAL-00001" summary="clean terraform config">
       <option name="closed" value="true" />
@@ -398,30 +396,43 @@
           <option name="timeStamp" value="23" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/../../libraries/Authentication/src/TokenValidationParametersHelper.cs</url>
-          <line>16</line>
-          <properties documentPath="$PROJECT_DIR$/../../libraries/Authentication/src/TokenValidationParametersHelper.cs" containingFunctionPresentation="Constructor 'TokenValidationParametersHelper'">
+          <url>file://$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs</url>
+          <line>15</line>
+          <properties documentPath="$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" containingFunctionPresentation="Method 'Check'">
             <startOffsets>
-              <option value="527" />
+              <option value="514" />
             </startOffsets>
             <endOffsets>
-              <option value="598" />
+              <option value="592" />
             </endOffsets>
           </properties>
-          <option name="timeStamp" value="31" />
+          <option name="timeStamp" value="40" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Auth.Infrastructure/DynamoDb/DynamoDbRefreshTokenStore.cs</url>
-          <line>33</line>
-          <properties documentPath="$PROJECT_DIR$/src/Auth.Infrastructure/DynamoDb/DynamoDbRefreshTokenStore.cs" containingFunctionPresentation="Method 'SaveAsync'">
+          <url>file://$PROJECT_DIR$/src/Auth.Core/Identity/IdentityService.cs</url>
+          <line>222</line>
+          <properties documentPath="$PROJECT_DIR$/src/Auth.Core/Identity/IdentityService.cs" containingFunctionPresentation="Method 'SignInAsync'">
             <startOffsets>
-              <option value="1237" />
+              <option value="9242" />
             </startOffsets>
             <endOffsets>
-              <option value="1516" />
+              <option value="9595" />
             </endOffsets>
           </properties>
-          <option name="timeStamp" value="37" />
+          <option name="timeStamp" value="41" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs</url>
+          <line>343</line>
+          <properties documentPath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" containingFunctionPresentation="Method 'InitiateAuthAsync'">
+            <startOffsets>
+              <option value="14777" />
+            </startOffsets>
+            <endOffsets>
+              <option value="15219" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="42" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

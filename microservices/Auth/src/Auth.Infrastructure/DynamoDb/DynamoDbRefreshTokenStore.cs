@@ -25,8 +25,10 @@ public sealed class DynamoDbRefreshTokenStore(
             ["pk"] = new() { S = $"RTID#{record.RtId}" },
             ["sk"] = new() { S = $"v1" },
             ["userSub"] = new() { S = record.UserSub },
+            ["userEmail"] = new() { S = record.UserEmail },
             ["refreshToken"] = new() { S = record.RefreshToken },
             ["issuedAtUtc"] = new() { S = record.IssuedAtUtc.ToString("O") },
+            ["expiresAtUtc"] = new() { S = record.ExpiresAtUtc.ToString("O") },
         };
 
         try
@@ -70,18 +72,19 @@ public sealed class DynamoDbRefreshTokenStore(
 
         var item = response.Item;
         var userSub = item.TryGetValue("userSub", out var userSubAttr) ? userSubAttr.S : null;
+        var userEmail = item.TryGetValue("userSub", out var userEmailAttr) ? userEmailAttr.S : null;
         var refreshToken = item.TryGetValue("refreshToken", out var rtAttr) ? rtAttr.S : null;
         var issuedAtStr = item.TryGetValue("issuedAtUtc", out var issuedAttr) ? issuedAttr.S : null;
         var expiresAtStr = item.TryGetValue("expiresAtUtc", out var expiresAttr) ? expiresAttr.S : null;
 
-        if (string.IsNullOrWhiteSpace(userSub) || string.IsNullOrWhiteSpace(refreshToken))
+        if (string.IsNullOrWhiteSpace(userSub) || string.IsNullOrWhiteSpace(userEmail) || string.IsNullOrWhiteSpace(refreshToken))
         {
             logger.LogWarning("Refresh token record for rtId {RtId} missing required attributes", rtId);
             return null;
         }
 
-        DateTime issuedAtUtc = DateTime.MinValue;
-        DateTime expiresAtUtc = DateTime.MinValue;
+        var issuedAtUtc = DateTime.MinValue;
+        var expiresAtUtc = DateTime.MinValue;
         if (!string.IsNullOrWhiteSpace(issuedAtStr))
         {
             DateTime.TryParse(issuedAtStr, out issuedAtUtc);
@@ -91,6 +94,6 @@ public sealed class DynamoDbRefreshTokenStore(
             DateTime.TryParse(expiresAtStr, out expiresAtUtc);
         }
 
-        return new RefreshTokenRecord(rtId, userSub!, refreshToken!, issuedAtUtc, expiresAtUtc);
+        return new RefreshTokenRecord(rtId, userSub,  userEmail, refreshToken, issuedAtUtc, expiresAtUtc);
     }
 }

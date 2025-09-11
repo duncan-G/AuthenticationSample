@@ -337,6 +337,10 @@ public sealed class CognitoIdentityGateway(
             var response = await cognitoIdentityProvider.InitiateAuthAsync(initiateAuthRequest, cancellationToken)
                 .ConfigureAwait(false);
             activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
+
+            var idJwt = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler()
+                .ReadJwtToken(response.AuthenticationResult.IdToken);
+            var cognitoUsername = idJwt.Claims.First(c => c.Type == "cognito:username").Value;
             return new SessionData(
                 now,
                 response.AuthenticationResult.AccessToken,
@@ -344,6 +348,7 @@ public sealed class CognitoIdentityGateway(
                 now.AddSeconds((double)response.AuthenticationResult.ExpiresIn!),
                 response.AuthenticationResult.RefreshToken,
                 now.AddDays(cognitoOptions.Value.RefreshTokenExpirationDays),
+                cognitoUsername,
                 emailAddress);
         }
         catch (AmazonServiceException ex)
@@ -359,7 +364,7 @@ public sealed class CognitoIdentityGateway(
         }
     }
 
-    public async Task<SessionData> RefreshSessionAsync(string refreshToken, CancellationToken cancellationToken = default)
+    public async Task<SessionData> RefreshSessionAsync(RefreshTokenRecord refreshTokenRecord, CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity(
             $"{nameof(CognitoIdentityGateway)}.{nameof(RefreshSessionAsync)}");
@@ -372,7 +377,8 @@ public sealed class CognitoIdentityGateway(
             ClientId = cognitoOptions.Value.ClientId,
             AuthParameters = new Dictionary<string, string>
             {
-                { "REFRESH_TOKEN", refreshToken }
+                { "REFRESH_TOKEN", refreshTokenRecord.RefreshToken },
+                { "SECRET_HASH", ComputeSecretHash(refreshTokenRecord.UserSub) }
             },
         };
 
@@ -392,10 +398,11 @@ public sealed class CognitoIdentityGateway(
                 now,
                 accessToken,
                 idToken,
-                now.AddSeconds((double)expiresIn),
-                refreshToken,
+                now.AddSeconds(expiresIn),
+                refreshTokenRecord.RefreshToken,
                 now.AddDays(cognitoOptions.Value.RefreshTokenExpirationDays),
-                string.Empty);
+                refreshTokenRecord.UserSub,
+                refreshTokenRecord.UserEmail);
         }
         catch (AmazonServiceException ex)
         {

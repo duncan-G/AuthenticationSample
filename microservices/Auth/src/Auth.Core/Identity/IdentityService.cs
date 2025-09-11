@@ -4,6 +4,7 @@ using System.Text.Json;
 using AuthSample.Auth.Core.Exceptions;
 using AuthSample.Authentication;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 
@@ -11,7 +12,7 @@ namespace AuthSample.Auth.Core.Identity;
 
 public class IdentityService(
     IConnectionMultiplexer cache,
-    AuthOptions authOptions,
+    IOptions<AuthOptions> authOptions,
     IIdentityGateway identityGateway,
     IRefreshTokenStore refreshTokenStore,
     TokenValidationParametersHelper tokenParameterHelper,
@@ -48,50 +49,47 @@ public class IdentityService(
         }
     }
 
-    public async Task<SessionData?> ResolveSessionAsync(
+    public async Task<ResolvedSession?> ResolveSessionAsync(
         string? cookieHeader,
         CancellationToken cancellationToken = default)
     {
         var accessTokenSessionId = ParseCookie(cookieHeader, "AT_SID");
 
-        if (string.IsNullOrEmpty(accessTokenSessionId))
-        {
-            logger.LogInformation("No AT_SID cookie found.");
-            return null;
-        }
-
         var cacheKey = $"sess:{accessTokenSessionId}";
-        var sessionJson = await _cacheDb.StringGetAsync(cacheKey).ConfigureAwait(false);
-        if (sessionJson.HasValue)
+        if (!string.IsNullOrEmpty(accessTokenSessionId))
         {
-            var sessionData = JsonSerializer.Deserialize<SessionData>(sessionJson.ToString());
-            if (sessionData != null)
+            var sessionJson = await _cacheDb.StringGetAsync(cacheKey).ConfigureAwait(false);
+            if (sessionJson.HasValue)
             {
-                try
+                var sessionData = JsonSerializer.Deserialize<SessionData>(sessionJson.ToString());
+                if (sessionData != null)
                 {
-                    var validationParameters = await tokenParameterHelper.GetTokenValidationParameters(cancellationToken).ConfigureAwait(false);
-
-                    var handler = new JwtSecurityTokenHandler();
-                    var token = handler.ReadJwtToken(sessionData.AccessToken);
-                    var clientIdClaim = token.Claims.FirstOrDefault(c => c.Type == "client_id")?.Value;
-
-                    handler.ValidateToken(sessionData.AccessToken, validationParameters, out _);
-
-                    if (string.IsNullOrEmpty(clientIdClaim) || clientIdClaim != authOptions.Audience)
+                    try
                     {
-                        throw new SecurityTokenValidationException("Invalid or missing client_id claim");
-                    }
+                        var validationParameters = await tokenParameterHelper.GetTokenValidationParameters(cancellationToken).ConfigureAwait(false);
 
-                    return sessionData;
-                }
-                catch (SecurityTokenExpiredException)
-                {
-                    // proceed to refresh path
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Token validation failed; attempting refresh if possible");
-                    // proceed to refresh path
+                        var handler = new JwtSecurityTokenHandler();
+                        var token = handler.ReadJwtToken(sessionData.AccessToken);
+                        var clientIdClaim = token.Claims.FirstOrDefault(c => c.Type == "client_id")?.Value;
+
+                        handler.ValidateToken(sessionData.AccessToken, validationParameters, out _);
+
+                        if (string.IsNullOrEmpty(clientIdClaim) || clientIdClaim != authOptions.Value.Audience)
+                        {
+                            throw new SecurityTokenValidationException("Invalid or missing client_id claim");
+                        }
+
+                        return new ResolvedSession(sessionData, null, null, false);
+                    }
+                    catch (SecurityTokenExpiredException)
+                    {
+                        // proceed to refresh path
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Token validation failed; attempting refresh if possible");
+                        // proceed to refresh path
+                    }
                 }
             }
         }
@@ -104,25 +102,34 @@ public class IdentityService(
         }
 
         var refreshRecord = await refreshTokenStore.GetAsync(refreshTokenId, cancellationToken).ConfigureAwait(false);
-        if (refreshRecord is null || refreshRecord.ExpiresAtUtc <= DateTime.UtcNow)
+        if (refreshRecord is null)
         {
-            return null;
+            // Invalid RT_SID, instruct caller to clear refresh cookie
+            return new ResolvedSession(null, null, null, true);
         }
 
         try
         {
-            var refreshed = await identityGateway.RefreshSessionAsync(refreshRecord.RefreshToken, cancellationToken).ConfigureAwait(false);
+            var refreshed = await identityGateway.RefreshSessionAsync(refreshRecord, cancellationToken).ConfigureAwait(false);
             var sessionToCache = refreshed with { RefreshToken = string.Empty, Sub = refreshRecord.UserSub };
             var payload = JsonSerializer.Serialize(sessionToCache);
             var ttl = sessionToCache.AccessTokenExpiry - DateTime.UtcNow;
             if (ttl <= TimeSpan.Zero) ttl = TimeSpan.FromSeconds(1);
+
+            // If AT_SID is missing, create a new one
+            if (string.IsNullOrEmpty(accessTokenSessionId))
+            {
+                accessTokenSessionId = GenerateSessionId();
+                cacheKey = $"sess:{accessTokenSessionId}";
+            }
+
             await _cacheDb.StringSetAsync(cacheKey, payload, ttl).ConfigureAwait(false);
-            return sessionToCache;
+            return new ResolvedSession(sessionToCache, accessTokenSessionId, sessionToCache.AccessTokenExpiry, false);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to refresh session from cookies");
-            return null;
+            return new ResolvedSession(null, null, null, false);
         }
     }
 
@@ -217,6 +224,7 @@ public class IdentityService(
             new RefreshTokenRecord(
                 refreshTokenId,
                 sessionData.Sub,
+                sessionData.Email,
                 sessionData.RefreshToken,
                 sessionData.IssuedAt,
                 sessionData.RefreshTokenExpiry),

@@ -1,11 +1,7 @@
 using AuthSample.Api.RateLimiting;
 using AuthSample.Auth.Core.Identity;
 using AuthSample.Auth.Grpc.Protos;
-using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
-using StackExchange.Redis;
-using System.Text.Json;
-using System.Security.Cryptography;
 using InitiateSignUpRequest = AuthSample.Auth.Grpc.Protos.InitiateSignUpRequest;
 using SignUpStep = AuthSample.Auth.Grpc.Protos.SignUpStep;
 

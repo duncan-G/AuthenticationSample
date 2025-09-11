@@ -73,11 +73,27 @@ async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Promise<T
  * Returns true when authenticated, false when explicitly unauthenticated/denied.
  * Throws on other gRPC errors or network issues.
  */
+export type AuthCheckResult = {
+  isAuthenticated: boolean;
+  setCookies: string[];
+};
+
+function extractSetCookies(res: Response): string[] {
+  const cookies: string[] = [];
+  // Iterate all headers to capture multiple Set-Cookie values
+  res.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie" && value) {
+      cookies.push(value);
+    }
+  });
+  return cookies;
+}
+
 export async function checkAuthentication(
   authServiceUrl: string | undefined,
   parentSpan?: Span,
   additionalMetadata?: Record<string, string>,
-): Promise<boolean> {
+): Promise<AuthCheckResult> {
   const tracer = trace.getTracer("middleware");
 
   // If a parent is provided, bind the new span to that context.
@@ -96,6 +112,7 @@ export async function checkAuthentication(
     const response = await context.with(activeCtx, () =>
       fetch(grpcWebUrl, { method: "POST", headers, body }),
     );
+    const setCookies = extractSetCookies(response);
 
     // Prefer explicit gRPC status from headers; fall back to HTTP status when missing.
     const { code, message } = readGrpcStatus(response);
@@ -104,13 +121,13 @@ export async function checkAuthentication(
       if (String(code) !== GRPC_STATUS_OK) {
         if (code === GRPC_UNAUTHENTICATED || code === GRPC_PERMISSION_DENIED) {
           span.setAttribute("auth.check.success", false);
-          return false;
+          return { isAuthenticated: false, setCookies };
         }
         throw new Error(`gRPC error: ${code}${message ? ` - ${message}` : ""}`);
       }
       // gRPC status OK
       span.setAttribute("auth.check.success", true);
-      return true;
+      return { isAuthenticated: true, setCookies };
     }
 
     if (response.status >= 400) {
@@ -121,7 +138,7 @@ export async function checkAuthentication(
     // No gRPC status header; rely on HTTP status.
     const ok = response.ok;
     span.setAttribute("auth.check.success", ok);
-    return ok;
+    return { isAuthenticated: ok, setCookies };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     span.recordException(err as Error);

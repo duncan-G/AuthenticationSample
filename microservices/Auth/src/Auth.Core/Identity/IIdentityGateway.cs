@@ -11,8 +11,6 @@ public interface IIdentityGateway
     Task<string> VerifySignUpAsync(VerifySignUpRequest request, CancellationToken cancellationToken = default);
     Task ResendSignUpVerificationAsync(InitiateSignUpRequest request, CancellationToken cancellationToken = default);
     Task ConfirmUserAsync(string emailAddress, CancellationToken cancellationToken = default);
-
     Task<SessionData> InitiateAuthAsync(string emailAddress, string sessionId, CancellationToken cancellationToken = default);
-
-    Task<SessionData> RefreshSessionAsync(string refreshToken, CancellationToken cancellationToken = default);
+    Task<SessionData> RefreshSessionAsync(RefreshTokenRecord refreshTokenRecord, CancellationToken cancellationToken = default);
 }
