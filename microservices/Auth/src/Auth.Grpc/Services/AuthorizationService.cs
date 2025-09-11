@@ -1,36 +1,27 @@
-using AuthSample.Authentication;
+using AuthSample.Auth.Core.Identity;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
-using Microsoft.Extensions.Options;
-using StackExchange.Redis;
+
 
 namespace AuthSample.Auth.Grpc.Services;
 
 public sealed class AuthorizationService(
-    IConnectionMultiplexer cache,
-    TokenValidationParametersHelper tokenParametersHelper,
-    IOptions<AuthOptions> authOptions,
-    ILogger<AuthorizationService> logger)
+    IIdentityService identityService)
     : Protos.AuthorizationService.AuthorizationServiceBase
 {
     public override async Task<Empty> Check(Empty request, ServerCallContext context)
     {
-        var httpContext = context.GetHttpContext();
-        var cookieHeader = httpContext.Request.Headers.Cookie.ToString();
+        var cookieHeader = context.GetHttpContext().Request.Headers.Cookie.ToString();
 
-        var result = await AuthorizationValidationHelper.ValidateFromCookieHeaderAsync(
+        var session = await identityService.ResolveSessionAsync(
             cookieHeader,
-            cache,
-            tokenParametersHelper,
-            authOptions.Value,
-            logger,
             context.CancellationToken).ConfigureAwait(false);
 
-        if (result.IsValid)
+        if (session is not null)
         {
             return new Empty();
         }
 
-        throw new RpcException(new Status(result.FailureCode ?? StatusCode.PermissionDenied, result.FailureMessage ?? "Unauthorized"));
+        throw new RpcException(new Status(StatusCode.PermissionDenied, "Unauthorized"));
     }
 }

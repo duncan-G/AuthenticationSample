@@ -7,6 +7,8 @@ import { AuthDivider } from "./auth-divider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { validateEmail } from "@/lib/validation"
+import { friendlyMessageFor } from "@/lib/services/handle-api-error"
+import { ErrorCodes } from "@/lib/services/error-codes"
 
 interface SignUpEmailProps {
   email: string
@@ -173,6 +175,20 @@ export function SignUpEmail({
           </>
         )}
       </AuthCard>
+      {/* Reserved space below card to avoid layout shift when CTA appears */}
+      <div className="min-h-[40px] mt-6 flex items-center justify-center">
+        {!emailError && serverError === friendlyMessageFor[ErrorCodes.DuplicateEmail] && (
+          <p className="text-stone-300/80 text-sm text-center">
+            If this email belongs to you, then please {" "}
+            <a
+              href="/sign-in"
+              className="text-amber-200/90 hover:text-amber-100 underline font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-1"
+            >
+              Sign in
+            </a>
+          </p>
+        )}
+      </div>
     </div>
   )
 } 

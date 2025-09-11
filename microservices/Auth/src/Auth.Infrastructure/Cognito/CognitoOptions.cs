@@ -2,7 +2,9 @@ namespace AuthSample.Auth.Infrastructure.Cognito;
 
 public class CognitoOptions
 {
-    public string UserPoolId { get; set; } = null!;
-    public string ClientId { get; set; } = null!;
-    public string Secret { get; set; } = null!;
+    public required string UserPoolId { get; set; }
+    public required string ClientId { get; set; }
+    public required string Secret { get; set; }
+
+    public required int RefreshTokenExpirationDays { get; set; }
 }

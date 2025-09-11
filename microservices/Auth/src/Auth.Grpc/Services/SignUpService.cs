@@ -38,24 +38,33 @@ public class SignUpService(
         return new InitiateSignUpResponse { NextStep = (SignUpStep)nextStep };
     }
 
-    public override async Task<Empty> VerifyAndSignInAsync(VerifyAndSignInRequest request, ServerCallContext context)
+    public override async Task<VerifyAndSignInResponse> VerifyAndSignInAsync(VerifyAndSignInRequest request, ServerCallContext context)
     {
         await context.GetHttpContext()
             .EnforceFixedByEmailAsync(request.EmailAddress, 3600, 5, cancellationToken: context.CancellationToken)
             .ConfigureAwait(false);
 
         logger.LogInformation("Verifying sign up");
-        var sessionId = await identityService
+        var clientSession = await identityService
             .VerifySignUpAndSignInAsync(request.EmailAddress, request.VerificationCode, context.CancellationToken)
             .ConfigureAwait(false);
 
-        var cookie = $"AT_SID={sessionId.Value}; Path=/; HttpOnly; Secure; SameSite=Strict; Expires={sessionId.Expiry.ToUniversalTime():R}";
-        await context.WriteResponseHeadersAsync(new Metadata
-        {
-            { "set-cookie", cookie }
-        }).ConfigureAwait(false);
-
         logger.LogInformation("Sign up completed");
-        return new Empty();
+
+        if (clientSession is not null)
+        {
+            var accessTokenCookie =
+                $"AT_SID={clientSession.AccessTokenId}; Path=/; HttpOnly; Secure; SameSite=Strict; Expires={clientSession.AccessTokenExpiry.ToUniversalTime():R}";
+            var refreshTokenCookie =
+                $"RT_SID={clientSession.RefreshTokenId}; Path=/; HttpOnly; Secure; SameSite=Strict; Expires={clientSession.RefreshTokenExpiry.ToUniversalTime():R}";
+            await context.WriteResponseHeadersAsync(new Metadata
+            {
+                { "set-cookie", accessTokenCookie }, { "set-cookie", refreshTokenCookie }
+            }).ConfigureAwait(false);
+
+            return new VerifyAndSignInResponse { NextStep = SignUpStep.RedirectRequired };
+        }
+
+        return new VerifyAndSignInResponse { NextStep = SignUpStep.SignInRequired };
     }
 }

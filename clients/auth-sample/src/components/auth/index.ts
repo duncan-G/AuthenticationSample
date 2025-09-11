@@ -10,6 +10,7 @@ export { MainSignUp } from "./main-sign-up"
 export { SignUpEmail } from "./signup-email"
 export { SignUpPassword } from "./signup-password"
 export { SignUpVerification } from "./signup-verification"
+export { SignUpSuccess } from "./signup-success"
 
 // Shared components
 export { AuthCard } from "./auth-card"

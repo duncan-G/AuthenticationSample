@@ -9,13 +9,15 @@ package auth;
 service SignUpService {
   rpc InitiateSignUpAsync (InitiateSignUpRequest) returns (InitiateSignUpResponse);
 
-  rpc VerifyAndSignInAsync (VerifyAndSignInRequest) returns (google.protobuf.Empty);
+  rpc VerifyAndSignInAsync (VerifyAndSignInRequest) returns (VerifyAndSignInResponse);
 }
 
 enum SignUpStep {
   UNSPECIFIED = 0;
   PASSWORD_REQUIRED = 1;
   VERIFICATION_REQUIRED = 2;
+  SIGN_IN_REQUIRED= 3;
+  REDIRECT_REQUIRED = 4;
 }
 
 message InitiateSignUpRequest {
@@ -32,4 +34,8 @@ message VerifyAndSignInRequest {
   string email_address = 1;
   string name = 3;
   string verification_code = 2;
+}
+
+message VerifyAndSignInResponse {
+  SignUpStep next_step = 1;
 }

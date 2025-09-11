@@ -64,6 +64,9 @@ env DATABASE_NAME=$DATABASE_NAME \
 # Start Redis
 env docker stack deploy --compose-file infrastructure/redis/redis.stack.debug.yaml redis
 
+# Start DynamoDB Local
+env docker stack deploy --compose-file infrastructure/dynamo-db/dynamo-db.stack.debug.yaml dynamo-db
+
 # Run Schema Builders
 if [ "$rebuild" = true ]; then
     cd microservices/Auth/src/Auth.SchemaBuilder

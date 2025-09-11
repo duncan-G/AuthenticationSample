@@ -80,8 +80,28 @@ export namespace VerifyAndSignInRequest {
   }
 }
 
+export class VerifyAndSignInResponse extends jspb.Message {
+  getNextStep(): SignUpStep;
+  setNextStep(value: SignUpStep): VerifyAndSignInResponse;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): VerifyAndSignInResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: VerifyAndSignInResponse): VerifyAndSignInResponse.AsObject;
+  static serializeBinaryToWriter(message: VerifyAndSignInResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): VerifyAndSignInResponse;
+  static deserializeBinaryFromReader(message: VerifyAndSignInResponse, reader: jspb.BinaryReader): VerifyAndSignInResponse;
+}
+
+export namespace VerifyAndSignInResponse {
+  export type AsObject = {
+    nextStep: SignUpStep,
+  }
+}
+
 export enum SignUpStep { 
   UNSPECIFIED = 0,
   PASSWORD_REQUIRED = 1,
   VERIFICATION_REQUIRED = 2,
+  SIGN_IN_REQUIRED = 3,
+  REDIRECT_REQUIRED = 4,
 }

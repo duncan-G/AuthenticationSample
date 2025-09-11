@@ -5,7 +5,7 @@ export const friendlyMessageFor: Record<KnownErrorCode, string> = {
     [ErrorCodes.MissingParameter]: "A required parameter is missing.",
     [ErrorCodes.InvalidParameter]: "An invalid parameter was provided.",
     [ErrorCodes.InvalidLength]: "An invalid length was provided.",
-    [ErrorCodes.DuplicateEmail]: "An account with this email already exists.",
+    [ErrorCodes.DuplicateEmail]: "This email is already in use.",
     [ErrorCodes.UserNotFound]: "We couldn't find an account with that email.",
     [ErrorCodes.VerificationCodeMismatch]: "That code doesn't look right. Please try again.",
     [ErrorCodes.VerificationCodeExpired]: "That code has expired. Request a new one to continue.",

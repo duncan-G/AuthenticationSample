@@ -1,14 +1,20 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text.Json;
 using AuthSample.Auth.Core.Exceptions;
+using AuthSample.Authentication;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 
 namespace AuthSample.Auth.Core.Identity;
 
 public class IdentityService(
-    IConnectionMultiplexer  cache,
+    IConnectionMultiplexer cache,
+    AuthOptions authOptions,
     IIdentityGateway identityGateway,
+    IRefreshTokenStore refreshTokenStore,
+    TokenValidationParametersHelper tokenParameterHelper,
     ILogger<IdentityService> logger) : IIdentityService
 {
     private readonly IDatabase _cacheDb = cache.GetDatabase();
@@ -24,22 +30,100 @@ public class IdentityService(
         return await InitiatePasswordlessSignUpAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<SessionId> VerifySignUpAndSignInAsync(string emailAddress, string verificationCode,
+    public async Task<ClientSession?> VerifySignUpAndSignInAsync(string emailAddress, string verificationCode,
         CancellationToken cancellationToken = default)
     {
         var signUpSession = await identityGateway.VerifySignUpAsync(
             new VerifySignUpRequest(emailAddress, verificationCode),
             cancellationToken).ConfigureAwait(false);
 
-        var sessionData = await identityGateway.InitiateAuthAsync(emailAddress, signUpSession, cancellationToken).ConfigureAwait(false);
-        var sessionId = GenerateSessionId();
-        var cacheKey = $"sess:{sessionId}";
-        var payload = JsonSerializer.Serialize(sessionData);
-        var ttl = sessionData.Expiry - DateTime.UtcNow;
+        try
+        {
+            return await SignInAsync(emailAddress, signUpSession, cancellationToken).ConfigureAwait(false);
+        }
+        catch  (Exception ex)
+        {
+            logger.LogError(ex, "Failed to sign up after sign up.");
+            return null;
+        }
+    }
 
-        await _cacheDb.StringSetAsync(cacheKey, payload, ttl).ConfigureAwait(false);
+    public async Task<SessionData?> ResolveSessionAsync(
+        string? cookieHeader,
+        CancellationToken cancellationToken = default)
+    {
+        var accessTokenSessionId = ParseCookie(cookieHeader, "AT_SID");
 
-        return new SessionId(sessionId, sessionData.Expiry);
+        if (string.IsNullOrEmpty(accessTokenSessionId))
+        {
+            logger.LogInformation("No AT_SID cookie found.");
+            return null;
+        }
+
+        var cacheKey = $"sess:{accessTokenSessionId}";
+        var sessionJson = await _cacheDb.StringGetAsync(cacheKey).ConfigureAwait(false);
+        if (sessionJson.HasValue)
+        {
+            var sessionData = JsonSerializer.Deserialize<SessionData>(sessionJson.ToString());
+            if (sessionData != null)
+            {
+                try
+                {
+                    var validationParameters = await tokenParameterHelper.GetTokenValidationParameters(cancellationToken).ConfigureAwait(false);
+
+                    var handler = new JwtSecurityTokenHandler();
+                    var token = handler.ReadJwtToken(sessionData.AccessToken);
+                    var clientIdClaim = token.Claims.FirstOrDefault(c => c.Type == "client_id")?.Value;
+
+                    handler.ValidateToken(sessionData.AccessToken, validationParameters, out _);
+
+                    if (string.IsNullOrEmpty(clientIdClaim) || clientIdClaim != authOptions.Audience)
+                    {
+                        throw new SecurityTokenValidationException("Invalid or missing client_id claim");
+                    }
+
+                    return sessionData;
+                }
+                catch (SecurityTokenExpiredException)
+                {
+                    // proceed to refresh path
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Token validation failed; attempting refresh if possible");
+                    // proceed to refresh path
+                }
+            }
+        }
+
+        // Refresh path
+        var refreshTokenId = ParseCookie(cookieHeader, "RT_SID");
+        if (string.IsNullOrWhiteSpace(refreshTokenId))
+        {
+            return null;
+        }
+
+        var refreshRecord = await refreshTokenStore.GetAsync(refreshTokenId, cancellationToken).ConfigureAwait(false);
+        if (refreshRecord is null || refreshRecord.ExpiresAtUtc <= DateTime.UtcNow)
+        {
+            return null;
+        }
+
+        try
+        {
+            var refreshed = await identityGateway.RefreshSessionAsync(refreshRecord.RefreshToken, cancellationToken).ConfigureAwait(false);
+            var sessionToCache = refreshed with { RefreshToken = string.Empty, Sub = refreshRecord.UserSub };
+            var payload = JsonSerializer.Serialize(sessionToCache);
+            var ttl = sessionToCache.AccessTokenExpiry - DateTime.UtcNow;
+            if (ttl <= TimeSpan.Zero) ttl = TimeSpan.FromSeconds(1);
+            await _cacheDb.StringSetAsync(cacheKey, payload, ttl).ConfigureAwait(false);
+            return sessionToCache;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to refresh session from cookies");
+            return null;
+        }
     }
 
     private async Task<SignUpStep> InitiatePasswordSignUpAsync(InitiateSignUpRequest request,
@@ -119,10 +203,66 @@ public class IdentityService(
         }
     }
 
+    private async Task<ClientSession> SignInAsync(string emailAddress, string signUpSession,
+        CancellationToken cancellationToken)
+    {
+        var sessionData = await identityGateway.InitiateAuthAsync(emailAddress, signUpSession, cancellationToken)
+            .ConfigureAwait(false);
+
+        // Generate opaque refresh-session id
+        var refreshTokenId = GenerateSessionId();
+
+        // Persist the refresh token with rtId
+        await refreshTokenStore.SaveAsync(
+            new RefreshTokenRecord(
+                refreshTokenId,
+                sessionData.Sub,
+                sessionData.RefreshToken,
+                sessionData.IssuedAt,
+                sessionData.RefreshTokenExpiry),
+            cancellationToken).ConfigureAwait(false);
+
+        // Remove refresh token from cached session
+        var cachedSession = sessionData with { RefreshToken = string.Empty };
+
+        // Cache access session
+        var tokenId = GenerateSessionId();
+        var cacheKey = $"sess:{tokenId}";
+        var payload = JsonSerializer.Serialize(cachedSession);
+        var ttl = cachedSession.AccessTokenExpiry - DateTime.UtcNow;
+        await _cacheDb.StringSetAsync(cacheKey, payload, ttl).ConfigureAwait(false);
+
+        return new ClientSession(
+            tokenId,
+            cachedSession.AccessTokenExpiry,
+            refreshTokenId,
+            cachedSession.RefreshTokenExpiry);
+    }
+
     private static string GenerateSessionId(int numBytes = 32)
     {
         var bytes = RandomNumberGenerator.GetBytes(numBytes);
         var base64 = Convert.ToBase64String(bytes);
         return base64.Replace('+', '-').Replace('/', '_').TrimEnd('=');
+    }
+
+    private static string? ParseCookie(string? cookieHeader, string cookieName)
+    {
+        if (string.IsNullOrEmpty(cookieHeader))
+        {
+            return null;
+        }
+
+        var cookies = cookieHeader.Split(';');
+        foreach (var cookie in cookies)
+        {
+            var parts = cookie.Trim().Split('=');
+            if (parts.Length == 2 && parts[0].Equals(cookieName, StringComparison.OrdinalIgnoreCase))
+            {
+                return parts[1];
+            }
+        }
+
+        return null;
     }
 }

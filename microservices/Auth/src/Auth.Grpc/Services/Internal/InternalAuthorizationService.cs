@@ -1,18 +1,17 @@
 using System.Linq;
+using System.Text.Json;
 using Google.Rpc;
 using Grpc.Core;
 using StackExchange.Redis;
 using Envoy.Service.Auth.V3;
 using AuthSample.Authentication;
 using Microsoft.Extensions.Options;
+using AuthSample.Auth.Core.Identity;
 
 namespace AuthSample.Auth.Grpc.Services.Internal;
 
 public sealed class InternalAuthorizationService(
-    IConnectionMultiplexer cache,
-    TokenValidationParametersHelper tokenParameterHelper,
-    IOptions<AuthOptions> authOptions,
-    ILogger<AuthorizationService> logger) : Authorization.AuthorizationBase
+    IIdentityService identityService) : Authorization.AuthorizationBase
 {
     public override async Task<CheckResponse> Check(CheckRequest request, ServerCallContext context)
     {
@@ -30,20 +29,16 @@ public sealed class InternalAuthorizationService(
             }
         }
 
-        var result = await AuthorizationValidationHelper.ValidateFromCookieHeaderAsync(
+        var session = await identityService.ResolveSessionAsync(
             cookieHeader,
-            cache,
-            tokenParameterHelper,
-            authOptions.Value,
-            logger,
             context.CancellationToken).ConfigureAwait(false);
 
-        if (result.IsValid && result.Session is not null)
+        if (session is not null)
         {
-            return AllowedResponse(result.Session);
+            return AllowedResponse(session);
         }
 
-        return DeniedResponse(result.FailureCode ?? StatusCode.PermissionDenied, result.FailureMessage ?? "Unauthorized");
+        return DeniedResponse(StatusCode.PermissionDenied, "Unauthorized");
     }
 
     private static CheckResponse AllowedResponse(SessionData data)

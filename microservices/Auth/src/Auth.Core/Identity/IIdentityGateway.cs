@@ -13,4 +13,6 @@ public interface IIdentityGateway
     Task ConfirmUserAsync(string emailAddress, CancellationToken cancellationToken = default);
 
     Task<SessionData> InitiateAuthAsync(string emailAddress, string sessionId, CancellationToken cancellationToken = default);
+
+    Task<SessionData> RefreshSessionAsync(string refreshToken, CancellationToken cancellationToken = default);
 }

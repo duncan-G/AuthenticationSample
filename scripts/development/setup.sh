@@ -11,6 +11,7 @@ docker network prune -f
 docker pull mcr.microsoft.com/dotnet/aspire-dashboard:latest
 docker pull envoyproxy/envoy:v1.34-latest
 docker pull redis:latest
+docker pull amazon/dynamodb-local:latest
 
 # Pull mcp servers
 docker pull mcp/aws-documentation:latest
@@ -29,4 +30,3 @@ postgres_image_name="auth-sample/postgres"
 cd "infrastructure/postgres"
 docker build -t $postgres_image_name:latest .
 cd $working_dir
-

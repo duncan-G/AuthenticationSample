@@ -18,7 +18,6 @@
 import * as grpcWeb from 'grpc-web';
 
 import * as sign$up_pb from './sign-up_pb'; // proto import: "sign-up.proto"
-import * as google_protobuf_empty_pb from 'google-protobuf/google/protobuf/empty_pb'; // proto import: "google/protobuf/empty.proto"
 
 
 export class SignUpServiceClient {
@@ -87,28 +86,28 @@ export class SignUpServiceClient {
     '/auth.SignUpService/VerifyAndSignInAsync',
     grpcWeb.MethodType.UNARY,
     sign$up_pb.VerifyAndSignInRequest,
-    google_protobuf_empty_pb.Empty,
+    sign$up_pb.VerifyAndSignInResponse,
     (request: sign$up_pb.VerifyAndSignInRequest) => {
       return request.serializeBinary();
     },
-    google_protobuf_empty_pb.Empty.deserializeBinary
+    sign$up_pb.VerifyAndSignInResponse.deserializeBinary
   );
 
   verifyAndSignInAsync(
     request: sign$up_pb.VerifyAndSignInRequest,
-    metadata?: grpcWeb.Metadata | null): Promise<google_protobuf_empty_pb.Empty>;
+    metadata?: grpcWeb.Metadata | null): Promise<sign$up_pb.VerifyAndSignInResponse>;
 
   verifyAndSignInAsync(
     request: sign$up_pb.VerifyAndSignInRequest,
     metadata: grpcWeb.Metadata | null,
     callback: (err: grpcWeb.RpcError,
-               response: google_protobuf_empty_pb.Empty) => void): grpcWeb.ClientReadableStream<google_protobuf_empty_pb.Empty>;
+               response: sign$up_pb.VerifyAndSignInResponse) => void): grpcWeb.ClientReadableStream<sign$up_pb.VerifyAndSignInResponse>;
 
   verifyAndSignInAsync(
     request: sign$up_pb.VerifyAndSignInRequest,
     metadata?: grpcWeb.Metadata | null,
     callback?: (err: grpcWeb.RpcError,
-               response: google_protobuf_empty_pb.Empty) => void) {
+               response: sign$up_pb.VerifyAndSignInResponse) => void) {
     if (callback !== undefined) {
       return this.client_.rpcCall(
         this.hostname_ +

@@ -195,23 +195,25 @@ export function useAuth(): AuthState & AuthHandlers {
           const derivedName = email.includes("@") ? email.split("@")[0] : email
           request.setName(derivedName || "User")
 
-          await runInStep(step, () => client.verifyAndSignInAsync(request, {}))
+          const response = await runInStep(step, () => client.verifyAndSignInAsync(request, {}))
+          const nextStep = response.getNextStep()
 
-          step?.succeed({email})
-          signupWorkflowRef.current?.succeed()
-          signupWorkflowRef.current = null
-
-          // Reset state after success
-          setPassword("")
-          setPasswordConfirmation("")
-          setOtpCode("")
-          setSignupMethod(undefined)
-          setCurrentFlow("signup-main")
-          setErrorMessage(undefined)
-
-          // Redirect to home after successful sign up
-          if (typeof window !== "undefined") {
-            window.location.replace("/")
+          if (nextStep === SignUpStep.REDIRECT_REQUIRED) {
+            step?.succeed({ email })
+            signupWorkflowRef.current?.succeed()
+            signupWorkflowRef.current = null
+            if (typeof window !== "undefined") {
+              window.location.replace("/")
+            }
+          } else if (nextStep === SignUpStep.SIGN_IN_REQUIRED) {
+            step?.succeed({ email })
+            signupWorkflowRef.current?.succeed()
+            signupWorkflowRef.current = null
+            setErrorMessage(undefined)
+            setCurrentFlow("signup-success")
+          } else {
+            step?.fail(ErrorCodes.Unexpected, "Unknown error")
+            setErrorMessage(friendlyMessageFor[ErrorCodes.Unexpected])
           }
       } catch (err) {
           handleApiError(err, setErrorMessage, step)

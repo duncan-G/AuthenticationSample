@@ -14,7 +14,7 @@ namespace AuthSample.Auth.Infrastructure.Cognito;
 
 public sealed class CognitoIdentityGateway(
     ILogger<CognitoIdentityGateway> logger,
-    IOptions<CognitoOptions> authOptions,
+    IOptions<CognitoOptions> cognitoOptions,
     IAmazonCognitoIdentityProvider cognitoIdentityProvider) : IIdentityGateway
 {
     private static readonly ActivitySource ActivitySource = new("AuthSample.Auth.Infrastructure");
@@ -28,7 +28,7 @@ public sealed class CognitoIdentityGateway(
         activity?.SetTag("aws.cognito.operation", "AdminGetUser");
         activity?.SetTag("enduser.id", MaskEmail(email));
 
-        var request = new AdminGetUserRequest { Username = email, UserPoolId = authOptions.Value.UserPoolId };
+        var request = new AdminGetUserRequest { Username = email, UserPoolId = cognitoOptions.Value.UserPoolId };
 
         try
         {
@@ -83,7 +83,7 @@ public sealed class CognitoIdentityGateway(
 
         var signUpRequest = new SignUpRequest
         {
-            ClientId = authOptions.Value.ClientId,
+            ClientId = cognitoOptions.Value.ClientId,
             Username = request.EmailAddress,
             UserAttributes =
             [
@@ -148,7 +148,7 @@ public sealed class CognitoIdentityGateway(
 
         var signUpRequest = new ConfirmSignUpRequest
         {
-            ClientId = authOptions.Value.ClientId,
+            ClientId = cognitoOptions.Value.ClientId,
             ConfirmationCode = request.VerificationCode,
             Username = request.EmailAddress,
             SecretHash = ComputeSecretHash(request.EmailAddress)
@@ -236,7 +236,7 @@ public sealed class CognitoIdentityGateway(
 
         var resendRequest = new ResendConfirmationCodeRequest
         {
-            ClientId = authOptions.Value.ClientId,
+            ClientId = cognitoOptions.Value.ClientId,
             Username = request.EmailAddress,
             UserContextData = new UserContextDataType { IpAddress = request.IpAddress.ToString() },
             SecretHash = ComputeSecretHash(request.EmailAddress)
@@ -291,7 +291,7 @@ public sealed class CognitoIdentityGateway(
 
         var confirmSignUpRequest = new AdminConfirmSignUpRequest
         {
-            UserPoolId = authOptions.Value.UserPoolId, Username = emailAddress,
+            UserPoolId = cognitoOptions.Value.UserPoolId, Username = emailAddress,
         };
 
         try
@@ -323,7 +323,7 @@ public sealed class CognitoIdentityGateway(
         {
             Session = sessionId,
             AuthFlow = AuthFlowType.USER_AUTH,
-            ClientId = authOptions.Value.ClientId,
+            ClientId = cognitoOptions.Value.ClientId,
             AuthParameters = new Dictionary<string, string>
             {
                 { "USERNAME", emailAddress  },
@@ -333,14 +333,17 @@ public sealed class CognitoIdentityGateway(
 
         try
         {
+            var now = DateTime.UtcNow;
             var response = await cognitoIdentityProvider.InitiateAuthAsync(initiateAuthRequest, cancellationToken)
                 .ConfigureAwait(false);
             activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
             return new SessionData(
+                now,
                 response.AuthenticationResult.AccessToken,
                 response.AuthenticationResult.IdToken,
+                now.AddSeconds((double)response.AuthenticationResult.ExpiresIn!),
                 response.AuthenticationResult.RefreshToken,
-                DateTime.UtcNow.AddSeconds((double)response.AuthenticationResult.ExpiresIn!),
+                now.AddDays(cognitoOptions.Value.RefreshTokenExpirationDays),
                 emailAddress);
         }
         catch (AmazonServiceException ex)
@@ -356,13 +359,64 @@ public sealed class CognitoIdentityGateway(
         }
     }
 
+    public async Task<SessionData> RefreshSessionAsync(string refreshToken, CancellationToken cancellationToken = default)
+    {
+        using var activity = ActivitySource.StartActivity(
+            $"{nameof(CognitoIdentityGateway)}.{nameof(RefreshSessionAsync)}");
+
+        activity?.SetTag("aws.cognito.operation", "InitiateAuth");
+
+        var initiateAuthRequest = new InitiateAuthRequest
+        {
+            AuthFlow = AuthFlowType.REFRESH_TOKEN_AUTH,
+            ClientId = cognitoOptions.Value.ClientId,
+            AuthParameters = new Dictionary<string, string>
+            {
+                { "REFRESH_TOKEN", refreshToken }
+            },
+        };
+
+        try
+        {
+            var now = DateTime.UtcNow;
+            var response = await cognitoIdentityProvider.InitiateAuthAsync(initiateAuthRequest, cancellationToken)
+                .ConfigureAwait(false);
+            activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
+
+            var idToken = response.AuthenticationResult.IdToken;
+            var accessToken = response.AuthenticationResult.AccessToken;
+            var expiresIn = response.AuthenticationResult.ExpiresIn ?? 3600;
+
+            // Cognito does not always return refresh token on refresh flow; keep the same one
+            return new SessionData(
+                now,
+                accessToken,
+                idToken,
+                now.AddSeconds((double)expiresIn),
+                refreshToken,
+                now.AddDays(cognitoOptions.Value.RefreshTokenExpirationDays),
+                string.Empty);
+        }
+        catch (AmazonServiceException ex)
+        {
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("aws.request_id", ex.RequestId);
+            throw new CognitoOperationFailedException(
+                nameof(cognitoIdentityProvider.InitiateAuthAsync),
+                null,
+                "Failed to refresh authentication.",
+                ex);
+        }
+    }
+
     // https://docs.aws.amazon.com/cognito/latest/developerguide/signing-up-users-in-your-app.html#cognito-user-pools-computing-secret-hash
     private string ComputeSecretHash(string email)
     {
-        var keyBytes = Encoding.UTF8.GetBytes(authOptions.Value.Secret);
+        var keyBytes = Encoding.UTF8.GetBytes(cognitoOptions.Value.Secret);
         using var hmac = new HMACSHA256(keyBytes);
 
-        var messageBytes = Encoding.UTF8.GetBytes(email + authOptions.Value.ClientId);
+        var messageBytes = Encoding.UTF8.GetBytes(email + cognitoOptions.Value.ClientId);
         var hashBytes = hmac.ComputeHash(messageBytes);
 
         return Convert.ToBase64String(hashBytes);

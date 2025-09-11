@@ -1,4 +1,10 @@
 namespace AuthSample.Authentication;
 
 public sealed record SessionData(
-    string AccessToken, string IdToken, string RefreshToken, DateTime Expiry, string Sub);
+    DateTime IssuedAt,
+    string AccessToken,
+    string IdToken,
+    DateTime AccessTokenExpiry,
+    string RefreshToken,
+    DateTime RefreshTokenExpiry,
+    string Sub);

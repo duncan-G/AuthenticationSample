@@ -7,6 +7,7 @@ import {
   SignUpEmail,
   SignUpPassword,
   SignUpVerification,
+  SignUpSuccess,
   AuthFlowTransition
 } from "@/components/auth"
 
@@ -121,6 +122,16 @@ export default function SignUpPage() {
               isLoading={auth.isLoading}
               serverError={auth.errorMessage}
             />
+          </AuthFlowTransition>
+        )
+      case "signup-success":
+        return (
+          <AuthFlowTransition
+            flowKey="signup-success"
+            direction={getFlowDirection()}
+            isLoading={auth.isLoading}
+          >
+            <SignUpSuccess onGoToSignIn={auth.handleEmailSignIn} />
           </AuthFlowTransition>
         )
       default:
