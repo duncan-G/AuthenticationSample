@@ -278,5 +278,14 @@
         }
       }
     }
+    ,
+    {
+      "Sid": "DynamoDBPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:*"
+      ],
+      "Resource": "*"
+    }
   ]
 }

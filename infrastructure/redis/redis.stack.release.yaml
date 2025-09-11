@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  app:
+    image: redis:latest
+    command: ["redis-server", "--appendonly", "yes", "--save", "900", "1", "--save", "300", "10", "--save", "60", "10000"]
+    networks:
+      - net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    deploy:
+      labels:
+        version: ${VERSION}
+        service: ${SERVICE_NAME}
+        environment: ${ENVIRONMENT}
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 20s
+        order: stop-first
+        max_failure_ratio: 0.3
+      placement:
+        constraints:
+          - node.role == worker
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  net:
+    name: ${NETWORK_NAME}
+    external: true
+
+volumes:
+  redis_data:
+    driver: local
+
+
