@@ -10,4 +10,6 @@ public sealed partial class ErrorCodes
     public const string VerificationAttemptsExceeded = "2004";
     public const string VerificationCodeDeliveryFailed = "2005";
 
+    public const string MaximumUsersReached = "2006";
+
 }

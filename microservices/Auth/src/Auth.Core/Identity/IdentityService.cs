@@ -16,6 +16,7 @@ public class IdentityService(
     IIdentityGateway identityGateway,
     IRefreshTokenStore refreshTokenStore,
     TokenValidationParametersHelper tokenParameterHelper,
+    ISignUpEligibilityGuard signUpEligibilityGuard,
     ILogger<IdentityService> logger) : IIdentityService
 {
     private readonly IDatabase _cacheDb = cache.GetDatabase();
@@ -40,7 +41,9 @@ public class IdentityService(
 
         try
         {
-            return await SignInAsync(emailAddress, signUpSession, cancellationToken).ConfigureAwait(false);
+            var session = await SignInAsync(emailAddress, signUpSession, cancellationToken).ConfigureAwait(false);
+            await signUpEligibilityGuard.IncrementConfirmedUsersAsync(cancellationToken).ConfigureAwait(false);
+            return session;
         }
         catch  (Exception ex)
         {
@@ -273,4 +276,5 @@ public class IdentityService(
 
         return null;
     }
+
 }

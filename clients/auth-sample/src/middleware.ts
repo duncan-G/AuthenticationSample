@@ -2,7 +2,7 @@ import {type NextRequest, NextResponse} from "next/server";
 import {trace, ROOT_CONTEXT, type TextMapGetter} from "@opentelemetry/api";
 import {W3CTraceContextPropagator} from "@opentelemetry/core";
 import {config as appConfig} from "@/lib/config";
-import {checkAuthentication, type AuthCheckResult} from "@/lib/server/authz-client";
+import {checkAuthentication, type AuthCheckResult } from "@/lib/server/authz-client";
 import {isProtectedRoute, isAuthRoute, createSignInRedirectUrl, createHomeRedirectUrl} from "@/lib/server/route-utils";
 import {hasIncomingTrace, injectSpanContextHeaders} from "@/lib/server/trace-utils";
 

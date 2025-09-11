@@ -4,11 +4,12 @@ services:
   app:
     image: $IMAGE_NAME
     environment:
-      ASPNETCORE_URLS: http://+:80
+      ASPNETCORE_URLS: http://+:443
       ASPNETCORE_ENVIRONMENT: Development
       AWS_REGION: us-west-1
       AWS_PROFILE: developer
       Authentication_Secrets__UseDevOverrides: 'true'
+      COGNITO_CONFIRMED_USERS_COUNT: ${COGNITO_CONFIRMED_USERS_COUNT}
     volumes:
       - type: bind
         source: $HOME/.aws

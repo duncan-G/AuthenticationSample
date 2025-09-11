@@ -1,5 +1,4 @@
 using Amazon.CognitoIdentityProvider;
-using Amazon.DynamoDBv2;
 using AuthSample.Api.Exceptions;
 using AuthSample.Api.RateLimiting;
 using AuthSample.Api.Secrets;
@@ -7,11 +6,11 @@ using AuthSample.Auth.Grpc.Services;
 using AuthSample.Auth.Grpc.Services.Internal;
 using AuthSample.Auth.Infrastructure.DynamoDB;
 using AuthSample.Auth.Infrastructure.Cognito;
+using AuthSample.Auth.Core.Identity;
 using AuthSample.Authentication;
 using AuthSample.Infrastructure;
 using AuthSample.Logging;
 using AuthSample.Api.Validation;
-using AuthSample.Auth.Core.Identity;
 using AuthSample.Auth.Infrastructure.DynamoDb;
 using FluentValidation;
 
@@ -45,6 +44,7 @@ builder.Services.AddDynamoDb(builder.Environment, options => builder.Configurati
 builder.Services.AddScoped<IIdentityGateway, CognitoIdentityGateway>();
 builder.Services.AddScoped<IRefreshTokenStore, DynamoDbRefreshTokenStore>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddSingleton<ISignUpEligibilityGuard, CognitoSignUpEligibilityGuard>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Add authentication and authorization

@@ -159,7 +159,6 @@ public sealed class CognitoIdentityGateway(
             var response = await cognitoIdentityProvider.ConfirmSignUpAsync(signUpRequest, cancellationToken)
                 .ConfigureAwait(false);
             activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
-
             return response.Session;
         }
         catch (AliasExistsException ex)

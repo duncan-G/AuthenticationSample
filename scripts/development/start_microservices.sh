@@ -57,10 +57,13 @@ if [ "$containerize_microservices" = true ]; then
         exit 1
     fi
 
+    confirmed_users_count="$("$script_dir"/get_confirmed_user_count.sh)" || exit 1
+
     # Build service images (extend mapping as needed)
     # Current image mapping
     declare -A SERVICE_IMAGES=(
         [auth]="auth-sample/auth"
+        [greeter]="auth-sample/greeter"
     )
 
     for service_name in "${SERVICES[@]}"; do
@@ -78,6 +81,7 @@ if [ "$containerize_microservices" = true ]; then
 
     echo "Deploying services to swarm"
     env HOME=$HOME \
+        env COGNITO_CONFIRMED_USERS_COUNT=${confirmed_users_count} \
         docker stack deploy --compose-file microservices/.builds/service.stack.debug.yaml auth
     
 else

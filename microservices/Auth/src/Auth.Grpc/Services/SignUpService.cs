@@ -8,11 +8,14 @@ using SignUpStep = AuthSample.Auth.Grpc.Protos.SignUpStep;
 namespace AuthSample.Auth.Grpc.Services;
 
 public class SignUpService(
+    ISignUpEligibilityGuard eligibilityGuard,
     IIdentityService identityService,
     ILogger<SignUpService> logger) : Protos.SignUpService.SignUpServiceBase
 {
     public override async Task<InitiateSignUpResponse> InitiateSignUpAsync(InitiateSignUpRequest request, ServerCallContext context)
     {
+        await eligibilityGuard.EnforceMaxConfirmedUsersAsync().ConfigureAwait(false);
+
         var httpContext = context.GetHttpContext();
         await httpContext.
             EnforceFixedByEmailAsync(request.EmailAddress, 3600, 15, cancellationToken: context.CancellationToken)
@@ -36,6 +39,8 @@ public class SignUpService(
 
     public override async Task<VerifyAndSignInResponse> VerifyAndSignInAsync(VerifyAndSignInRequest request, ServerCallContext context)
     {
+        await eligibilityGuard.EnforceMaxConfirmedUsersAsync().ConfigureAwait(false);
+
         await context.GetHttpContext()
             .EnforceFixedByEmailAsync(request.EmailAddress, 3600, 5, cancellationToken: context.CancellationToken)
             .ConfigureAwait(false);
