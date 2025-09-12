@@ -1,6 +1,7 @@
 using AuthSample.Api.RateLimiting;
 using AuthSample.Auth.Core.Identity;
 using AuthSample.Auth.Grpc.Protos;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using InitiateSignUpRequest = AuthSample.Auth.Grpc.Protos.InitiateSignUpRequest;
 using SignUpStep = AuthSample.Auth.Grpc.Protos.SignUpStep;
@@ -67,5 +68,24 @@ public class SignUpService(
         }
 
         return new VerifyAndSignInResponse { NextStep = SignUpStep.SignInRequired };
+    }
+
+    public override async Task<Empty> ResendVerificationCodeAsync(ResendVerificationCodeRequest request, ServerCallContext context)
+    {
+        await eligibilityGuard.EnforceMaxConfirmedUsersAsync().ConfigureAwait(false);
+
+        var httpContext = context.GetHttpContext();
+        await httpContext
+            .EnforceFixedByEmailAsync(request.EmailAddress, 3600, 5, cancellationToken: context.CancellationToken)
+            .ConfigureAwait(false);
+
+        logger.LogInformation("Resending verification code for {EmailAddress}", request.EmailAddress);
+
+        var ipAddress = httpContext.Connection.RemoteIpAddress!;
+        await identityService.ResendVerificationCodeAsync(request.EmailAddress, ipAddress, context.CancellationToken)
+            .ConfigureAwait(false);
+
+        logger.LogInformation("Successfully processed resend verification code request for {EmailAddress}", request.EmailAddress);
+        return new Empty();
     }
 }

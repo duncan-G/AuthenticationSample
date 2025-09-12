@@ -1,4 +1,5 @@
 using Amazon.CognitoIdentityProvider;
+using Amazon.Extensions.NETCore.Setup;
 using AuthSample.Api.Exceptions;
 using AuthSample.Api.RateLimiting;
 using AuthSample.Api.Secrets;
@@ -23,6 +24,7 @@ builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
     .AddSecretsManager(
+        builder.Environment,
         awsOptions,
         options => builder.Configuration.Bind("Secrets", options));
 
@@ -67,3 +69,6 @@ app.MapGrpcService<InternalAuthorizationService>();
 app.MapHealthChecks("/health");
 
 app.Run();
+
+// Make Program class accessible for testing
+public partial class Program { }

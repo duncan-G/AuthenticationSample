@@ -17,9 +17,17 @@ public static class Scripts
             if request_count < tonumber(@max_requests) then
                 redis.call('ZADD', @key, current_time[1], current_time[1] .. current_time[2])
                 redis.call('EXPIRE', @key, @window)
-                return 0
+                return {0, 0}
             end
-            return 1
+            
+            -- For sliding window, get the oldest request in the window
+            local oldest_requests = redis.call('ZRANGE', @key, 0, 0, 'WITHSCORES')
+            if #oldest_requests > 0 then
+                local oldest_time = tonumber(oldest_requests[2])
+                local retry_after = math.ceil(oldest_time + @window - tonumber(current_time[1]))
+                return {1, retry_after}
+            end
+            return {1, @window}
         ";
 
     private const string FixedWindowLua = @"
@@ -33,9 +41,13 @@ public static class Scripts
             end
 
             if count <= tonumber(@max_requests) then
-                return 0
+                return {0, 0}
             end
-            return 1
+            
+            -- Calculate retry after: time until next window
+            local next_window = window_start + @window
+            local retry_after = next_window - tonumber(current_time[1])
+            return {1, retry_after}
         ";
 }
 

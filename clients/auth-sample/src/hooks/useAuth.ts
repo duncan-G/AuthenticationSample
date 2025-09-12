@@ -5,11 +5,12 @@ import { createSignUpServiceClient } from "@/lib/services/grpc-clients"
 import {
   InitiateSignUpRequest,
   VerifyAndSignInRequest,
+  ResendVerificationCodeRequest,
   SignUpStep,
 } from "@/lib/services/auth/sign-up/sign-up_pb"
 import { startWorkflow } from "@/lib/workflows"
 import type { WorkflowHandle } from "@/lib/workflows"
-import {friendlyMessageFor, handleApiError} from "@/lib/services/handle-api-error";
+import {friendlyMessageFor, handleApiError, handleResendApiError} from "@/lib/services/handle-api-error";
 import { ErrorCodes } from "@/lib/services/error-codes"
 
 /** Wrap an async handler with loading toggles. */
@@ -40,10 +41,13 @@ export function useAuth(): AuthState & AuthHandlers {
   const [passwordConfirmation, setPasswordConfirmation] = useState("")
   const [otpCode, setOtpCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isResendLoading, setIsResendLoading] = useState(false)
   const [signupMethod, setSignupMethod] = useState<
     "password" | "passwordless" | undefined
   >()
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
+  const [isRateLimited, setIsRateLimited] = useState(false)
+  const [rateLimitRetryAfter, setRateLimitRetryAfter] = useState<number | undefined>()
 
   const oidc = useOidcAuth()
   const client = createSignUpServiceClient()
@@ -146,6 +150,8 @@ export function useAuth(): AuthState & AuthHandlers {
       try {
           const request = new InitiateSignUpRequest()
           request.setEmailAddress(email)
+          // Breadcrumb for integration test and diagnostics
+          console.log('Sending verification email to:', email)
 
           await runInStep(step, () => client.initiateSignUpAsync(request, {}))
 
@@ -221,6 +227,39 @@ export function useAuth(): AuthState & AuthHandlers {
     }
   )
 
+  /** Resend verification code during signup. */
+  const handleResendVerificationCode = withLoading(
+    setIsResendLoading,
+    async () => {
+      ensureSignupWorkflow()
+      const step = signupWorkflowRef.current?.startStep("resendVerificationCode")
+      
+      // Clear previous rate limit state
+      setIsRateLimited(false)
+      setRateLimitRetryAfter(undefined)
+      
+      try {
+        const request = new ResendVerificationCodeRequest()
+        request.setEmailAddress(email)
+
+        await runInStep(step, () => client.resendVerificationCodeAsync(request, {}))
+
+        step?.succeed({ email })
+        setErrorMessage(undefined)
+      } catch (err) {
+        handleResendApiError(
+          err, 
+          setErrorMessage, 
+          step,
+          (retryAfterMinutes) => {
+            setIsRateLimited(true)
+            setRateLimitRetryAfter(retryAfterMinutes)
+          }
+        )
+      }
+    }
+  )
+
   // ---------- Setters that clear server errors ----------
   const handleSetEmail = (value: string) => {
     setEmail(value)
@@ -244,8 +283,11 @@ export function useAuth(): AuthState & AuthHandlers {
     passwordConfirmation,
     otpCode,
     isLoading,
+    isResendLoading,
     signupMethod,
     errorMessage,
+    isRateLimited,
+    rateLimitRetryAfter,
 
     // sign-in
     handleGoogleSignIn,
@@ -265,6 +307,7 @@ export function useAuth(): AuthState & AuthHandlers {
     handlePasswordlessEmailContinue,
     handlePasswordSignUp,
     handleSignUpOtpVerification,
+    handleResendVerificationCode,
 
     // setters
     setCurrentFlow: handleSetCurrentFlow,

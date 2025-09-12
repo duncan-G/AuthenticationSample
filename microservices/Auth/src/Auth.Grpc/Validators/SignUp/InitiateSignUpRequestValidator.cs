@@ -20,11 +20,11 @@ public sealed class InitiateSignUpRequestValidator : AbstractValidator<InitiateS
 				.Matches("[A-Za-z]").WithErrorCode(ErrorCodes.InvalidParameter).WithMessage("Password must contain at least one letter when provided.")
 				.Matches("\\d").WithErrorCode(ErrorCodes.InvalidParameter).WithMessage("Password must contain at least one number when provided.");
 
-            RuleFor(x => x.RequirePassword)
-                .Must(x => x)
-                .WithErrorCode(ErrorCodes.InvalidParameter)
-                .WithMessage("RequirePassword must be true, when password is provided");
-        });
+			RuleFor(x => x.RequirePassword)
+				.Must(x => x)
+				.WithErrorCode(ErrorCodes.InvalidParameter)
+				.WithMessage("RequirePassword must be true, when password is provided");
+		});
 	}
 }
 

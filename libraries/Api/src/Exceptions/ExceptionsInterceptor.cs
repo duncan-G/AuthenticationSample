@@ -2,10 +2,11 @@ using AuthSample.Exceptions;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 namespace AuthSample.Api.Exceptions;
 
-public sealed class ExceptionsInterceptor(ILogger<ExceptionsInterceptor> logger) : Interceptor
+public sealed class ExceptionsInterceptor(ILogger<ExceptionsInterceptor> logger, IHostEnvironment hostEnvironment) : Interceptor
 {
     public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(
         TRequest request,
@@ -24,11 +25,15 @@ public sealed class ExceptionsInterceptor(ILogger<ExceptionsInterceptor> logger)
         catch (Exception ex) when (ex is not RpcException)
         {
             logger.LogError(ex, "Unhandled exception");
-            // Fallback shape for unexpected errors
+            // Surface original message in Testing to aid test expectations and diagnostics
+            var message = hostEnvironment.IsEnvironment("Testing")
+                ? ex.Message
+                : "An unexpected error occurred.";
+
             var descriptor = new GrpcErrorDescriptor(
                 StatusCode.Internal,
                 ErrorCodes.Unexpected,
-                Message: "An unexpected error occurred.");
+                Message: message);
             throw descriptor.ToRpcException();
         }
     }

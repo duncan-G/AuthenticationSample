@@ -14,7 +14,10 @@ import { Label } from "@/components/ui/label"
   onVerifyOtp: () => Promise<void>
   onBack: () => void
   isLoading: boolean
+  isResendLoading?: boolean
   serverError?: string
+  isRateLimited?: boolean
+  rateLimitRetryAfter?: number
 }
 
 export function SignUpVerification({
@@ -25,7 +28,10 @@ export function SignUpVerification({
   onVerifyOtp,
   onBack,
   isLoading,
-  serverError
+  isResendLoading = false,
+  serverError,
+  isRateLimited = false,
+  rateLimitRetryAfter
 }: SignUpVerificationProps) {
   const [emailSent, setEmailSent] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -49,13 +55,16 @@ export function SignUpVerification({
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000)
+      const timer = setTimeout(() => setResendCooldown((previousValue) => previousValue - 1), 1000)
       return () => clearTimeout(timer)
     }
   }, [resendCooldown])
 
   const handleResend = async () => {
-    setResendCooldown(30) // 30 second cooldown
+    // Only set client-side cooldown if not rate limited by server
+    if (!isRateLimited) {
+      setResendCooldown(30) // 30 second cooldown
+    }
     await onResendEmail()
   }
 
@@ -135,7 +144,11 @@ export function SignUpVerification({
         <div className="text-center mt-6">
           <p className="text-stone-300/80 text-sm">
             Didn&apos;t receive the code?{" "}
-            {resendCooldown > 0 ? (
+            {isRateLimited ? (
+              <span className="text-red-400/80">
+                Rate limit exceeded. {rateLimitRetryAfter ? `Try again in ${rateLimitRetryAfter} minutes.` : "Please wait before trying again."}
+              </span>
+            ) : resendCooldown > 0 ? (
               <span className="text-stone-400/60">
                 Resend in {resendCooldown}s
               </span>
@@ -143,10 +156,10 @@ export function SignUpVerification({
               <button
                 type="button"
                 onClick={handleResend}
-                disabled={isLoading}
+                disabled={isLoading || isResendLoading || isRateLimited}
                 className="text-stone-200 hover:text-stone-100 underline underline-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? "Sending..." : "Resend code"}
+                {isResendLoading ? "Sending..." : "Resend code"}
               </button>
             )}
           </p>

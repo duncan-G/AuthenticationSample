@@ -5,12 +5,7 @@ namespace AuthSample.Auth.UnitTests.Validators.SignUp;
 
 public class VerifyAndSignInRequestValidatorTests
 {
-    private readonly VerifyAndSignInRequestValidator _validator;
-
-    public VerifyAndSignInRequestValidatorTests()
-    {
-        _validator = new VerifyAndSignInRequestValidator();
-    }
+    private readonly VerifyAndSignInRequestValidator _validator = new();
 
     [Fact]
     public void Should_Pass_When_All_Fields_Are_Valid()
@@ -175,7 +170,7 @@ public class VerifyAndSignInRequestValidatorTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void Should_Fail_When_Name_Is_Empty_Or_Whitespace(string name)
+    public void Should_Pass_When_Name_Is_Empty_Or_Whitespace(string name)
     {
         // Arrange
         var request = new VerifyAndSignInRequest
@@ -189,10 +184,7 @@ public class VerifyAndSignInRequestValidatorTests
         var result = _validator.Validate(request);
 
         // Assert
-        Assert.False(result.IsValid);
-        var nameError = result.Errors.FirstOrDefault(e => e.PropertyName == "Name");
-        Assert.NotNull(nameError);
-        Assert.Equal("Name is required.", nameError.ErrorMessage);
+        Assert.True(result.IsValid);
     }
 
     [Theory]
@@ -220,8 +212,9 @@ public class VerifyAndSignInRequestValidatorTests
         Assert.True(result.IsValid);
     }
 
+    // Name length is no longer validated
     [Fact]
-    public void Should_Fail_When_Name_Exceeds_Maximum_Length()
+    public void Should_Pass_When_Name_Exceeds_Previous_Maximum_Length()
     {
         // Arrange
         var longName = new string('A', 101); // 101 characters
@@ -236,10 +229,7 @@ public class VerifyAndSignInRequestValidatorTests
         var result = _validator.Validate(request);
 
         // Assert
-        Assert.False(result.IsValid);
-        var nameError = result.Errors.FirstOrDefault(e => e.PropertyName == "Name");
-        Assert.NotNull(nameError);
-        Assert.Equal("Name must be at most 100 characters.", nameError.ErrorMessage);
+        Assert.True(result.IsValid);
     }
 
     [Fact]

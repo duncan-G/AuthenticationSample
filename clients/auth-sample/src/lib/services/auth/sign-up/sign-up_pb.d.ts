@@ -98,6 +98,24 @@ export namespace VerifyAndSignInResponse {
   }
 }
 
+export class ResendVerificationCodeRequest extends jspb.Message {
+  getEmailAddress(): string;
+  setEmailAddress(value: string): ResendVerificationCodeRequest;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ResendVerificationCodeRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: ResendVerificationCodeRequest): ResendVerificationCodeRequest.AsObject;
+  static serializeBinaryToWriter(message: ResendVerificationCodeRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ResendVerificationCodeRequest;
+  static deserializeBinaryFromReader(message: ResendVerificationCodeRequest, reader: jspb.BinaryReader): ResendVerificationCodeRequest;
+}
+
+export namespace ResendVerificationCodeRequest {
+  export type AsObject = {
+    emailAddress: string,
+  }
+}
+
 export enum SignUpStep { 
   UNSPECIFIED = 0,
   PASSWORD_REQUIRED = 1,

@@ -223,7 +223,7 @@ public sealed class CognitoIdentityGateway(
         }
     }
 
-    public async Task ResendSignUpVerificationAsync(InitiateSignUpRequest request,
+    public async Task ResendSignUpVerificationAsync(ResendSignUpVerificationRequest request,
         CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity(
@@ -277,7 +277,8 @@ public sealed class CognitoIdentityGateway(
                 nameof(cognitoIdentityProvider.ResendConfirmationCodeAsync),
                 null,
                 "Failed to send verification email.",
-                ex);        }
+                ex);
+        }
     }
 
     public async Task ConfirmUserAsync(string emailAddress, CancellationToken cancellationToken = default)

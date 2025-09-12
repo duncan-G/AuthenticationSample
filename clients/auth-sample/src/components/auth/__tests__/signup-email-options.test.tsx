@@ -14,7 +14,7 @@ describe('SignUpEmail', () => {
   const mockProps = {
     email: '',
     onEmailChange: jest.fn(),
-    onPasswordFlow: jest.fn(),
+    onPasswordFlowContinue: jest.fn(),
     onPasswordlessFlow: jest.fn(),
     onBack: jest.fn(),
     isLoading: false,
@@ -129,7 +129,7 @@ describe('SignUpEmail', () => {
       await user.click(submitButton)
 
       // Form submission should be prevented when email is empty
-      expect(mockProps.onPasswordFlow).not.toHaveBeenCalled()
+      expect(mockProps.onPasswordFlowContinue).not.toHaveBeenCalled()
       expect(mockProps.onPasswordlessFlow).not.toHaveBeenCalled()
     })
 
@@ -143,10 +143,10 @@ describe('SignUpEmail', () => {
       await user.click(submitButton)
 
       expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument()
-      expect(mockProps.onPasswordFlow).not.toHaveBeenCalled()
+      expect(mockProps.onPasswordFlowContinue).not.toHaveBeenCalled()
     })
 
-    it('should call onPasswordFlow when email is valid and no specific method', async () => {
+    it('should call onPasswordFlowContinue when email is valid and no specific method', async () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(true)
       
@@ -155,10 +155,10 @@ describe('SignUpEmail', () => {
       const submitButton = screen.getByRole('button', { name: 'Create Account' })
       await user.click(submitButton)
 
-      expect(mockProps.onPasswordFlow).toHaveBeenCalledTimes(1)
+      expect(mockProps.onPasswordFlowContinue).toHaveBeenCalledTimes(1)
     })
 
-    it('should call onPasswordFlow when password method and valid email', async () => {
+    it('should call onPasswordFlowContinue when password method and valid email', async () => {
       const user = userEvent.setup()
       mockValidateEmail.mockReturnValue(true)
       
@@ -167,7 +167,7 @@ describe('SignUpEmail', () => {
       const submitButton = screen.getByRole('button', { name: 'Continue' })
       await user.click(submitButton)
 
-      expect(mockProps.onPasswordFlow).toHaveBeenCalledTimes(1)
+      expect(mockProps.onPasswordFlowContinue).toHaveBeenCalledTimes(1)
     })
 
     it('should call onPasswordlessFlow when passwordless method and valid email', async () => {
@@ -193,7 +193,7 @@ describe('SignUpEmail', () => {
       const emailInput = screen.getByLabelText('Email address')
       await user.type(emailInput, '{enter}')
 
-      expect(mockProps.onPasswordFlow).toHaveBeenCalledTimes(1)
+      expect(mockProps.onPasswordFlowContinue).toHaveBeenCalledTimes(1)
     })
 
     it('should not submit when email is invalid', async () => {
@@ -205,7 +205,7 @@ describe('SignUpEmail', () => {
       const emailInput = screen.getByLabelText('Email address')
       await user.type(emailInput, '{enter}')
 
-      expect(mockProps.onPasswordFlow).not.toHaveBeenCalled()
+      expect(mockProps.onPasswordFlowContinue).not.toHaveBeenCalled()
     })
   })
 
@@ -282,7 +282,7 @@ describe('SignUpEmail', () => {
       render(<SignUpEmail {...mockProps} />)
 
       // Check that error container exists with proper height class
-      const errorContainer = document.querySelector('.h-6.flex.items-center')
+      const errorContainer = document.querySelector('.min-h-\\[40px\\].flex.items-center')
       expect(errorContainer).toBeInTheDocument()
     })
   })

@@ -102,11 +102,33 @@ public static class RateLimiterHttpContextExtensions
         using var lease = await limiter.AcquireAsync(1, cancellationToken).ConfigureAwait(false);
         if (!lease.IsAcquired)
         {
+            // Extract retry-after information from the lease
+            var retryAfterSeconds = 0;
+            if (lease.TryGetMetadata("RetryAfter", out var retryAfterObj) && retryAfterObj is int retryAfter)
+            {
+                retryAfterSeconds = retryAfter;
+                activity?.SetTag("rate.limit.retry_after", retryAfterSeconds);
+            }
+
+            // Create error message with retry-after information
+            var message = retryAfterSeconds > 0 
+                ? $"Rate limit exceeded. Try again in {Math.Ceiling(retryAfterSeconds / 60.0)} minutes."
+                : "Rate limit exceeded.";
+
             var descriptor = new GrpcErrorDescriptor(
                 StatusCode.ResourceExhausted,
                 ErrorCodes.ResourceExhausted,
-                Message: "Resource exhausted.");
-            throw descriptor.ToRpcException();
+                Message: message);
+            
+            var exception = descriptor.ToRpcException();
+            
+            // Add retry-after as gRPC metadata
+            if (retryAfterSeconds > 0)
+            {
+                exception.Trailers.Add("retry-after-seconds", retryAfterSeconds.ToString());
+            }
+            
+            throw exception;
         }
     }
 

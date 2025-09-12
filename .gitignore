@@ -250,3 +250,6 @@ pids
 
 # tmp
 tmp/
+
+# Kiro
+.kiro/

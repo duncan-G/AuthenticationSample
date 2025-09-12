@@ -18,6 +18,7 @@
 import * as grpcWeb from 'grpc-web';
 
 import * as sign$up_pb from './sign-up_pb'; // proto import: "sign-up.proto"
+import * as google_protobuf_empty_pb from 'google-protobuf/google/protobuf/empty_pb'; // proto import: "google/protobuf/empty.proto"
 
 
 export class SignUpServiceClient {
@@ -123,6 +124,49 @@ export class SignUpServiceClient {
     request,
     metadata || {},
     this.methodDescriptorVerifyAndSignInAsync);
+  }
+
+  methodDescriptorResendVerificationCodeAsync = new grpcWeb.MethodDescriptor(
+    '/auth.SignUpService/ResendVerificationCodeAsync',
+    grpcWeb.MethodType.UNARY,
+    sign$up_pb.ResendVerificationCodeRequest,
+    google_protobuf_empty_pb.Empty,
+    (request: sign$up_pb.ResendVerificationCodeRequest) => {
+      return request.serializeBinary();
+    },
+    google_protobuf_empty_pb.Empty.deserializeBinary
+  );
+
+  resendVerificationCodeAsync(
+    request: sign$up_pb.ResendVerificationCodeRequest,
+    metadata?: grpcWeb.Metadata | null): Promise<google_protobuf_empty_pb.Empty>;
+
+  resendVerificationCodeAsync(
+    request: sign$up_pb.ResendVerificationCodeRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.RpcError,
+               response: google_protobuf_empty_pb.Empty) => void): grpcWeb.ClientReadableStream<google_protobuf_empty_pb.Empty>;
+
+  resendVerificationCodeAsync(
+    request: sign$up_pb.ResendVerificationCodeRequest,
+    metadata?: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.RpcError,
+               response: google_protobuf_empty_pb.Empty) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/auth.SignUpService/ResendVerificationCodeAsync',
+        request,
+        metadata || {},
+        this.methodDescriptorResendVerificationCodeAsync,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/auth.SignUpService/ResendVerificationCodeAsync',
+    request,
+    metadata || {},
+    this.methodDescriptorResendVerificationCodeAsync);
   }
 
 }

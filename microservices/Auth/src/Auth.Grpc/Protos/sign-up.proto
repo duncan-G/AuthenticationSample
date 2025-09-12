@@ -10,6 +10,8 @@ service SignUpService {
   rpc InitiateSignUpAsync (InitiateSignUpRequest) returns (InitiateSignUpResponse);
 
   rpc VerifyAndSignInAsync (VerifyAndSignInRequest) returns (VerifyAndSignInResponse);
+
+  rpc ResendVerificationCodeAsync (ResendVerificationCodeRequest) returns (google.protobuf.Empty);
 }
 
 enum SignUpStep {
@@ -38,4 +40,8 @@ message VerifyAndSignInRequest {
 
 message VerifyAndSignInResponse {
   SignUpStep next_step = 1;
+}
+
+message ResendVerificationCodeRequest {
+  string email_address = 1;
 }

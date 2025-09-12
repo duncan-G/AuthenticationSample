@@ -116,11 +116,14 @@ export default function SignUpPage() {
               email={auth.email}
               otpCode={auth.otpCode}
               onOtpChange={auth.setOtpCode}
-              onResendEmail={auth.handlePasswordlessEmailContinue}
+              onResendEmail={auth.handleResendVerificationCode}
               onVerifyOtp={auth.handleSignUpOtpVerification}
               onBack={() => auth.setCurrentFlow("signup-email")}
               isLoading={auth.isLoading}
+              isResendLoading={auth.isResendLoading}
               serverError={auth.errorMessage}
+              isRateLimited={auth.isRateLimited}
+              rateLimitRetryAfter={auth.rateLimitRetryAfter}
             />
           </AuthFlowTransition>
         )

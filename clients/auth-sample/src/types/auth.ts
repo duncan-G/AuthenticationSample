@@ -7,8 +7,11 @@ export interface AuthState {
   passwordConfirmation: string
   otpCode: string
   isLoading: boolean
+  isResendLoading: boolean
   signupMethod?: "password" | "passwordless"
   errorMessage?: string
+  isRateLimited: boolean
+  rateLimitRetryAfter?: number
 }
 
 export interface AuthHandlers {
@@ -28,6 +31,7 @@ export interface AuthHandlers {
   handlePasswordlessEmailContinue: () => Promise<void>
   handlePasswordSignUp: () => Promise<void>
   handleSignUpOtpVerification: () => Promise<void>
+  handleResendVerificationCode: () => Promise<void>
   setCurrentFlow: (flow: AuthFlow) => void
   setEmail: (email: string) => void
   setPassword: (password: string) => void

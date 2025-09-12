@@ -152,7 +152,7 @@ export function SignUpEmail({
 
           <AuthButton
             type="submit"
-            disabled={!email || isLoading}
+            disabled={isLoading}
             loading={isLoading}
           >
             {getButtonText()}
@@ -167,7 +167,7 @@ export function SignUpEmail({
             <AuthButton
               variant="secondary"
               onClick={() => validateAndProceed(onPasswordlessFlow)}
-              disabled={!email || isLoading}
+              disabled={isLoading}
             loading={isLoading}
             >
               Send verification email

@@ -1,18 +1,11 @@
 using AuthSample.Auth.Grpc.Protos;
 using AuthSample.Auth.Grpc.Validators.SignUp;
-using FluentValidation;
-using Xunit;
 
 namespace AuthSample.Auth.UnitTests.Validators.SignUp;
 
 public class InitiateSignUpRequestValidatorTests
 {
-    private readonly InitiateSignUpRequestValidator _validator;
-
-    public InitiateSignUpRequestValidatorTests()
-    {
-        _validator = new InitiateSignUpRequestValidator();
-    }
+    private readonly InitiateSignUpRequestValidator _validator = new();
 
     [Fact]
     public void Should_Pass_When_Valid_Email_And_No_Password()
@@ -37,7 +30,8 @@ public class InitiateSignUpRequestValidatorTests
         var request = new InitiateSignUpRequest
         {
             EmailAddress = "test@example.com",
-            Password = "ValidPass123"
+            Password = "ValidPass123",
+            RequirePassword = true
         };
 
         // Act
@@ -142,7 +136,8 @@ public class InitiateSignUpRequestValidatorTests
         var request = new InitiateSignUpRequest
         {
             EmailAddress = "test@example.com",
-            Password = password
+            Password = password,
+            RequirePassword = true
         };
 
         // Act
@@ -167,7 +162,8 @@ public class InitiateSignUpRequestValidatorTests
         var request = new InitiateSignUpRequest
         {
             EmailAddress = "test@example.com",
-            Password = password
+            Password = password,
+            RequirePassword = true
         };
 
         // Act
@@ -184,7 +180,8 @@ public class InitiateSignUpRequestValidatorTests
         var request = new InitiateSignUpRequest
         {
             EmailAddress = "test@example.com",
-            Password = "Short1"
+            Password = "Short1",
+            RequirePassword = true
         };
 
         // Act
@@ -204,7 +201,8 @@ public class InitiateSignUpRequestValidatorTests
         var request = new InitiateSignUpRequest
         {
             EmailAddress = "test@example.com",
-            Password = "12345678"
+            Password = "12345678",
+            RequirePassword = true
         };
 
         // Act
@@ -224,7 +222,8 @@ public class InitiateSignUpRequestValidatorTests
         var request = new InitiateSignUpRequest
         {
             EmailAddress = "test@example.com",
-            Password = "abcdefgh"
+            Password = "abcdefgh",
+            RequirePassword = true
         };
 
         // Act

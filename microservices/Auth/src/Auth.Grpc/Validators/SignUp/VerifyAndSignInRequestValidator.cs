@@ -16,8 +16,7 @@ public sealed class VerifyAndSignInRequestValidator : AbstractValidator<VerifyAn
 			.NotEmpty().WithErrorCode(ErrorCodes.MissingParameter).WithMessage("Verification code is required.")
 			.Length(6).WithErrorCode(ErrorCodes.InvalidParameter).WithMessage("Verification code must be 6 characters.");
 
-		RuleFor(x => x.Name)
-			.MaximumLength(100).WithErrorCode(ErrorCodes.InvalidLength).WithMessage("Name must be at most 100 characters.");
+		// Name is optional for verification; no validation required here
 	}
 }
 

@@ -17,16 +17,16 @@ internal sealed class RedisScriptRateLimiter(
 
     protected override async ValueTask<RateLimitLease> AcquireAsyncCore(int permitCount, CancellationToken cancellationToken)
     {
-        var allowed = await EvaluateScriptAsync(cancellationToken).ConfigureAwait(false);
-        return new SimpleLease(allowed);
+        var (allowed, retryAfter) = await EvaluateScriptAsync(cancellationToken).ConfigureAwait(false);
+        return new SimpleLease(allowed, retryAfter);
     }
 
     public override RateLimiterStatistics? GetStatistics() => null;
 
     protected override RateLimitLease AttemptAcquireCore(int permitCount)
     {
-        var allowed = EvaluateScriptSync();
-        return new SimpleLease(allowed);
+        var (allowed, retryAfter) = EvaluateScriptSync();
+        return new SimpleLease(allowed, retryAfter);
     }
 
     protected override void Dispose(bool disposing)
@@ -34,7 +34,7 @@ internal sealed class RedisScriptRateLimiter(
         // no-op
     }
 
-    private bool EvaluateScriptSync()
+    private (bool allowed, int retryAfter) EvaluateScriptSync()
     {
         var activity = Activity.Current;
         activity?.SetTag("rate.limit.key", key);
@@ -42,22 +42,26 @@ internal sealed class RedisScriptRateLimiter(
         activity?.SetTag("rate.limit.max_requests", maxRequests);
         activity?.SetTag("rate.limit.algorithm", algorithm);
 
-        var result = (int)database.ScriptEvaluate(script, new
+        var result = (RedisValue[])database.ScriptEvaluate(script, new
         {
             key = (RedisKey)key,
             window = windowSeconds,
             max_requests = maxRequests
         });
-        var allowed = result == 0;
+        
+        var allowed = (int)result[0] == 0;
+        var retryAfter = (int)result[1];
+        
         activity?.SetTag("rate.limit.allowed", allowed);
+        activity?.SetTag("rate.limit.retry_after", retryAfter);
         if (!allowed)
         {
             activity?.AddEvent(new ActivityEvent("rate_limit.blocked"));
         }
-        return allowed;
+        return (allowed, retryAfter);
     }
 
-    private async Task<bool> EvaluateScriptAsync(CancellationToken cancellationToken)
+    private async Task<(bool allowed, int retryAfter)> EvaluateScriptAsync(CancellationToken cancellationToken)
     {
         var activity = Activity.Current;
         activity?.SetTag("rate.limit.key", key);
@@ -71,24 +75,33 @@ internal sealed class RedisScriptRateLimiter(
             window = windowSeconds,
             max_requests = maxRequests
         });
-        var result = (int)await task.ConfigureAwait(false);
-        var allowed = result == 0;
+        var result = (RedisValue[])await task.ConfigureAwait(false);
+        
+        var allowed = (int)result[0] == 0;
+        var retryAfter = (int)result[1];
+        
         activity?.SetTag("rate.limit.allowed", allowed);
+        activity?.SetTag("rate.limit.retry_after", retryAfter);
         if (!allowed)
         {
             activity?.AddEvent(new ActivityEvent("rate_limit.blocked"));
         }
-        return allowed;
+        return (allowed, retryAfter);
     }
 
-    private sealed class SimpleLease(bool isAcquired) : RateLimitLease
+    private sealed class SimpleLease(bool isAcquired, int retryAfterSeconds = 0) : RateLimitLease
     {
         public override bool IsAcquired => isAcquired;
 
-        public override IEnumerable<string> MetadataNames => [];
+        public override IEnumerable<string> MetadataNames => ["RetryAfter"];
 
         public override bool TryGetMetadata(string metadataName, out object? metadata)
         {
+            if (metadataName == "RetryAfter")
+            {
+                metadata = retryAfterSeconds;
+                return true;
+            }
             metadata = null;
             return false;
         }

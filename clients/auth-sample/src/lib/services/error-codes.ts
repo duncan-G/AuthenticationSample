@@ -11,6 +11,7 @@ export const ErrorCodes = {
     VerificationCodeExpired: "2003",
     VerificationAttemptsExceeded: "2004",
     VerificationCodeDeliveryFailed: "2005",
+    MaximumUsersReached: "2006",
     ResourceExhausted: "9998",
     Unexpected: "9999",
 } as const
