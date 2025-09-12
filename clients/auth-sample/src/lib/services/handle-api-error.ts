@@ -15,7 +15,7 @@ export const friendlyMessageFor: Record<KnownErrorCode, string> = {
         "We couldn't send a verification code. Please try again later.",
     [ErrorCodes.MaximumUsersReached]: "We've reached our user limit. Please try again later.",
     [ErrorCodes.ResourceExhausted]:
-        "You've reached the maximum number of resend attempts. Please wait before trying again.",
+        "You've reached the maximum number of attempts.",
     [ErrorCodes.Unexpected]: "Something went wrong. Please try again in a moment.",
 };
 
@@ -73,37 +73,11 @@ const getRetryAfterMinutes = ({
     return m ? parseInt(m[1], 10) : undefined;
 };
 
-// ---- Public APIs ----
-
 export const handleApiError = (
     err: unknown,
     setErrorMessage: (msg?: string) => void,
-    step?: ReturnType<WorkflowHandle["startStep"]>
-) => {
-    const { code, serverMessage } = extractApiError(err);
-
-    // Telemetry
-    console.error("API error", { code, serverMessage, err });
-
-    const friendly = resolveFriendlyMessage(code);
-    step?.fail(code ?? "UNKNOWN", friendly);
-    setErrorMessage(friendly);
-};
-
-/**
- * Same as handleApiError, but lets callers hook rate limit info.
- * - Triggers on ErrorCodes.ResourceExhausted only.
- * - Calls onRateLimitExceeded with a best-effort minutes estimate from metadata or server message.
- * - Optionally override the displayed friendly message for this case via rateLimitMessage.
- */
-export const handleApiErrorWithRateLimit = (
-    err: unknown,
-    setErrorMessage: (msg?: string) => void,
     step?: ReturnType<WorkflowHandle["startStep"]>,
-    onRateLimitExceeded?: (retryAfterMinutes?: number) => void,
-    {
-        rateLimitMessage = "You've reached the maximum number of resend attempts (5 per hour). Please wait before trying again.",
-    }: { rateLimitMessage?: string } = {}
+    onRateLimitExceeded?: (retryAfterMinutes?: number) => void
 ) => {
     const { code, serverMessage, retryAfterSeconds } = extractApiError(err);
 
@@ -118,20 +92,15 @@ export const handleApiErrorWithRateLimit = (
     let friendly = resolveFriendlyMessage(code);
 
     if (code === ErrorCodes.ResourceExhausted) {
-        friendly = rateLimitMessage;
-        onRateLimitExceeded?.(getRetryAfterMinutes({ retryAfterSeconds, serverMessage }));
+        friendly = friendlyMessageFor[ErrorCodes.ResourceExhausted];
+        const retryAfterMinutes = getRetryAfterMinutes({ retryAfterSeconds, serverMessage });
+        const retryAfterLabel = retryAfterMinutes === 1 ? "minute" : "minutes";
+        if (retryAfterMinutes && retryAfterMinutes > 0) {
+            friendly = `${friendly} Please wait ${retryAfterMinutes} ${retryAfterLabel} before trying again.`;
+        }
+        onRateLimitExceeded?.(retryAfterMinutes);
     }
 
     step?.fail(code ?? "UNKNOWN", friendly);
     setErrorMessage(friendly);
-};
-
-// Legacy alias for backward compatibility
-export const handleResendApiError = (
-    err: unknown,
-    setErrorMessage: (msg?: string) => void,
-    step?: ReturnType<WorkflowHandle["startStep"]>,
-    onRateLimitExceeded?: (retryAfterMinutes?: number) => void
-) => {
-    return handleApiErrorWithRateLimit(err, setErrorMessage, step, onRateLimitExceeded);
 };

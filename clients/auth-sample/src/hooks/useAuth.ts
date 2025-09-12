@@ -10,7 +10,7 @@ import {
 } from "@/lib/services/auth/sign-up/sign-up_pb"
 import { startWorkflow } from "@/lib/workflows"
 import type { WorkflowHandle } from "@/lib/workflows"
-import {friendlyMessageFor, handleApiError, handleResendApiError} from "@/lib/services/handle-api-error";
+import {friendlyMessageFor, handleApiError} from "@/lib/services/handle-api-error";
 import { ErrorCodes } from "@/lib/services/error-codes"
 
 /** Wrap an async handler with loading toggles. */
@@ -247,7 +247,7 @@ export function useAuth(): AuthState & AuthHandlers {
         step?.succeed({ email })
         setErrorMessage(undefined)
       } catch (err) {
-        handleResendApiError(
+        handleApiError(
           err, 
           setErrorMessage, 
           step,

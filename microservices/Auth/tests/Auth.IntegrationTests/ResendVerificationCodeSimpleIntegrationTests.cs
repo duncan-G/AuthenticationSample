@@ -134,7 +134,10 @@ public class ResendVerificationCodeSimpleIntegrationTests : IClassFixture<TestAu
 
         // Setup mocks for complete workflow
         _mockIdentityService
-            .Setup(x => x.InitiateSignUpAsync(It.IsAny<Core.Identity.InitiateSignUpRequest>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.InitiateSignUpAsync(
+                It.IsAny<Core.Identity.InitiateSignUpRequest>(),
+                It.IsAny<Func<Task>>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(Core.Identity.SignUpStep.VerificationRequired);
 
         _mockIdentityService
@@ -177,7 +180,10 @@ public class ResendVerificationCodeSimpleIntegrationTests : IClassFixture<TestAu
 
         // Verify all service calls were made
         _mockIdentityService.Verify(
-            x => x.InitiateSignUpAsync(It.IsAny<Core.Identity.InitiateSignUpRequest>(), It.IsAny<CancellationToken>()),
+            x => x.InitiateSignUpAsync(
+                It.IsAny<Core.Identity.InitiateSignUpRequest>(),
+                It.IsAny<Func<Task>>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
         _mockIdentityService.Verify(
             x => x.ResendVerificationCodeAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), It.IsAny<CancellationToken>()),

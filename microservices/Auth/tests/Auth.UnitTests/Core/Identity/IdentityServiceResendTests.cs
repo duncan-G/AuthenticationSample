@@ -25,7 +25,8 @@ public class IdentityServiceResendTests
 
         _mockIdentityGateway
             .Setup(x => x.ResendSignUpVerificationAsync(
-                It.Is<ResendSignUpVerificationRequest>(r => r.EmailAddress == emailAddress && r.IpAddress == ipAddress),
+                It.Is<string>(e => e == emailAddress),
+                It.Is<IPAddress>(ip => ip.Equals(ipAddress)),
                 cancellationToken))
             .Returns(Task.CompletedTask);
 
@@ -37,7 +38,8 @@ public class IdentityServiceResendTests
         // Assert
         _mockIdentityGateway.Verify(
             x => x.ResendSignUpVerificationAsync(
-                It.Is<ResendSignUpVerificationRequest>(r => r.EmailAddress == emailAddress && r.IpAddress == ipAddress),
+                It.Is<string>(e => e == emailAddress),
+                It.Is<IPAddress>(ip => ip.Equals(ipAddress)),
                 cancellationToken),
             Times.Once);
     }
@@ -52,7 +54,7 @@ public class IdentityServiceResendTests
         var exception = new VerificationCodeDeliveryFailedException("Email service unavailable");
 
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
             .ThrowsAsync(exception);
 
         var identityService = CreateIdentityService();
@@ -80,7 +82,7 @@ public class IdentityServiceResendTests
         var exception = new VerificationCodeDeliveryTooSoonException("Please wait before requesting another code");
 
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
             .ThrowsAsync(exception);
 
         var identityService = CreateIdentityService();
@@ -107,7 +109,7 @@ public class IdentityServiceResendTests
         var exception = new UserWithEmailNotFoundException();
 
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
             .ThrowsAsync(exception);
 
         var identityService = CreateIdentityService();
@@ -132,7 +134,7 @@ public class IdentityServiceResendTests
         var exception = new InvalidOperationException("Unexpected error occurred");
 
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
             .ThrowsAsync(exception);
 
         var identityService = CreateIdentityService();
@@ -158,7 +160,7 @@ public class IdentityServiceResendTests
         var cancellationToken = CancellationToken.None;
 
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
             .Returns(Task.CompletedTask);
 
         var identityService = CreateIdentityService();
@@ -182,7 +184,7 @@ public class IdentityServiceResendTests
         var cancellationToken = CancellationToken.None;
 
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
             .Returns(Task.CompletedTask);
 
         var identityService = CreateIdentityService();
@@ -193,7 +195,8 @@ public class IdentityServiceResendTests
         // Assert
         _mockIdentityGateway.Verify(
             x => x.ResendSignUpVerificationAsync(
-                It.Is<ResendSignUpVerificationRequest>(r => r.EmailAddress == emailAddress && r.IpAddress == ipAddress),
+                It.Is<string>(e => e == emailAddress),
+                It.Is<IPAddress>(ip => ip.Equals(ipAddress)),
                 cancellationToken),
             Times.Once);
 
@@ -209,10 +212,11 @@ public class IdentityServiceResendTests
         var ipAddress = IPAddress.Parse("10.0.0.1");
         var cancellationToken = CancellationToken.None;
 
-        ResendSignUpVerificationRequest? capturedRequest = null;
+        string? capturedEmail = null;
+        IPAddress? capturedIp = null;
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
-            .Callback<ResendSignUpVerificationRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
+            .Callback<string, IPAddress, CancellationToken>((e, ip, _) => { capturedEmail = e; capturedIp = ip; })
             .Returns(Task.CompletedTask);
 
         var identityService = CreateIdentityService();
@@ -221,9 +225,8 @@ public class IdentityServiceResendTests
         await identityService.ResendVerificationCodeAsync(emailAddress, ipAddress, cancellationToken);
 
         // Assert
-        Assert.NotNull(capturedRequest);
-        Assert.Equal(emailAddress, capturedRequest.EmailAddress);
-        Assert.Equal(ipAddress, capturedRequest.IpAddress);
+        Assert.Equal(emailAddress, capturedEmail);
+        Assert.Equal(ipAddress, capturedIp);
     }
 
     [Fact]
@@ -236,7 +239,7 @@ public class IdentityServiceResendTests
         var cancellationToken = cancellationTokenSource.Token;
 
         _mockIdentityGateway
-            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<ResendSignUpVerificationRequest>(), cancellationToken))
+            .Setup(x => x.ResendSignUpVerificationAsync(It.IsAny<string>(), It.IsAny<IPAddress>(), cancellationToken))
             .Returns(async () =>
             {
                 await Task.Delay(100, cancellationToken).ConfigureAwait(false);

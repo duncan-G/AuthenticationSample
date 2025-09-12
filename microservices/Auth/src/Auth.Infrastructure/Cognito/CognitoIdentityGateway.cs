@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Amazon.CognitoIdentityProvider;
@@ -18,6 +19,7 @@ public sealed class CognitoIdentityGateway(
     IAmazonCognitoIdentityProvider cognitoIdentityProvider) : IIdentityGateway
 {
     private static readonly ActivitySource ActivitySource = new("AuthSample.Auth.Infrastructure");
+    private const string ConfirmedUserErrorMessage = "User cannot be confirmed. Current status is CONFIRMED";
 
     public async Task<SignUpAvailability> GetSignUpAvailabilityAsync(string email,
         CancellationToken cancellationToken = default)
@@ -210,6 +212,13 @@ public sealed class CognitoIdentityGateway(
             logger.LogWarning(ex, "User not found during verification");
             throw new UserWithEmailNotFoundException();
         }
+        catch (NotAuthorizedException ex) when (ex.Message == ConfirmedUserErrorMessage)
+        {
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            logger.LogWarning(ex, "User already confirmed");
+            throw new UserAlreadyConfirmedException();
+        }
         catch (AmazonServiceException ex)
         {
             activity?.AddException(ex);
@@ -223,27 +232,30 @@ public sealed class CognitoIdentityGateway(
         }
     }
 
-    public async Task ResendSignUpVerificationAsync(ResendSignUpVerificationRequest request,
+    public async Task ResendSignUpVerificationAsync(
+        string emailAddress,
+        IPAddress ipAddress,
         CancellationToken cancellationToken = default)
     {
         using var activity = ActivitySource.StartActivity(
             $"{nameof(CognitoIdentityGateway)}.{nameof(ResendSignUpVerificationAsync)}");
 
         activity?.SetTag("aws.cognito.operation", "ResendConfirmationCode");
-        activity?.SetTag("enduser.id", MaskEmail(request.EmailAddress));
-        activity?.SetTag("client.address", request.IpAddress.ToString());
+        activity?.SetTag("enduser.id", MaskEmail(emailAddress));
+        activity?.SetTag("client.address", ipAddress.ToString());
 
         var resendRequest = new ResendConfirmationCodeRequest
         {
             ClientId = cognitoOptions.Value.ClientId,
-            Username = request.EmailAddress,
-            UserContextData = new UserContextDataType { IpAddress = request.IpAddress.ToString() },
-            SecretHash = ComputeSecretHash(request.EmailAddress)
+            Username = emailAddress,
+            UserContextData = new UserContextDataType { IpAddress = ipAddress.ToString() },
+            SecretHash = ComputeSecretHash(emailAddress)
         };
 
         try
         {
-            var response = await cognitoIdentityProvider.ResendConfirmationCodeAsync(resendRequest, cancellationToken).ConfigureAwait(false);
+            var response = await cognitoIdentityProvider.ResendConfirmationCodeAsync(resendRequest, cancellationToken)
+                .ConfigureAwait(false);
             activity?.SetTag("aws.request_id", response.ResponseMetadata.RequestId);
             activity?.AddEvent(new ActivityEvent(
                 "verification.code_sent",
@@ -262,6 +274,13 @@ public sealed class CognitoIdentityGateway(
             throw new VerificationCodeDeliveryFailedException();
         }
         catch (TooManyRequestsException ex)
+        {
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            logger.LogError(ex, "Cognito code delivery throttled");
+            throw new VerificationCodeDeliveryTooSoonException();
+        }
+        catch (LimitExceededException ex)
         {
             activity?.AddException(ex);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);

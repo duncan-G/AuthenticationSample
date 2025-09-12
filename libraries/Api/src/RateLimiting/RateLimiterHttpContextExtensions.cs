@@ -17,10 +17,10 @@ public static class RateLimiterHttpContextExtensions
         this HttpContext context,
         int windowSeconds = 60,
         int maxRequests = 10,
-        bool includeMethod = true,
+        string? requestPath = null,
         CancellationToken cancellationToken = default)
     {
-        var limiter = context.CreateFixedLimiterByIdentity(includeMethod, windowSeconds, maxRequests);
+        var limiter = context.CreateFixedLimiterByIdentity(windowSeconds, maxRequests, requestPath);
         await context.EnforceAsync(limiter, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -29,7 +29,7 @@ public static class RateLimiterHttpContextExtensions
         string email,
         int windowSeconds = 60,
         int maxRequests = 10,
-        bool includeMethod = true,
+        string? requestPath = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -37,7 +37,7 @@ public static class RateLimiterHttpContextExtensions
             throw new ArgumentException("Email must be provided.", nameof(email));
         }
 
-        var limiter = context.CreateFixedLimiterByEmail(email, includeMethod, windowSeconds, maxRequests);
+        var limiter = context.CreateFixedLimiterByEmail(email, windowSeconds, maxRequests, requestPath);
         await context.EnforceAsync(limiter, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -45,10 +45,10 @@ public static class RateLimiterHttpContextExtensions
         this HttpContext context,
         int windowSeconds = 60,
         int maxRequests = 10,
-        bool includeMethod = true,
+        string? requestPath = null,
         CancellationToken cancellationToken = default)
     {
-        var limiter = context.CreateFixedLimiterByIp(includeMethod, windowSeconds, maxRequests);
+        var limiter = context.CreateFixedLimiterByIp(windowSeconds, maxRequests, requestPath);
         await context.EnforceAsync(limiter, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
@@ -77,8 +77,8 @@ public static class RateLimiterHttpContextExtensions
         return lease.IsAcquired;
     }
 
-    private static string GetMethodSegment(this HttpContext context, bool includeMethod)
-        => includeMethod ? context.Request.Path.ToString() : string.Empty;
+    private static string GetPath(this HttpContext context)
+        => context.Request.Path.ToString();
 
     private static async Task EnforceAsync(
         this HttpContext context,
@@ -111,7 +111,7 @@ public static class RateLimiterHttpContextExtensions
             }
 
             // Create error message with retry-after information
-            var message = retryAfterSeconds > 0 
+            var message = retryAfterSeconds > 0
                 ? $"Rate limit exceeded. Try again in {Math.Ceiling(retryAfterSeconds / 60.0)} minutes."
                 : "Rate limit exceeded.";
 
@@ -119,36 +119,35 @@ public static class RateLimiterHttpContextExtensions
                 StatusCode.ResourceExhausted,
                 ErrorCodes.ResourceExhausted,
                 Message: message);
-            
+
             var exception = descriptor.ToRpcException();
-            
+
             // Add retry-after as gRPC metadata
             if (retryAfterSeconds > 0)
             {
                 exception.Trailers.Add("retry-after-seconds", retryAfterSeconds.ToString());
             }
-            
+
             throw exception;
         }
     }
 
     private static RateLimiter CreateSlidingLimiterByIdentity(
         this HttpContext context,
-        bool includeMethod = true,
         int windowSeconds = 60,
         int maxRequests = 10)
     {
         var userId = context.GetUserIdentifier();
         if (string.IsNullOrWhiteSpace(userId))
         {
-            return context.CreateSlidingLimiterByIp(includeMethod, windowSeconds, maxRequests);
+            return context.CreateSlidingLimiterByIp(windowSeconds, maxRequests);
         }
 
         var db = context.GetRedisDb();
-        var method = context.GetMethodSegment(includeMethod);
-        var key = string.IsNullOrEmpty(method)
+        var path = context.GetPath();
+        var key = string.IsNullOrEmpty(path)
             ? $"sliding:user:{userId}"
-            : $"sliding:{method}:user:{userId}";
+            : $"sliding:{path}:user:{userId}";
 
         return new RedisScriptRateLimiter(db, Scripts.SlidingWindowScript, key, windowSeconds, maxRequests, "sliding");
     }
@@ -156,15 +155,15 @@ public static class RateLimiterHttpContextExtensions
     private static RateLimiter CreateSlidingLimiterForIdentifier(
         this HttpContext context,
         string identifier,
-        bool includeMethod = true,
         int windowSeconds = 60,
-        int maxRequests = 10)
+        int maxRequests = 10,
+        string? requestPath = null)
     {
         var db = context.GetRedisDb();
-        var method = context.GetMethodSegment(includeMethod);
-        var key = string.IsNullOrEmpty(method)
+        var path = requestPath ?? context.GetPath();
+        var key = string.IsNullOrEmpty(path)
             ? $"sliding:{identifier}"
-            : $"sliding:{method}:{identifier}";
+            : $"sliding:{path}:{identifier}";
 
         return new RedisScriptRateLimiter(db, Scripts.SlidingWindowScript, key, windowSeconds, maxRequests, "sliding");
     }
@@ -172,68 +171,68 @@ public static class RateLimiterHttpContextExtensions
     private static RateLimiter CreateFixedLimiterForIdentifier(
         this HttpContext context,
         string identifier,
-        bool includeMethod = true,
         int windowSeconds = 60,
-        int maxRequests = 10)
+        int maxRequests = 10,
+        string? requestPath = null)
     {
         var db = context.GetRedisDb();
-        var method = context.GetMethodSegment(includeMethod);
-        var key = string.IsNullOrEmpty(method)
+        var path = requestPath ?? context.GetPath();
+        var key = string.IsNullOrEmpty(path)
             ? $"fixed:{identifier}"
-            : $"fixed:{method}:{identifier}";
+            : $"fixed:{path}:{identifier}";
 
         return new RedisScriptRateLimiter(db, Scripts.FixedWindowScript, key, windowSeconds, maxRequests, "fixed");
     }
 
     private static RateLimiter CreateSlidingLimiterByIp(
         this HttpContext context,
-        bool includeMethod = true,
         int windowSeconds = 60,
-        int maxRequests = 10)
+        int maxRequests = 10,
+        string? requestPath = null)
     {
         var db = context.GetRedisDb();
-        var method = context.GetMethodSegment(includeMethod);
+        var path = requestPath ?? context.GetPath();
         var ip = context.GetRemoteIp() ?? "unknown";
-        var key = string.IsNullOrEmpty(method)
+        var key = string.IsNullOrEmpty(path)
             ? $"sliding:ip:{ip}"
-            : $"sliding:{method}:ip:{ip}";
+            : $"sliding:{path}:ip:{ip}";
 
         return new RedisScriptRateLimiter(db, Scripts.SlidingWindowScript, key, windowSeconds, maxRequests, "sliding");
     }
 
     private static RateLimiter CreateFixedLimiterByIp(
         this HttpContext context,
-        bool includeMethod = true,
         int windowSeconds = 60,
-        int maxRequests = 10)
+        int maxRequests = 10,
+        string? requestPath = null)
     {
         var db = context.GetRedisDb();
-        var method = context.GetMethodSegment(includeMethod);
+        var path = requestPath ?? context.GetPath();
         var ip = context.GetRemoteIp() ?? "unknown";
-        var key = string.IsNullOrEmpty(method)
+        var key = string.IsNullOrEmpty(path)
             ? $"fixed:ip:{ip}"
-            : $"fixed:{method}:ip:{ip}";
+            : $"fixed:{path}:ip:{ip}";
 
         return new RedisScriptRateLimiter(db, Scripts.FixedWindowScript, key, windowSeconds, maxRequests, "fixed");
     }
 
     private static RateLimiter CreateFixedLimiterByIdentity(
         this HttpContext context,
-        bool includeMethod = true,
         int windowSeconds = 60,
-        int maxRequests = 10)
+        int maxRequests = 10,
+        string? requestPath = null)
     {
         var userId = context.GetUserIdentifier();
         if (string.IsNullOrWhiteSpace(userId))
         {
-            return context.CreateFixedLimiterByIp(includeMethod, windowSeconds, maxRequests);
+            return context.CreateFixedLimiterByIp(windowSeconds, maxRequests, requestPath);
         }
 
         var db = context.GetRedisDb();
-        var method = context.GetMethodSegment(includeMethod);
-        var key = string.IsNullOrEmpty(method)
+        var path = requestPath ?? context.GetPath();
+        var key = string.IsNullOrEmpty(path)
             ? $"fixed:user:{userId}"
-            : $"fixed:{method}:user:{userId}";
+            : $"fixed:{path}:user:{userId}";
 
         return new RedisScriptRateLimiter(db, Scripts.FixedWindowScript, key, windowSeconds, maxRequests, "fixed");
     }
@@ -241,23 +240,23 @@ public static class RateLimiterHttpContextExtensions
     private static RateLimiter CreateFixedLimiterByEmail(
         this HttpContext context,
         string email,
-        bool includeMethod = true,
         int windowSeconds = 60,
-        int maxRequests = 10)
+        int maxRequests = 10,
+        string? requestPath = null)
     {
         var normalized = NormalizeEmail(email);
-        return context.CreateFixedLimiterForIdentifier($"email:{normalized}", includeMethod, windowSeconds, maxRequests);
+        return context.CreateFixedLimiterForIdentifier($"email:{normalized}", windowSeconds, maxRequests, requestPath);
     }
 
     private static RateLimiter CreateSlidingLimiterByEmail(
         this HttpContext context,
         string email,
-        bool includeMethod = true,
         int windowSeconds = 60,
-        int maxRequests = 10)
+        int maxRequests = 10,
+        string? requestPath = null)
     {
         var normalized = NormalizeEmail(email);
-        return context.CreateSlidingLimiterForIdentifier($"email:{normalized}", includeMethod, windowSeconds, maxRequests);
+        return context.CreateSlidingLimiterForIdentifier($"email:{normalized}", windowSeconds, maxRequests, requestPath);
     }
 
     private static string NormalizeEmail(string email)

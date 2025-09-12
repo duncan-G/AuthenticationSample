@@ -1,10 +1,11 @@
-using AuthSample.Authentication;
-
 namespace AuthSample.Auth.Core.Identity;
 
 public interface IIdentityService
 {
-    Task<SignUpStep> InitiateSignUpAsync(InitiateSignUpRequest request, CancellationToken cancellationToken = default);
+    Task<SignUpStep> InitiateSignUpAsync(
+        InitiateSignUpRequest request,
+        Func<Task> enforceVerificationRateLimit,
+        CancellationToken cancellationToken = default);
     Task<ClientSession?> VerifySignUpAndSignInAsync(string emailAddress, string verificationCode, CancellationToken cancellationToken = default);
     Task<ResolvedSession?> ResolveSessionAsync(string? cookieHeader, CancellationToken cancellationToken = default);
     Task ResendVerificationCodeAsync(string emailAddress, System.Net.IPAddress ipAddress, CancellationToken cancellationToken = default);

@@ -17,8 +17,9 @@ builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
     .AddSecretsManager(
+        builder.Environment,
         awsOptions,
-        options => builder.Configuration.Bind("Secrets", options));;
+        options => builder.Configuration.Bind("Secrets", options));
 
 // Configure logging
 builder.AddLogging(options => builder.Configuration.Bind("ApplicationLogging", options));

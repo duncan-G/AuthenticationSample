@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -22,23 +21,33 @@ public class IdentityService(
 {
     private readonly IDatabase _cacheDb = cache.GetDatabase();
 
-    public async Task<SignUpStep> InitiateSignUpAsync(InitiateSignUpRequest request,
+    public async Task<SignUpStep> InitiateSignUpAsync(
+        InitiateSignUpRequest request,
+        Func<Task> enforceVerificationRateLimit,
         CancellationToken cancellationToken = default)
     {
         if (request.RequirePassword)
         {
-            return await InitiatePasswordSignUpAsync(request, cancellationToken).ConfigureAwait(false);
+            return await InitiatePasswordSignUpAsync(request, enforceVerificationRateLimit, cancellationToken).ConfigureAwait(false);
         }
 
-        return await InitiatePasswordlessSignUpAsync(request, cancellationToken).ConfigureAwait(false);
+        return await InitiatePasswordlessSignUpAsync(request, enforceVerificationRateLimit, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ClientSession?> VerifySignUpAndSignInAsync(string emailAddress, string verificationCode,
         CancellationToken cancellationToken = default)
     {
-        var signUpSession = await identityGateway.VerifySignUpAsync(
-            new VerifySignUpRequest(emailAddress, verificationCode),
-            cancellationToken).ConfigureAwait(false);
+        string signUpSession;
+        try
+        {
+            signUpSession = await identityGateway.VerifySignUpAsync(
+                new VerifySignUpRequest(emailAddress, verificationCode),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (UserAlreadyConfirmedException)
+        {
+            return null;
+        }
 
         try
         {
@@ -143,52 +152,50 @@ public class IdentityService(
         activity?.SetTag("email.domain", emailAddress.Split('@').LastOrDefault());
         activity?.SetTag("ip.address", ipAddress.ToString());
 
-        logger.LogInformation("Initiating resend verification code request for {EmailAddress} from {IpAddress}", 
+        logger.LogInformation("Initiating resend verification code request for {EmailAddress} from {IpAddress}",
             emailAddress, ipAddress);
 
         try
         {
-            var request = new ResendSignUpVerificationRequest(emailAddress, ipAddress);
+            await identityGateway.ResendSignUpVerificationAsync(emailAddress, ipAddress, cancellationToken).ConfigureAwait(false);
 
-            await identityGateway.ResendSignUpVerificationAsync(request, cancellationToken).ConfigureAwait(false);
-            
-            logger.LogInformation("Successfully resent verification code to {EmailAddress} from {IpAddress}", 
+            logger.LogInformation("Successfully resent verification code to {EmailAddress} from {IpAddress}",
                 emailAddress, ipAddress);
-            
+
             activity?.SetTag("resend.result", "success");
         }
         catch (VerificationCodeDeliveryFailedException ex)
         {
-            logger.LogError(ex, "Failed to deliver verification code to {EmailAddress} from {IpAddress}: {ErrorMessage}", 
+            logger.LogError(ex, "Failed to deliver verification code to {EmailAddress} from {IpAddress}: {ErrorMessage}",
                 emailAddress, ipAddress, ex.Message);
-            
+
             activity?.SetTag("resend.result", "delivery_failed");
             activity?.SetTag("error.type", "delivery_failure");
             throw;
         }
         catch (VerificationCodeDeliveryTooSoonException ex)
         {
-            logger.LogWarning("Resend verification code attempted too soon for {EmailAddress} from {IpAddress}: {ErrorMessage}", 
+            logger.LogWarning("Resend verification code attempted too soon for {EmailAddress} from {IpAddress}: {ErrorMessage}",
                 emailAddress, ipAddress, ex.Message);
-            
+
             activity?.SetTag("resend.result", "too_soon");
             activity?.SetTag("error.type", "rate_limited");
             throw;
         }
         catch (UserWithEmailNotFoundException)
         {
-            logger.LogWarning("Attempted to resend verification code for non-existent user {EmailAddress} from {IpAddress}", 
+            logger.LogWarning("Attempted to resend verification code for non-existent user {EmailAddress} from {IpAddress}",
                 emailAddress, ipAddress);
-            
+
             activity?.SetTag("resend.result", "user_not_found");
             activity?.SetTag("error.type", "user_not_found");
             throw;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error while resending verification code to {EmailAddress} from {IpAddress}: {ErrorMessage}", 
+            logger.LogError(ex, "Unexpected error while resending verification code to {EmailAddress} from {IpAddress}: {ErrorMessage}",
                 emailAddress, ipAddress, ex.Message);
-            
+
             activity?.SetTag("resend.result", "error");
             activity?.SetTag("error.type", "unexpected");
             activity?.SetTag("error.message", ex.Message);
@@ -196,12 +203,14 @@ public class IdentityService(
         }
     }
 
-    private async Task<SignUpStep> InitiatePasswordSignUpAsync(InitiateSignUpRequest request,
+    private async Task<SignUpStep> InitiatePasswordSignUpAsync(
+        InitiateSignUpRequest request,
+        Func<Task> enforceVerificationRateLimit,
         CancellationToken cancellationToken = default)
     {
         if (!request.RequirePassword)
         {
-            return await InitiatePasswordlessSignUpAsync(request, cancellationToken).ConfigureAwait(false);
+            return await InitiatePasswordlessSignUpAsync(request, enforceVerificationRateLimit, cancellationToken).ConfigureAwait(false);
         }
 
         // When a password is required but no password has been passed then we are
@@ -215,8 +224,9 @@ public class IdentityService(
                 case AvailabilityStatus.NewUser:
                     return SignUpStep.PasswordRequired;
                 case AvailabilityStatus.PendingConfirm:
-                    var resendRequest = new ResendSignUpVerificationRequest(request.EmailAddress, request.IpAddress);
-                    await identityGateway.ResendSignUpVerificationAsync(resendRequest, cancellationToken).ConfigureAwait(false);
+                    await enforceVerificationRateLimit().ConfigureAwait(false);
+                    await identityGateway.ResendSignUpVerificationAsync(
+                        request.EmailAddress, request.IpAddress, cancellationToken).ConfigureAwait(false);
                     return SignUpStep.VerificationRequired;
                 case AvailabilityStatus.AlreadySignedUp:
                     throw new DuplicateEmailException();
@@ -241,14 +251,18 @@ public class IdentityService(
                 throw;
             }
 
-            await identityGateway.ConfirmUserAsync(request.EmailAddress, cancellationToken).ConfigureAwait(false);
+            await enforceVerificationRateLimit().ConfigureAwait(false);
+            await identityGateway.ResendSignUpVerificationAsync(
+                request.EmailAddress, request.IpAddress, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Resent verification code to {EmailAddress}", request.EmailAddress);
 
             return SignUpStep.VerificationRequired;
         }
     }
 
-    private async Task<SignUpStep> InitiatePasswordlessSignUpAsync(InitiateSignUpRequest request,
+    private async Task<SignUpStep> InitiatePasswordlessSignUpAsync(
+        InitiateSignUpRequest request,
+        Func<Task> enforceVerificationRateLimit,
         CancellationToken cancellationToken = default)
     {
         try
@@ -267,7 +281,9 @@ public class IdentityService(
                 throw;
             }
 
-            await identityGateway.ConfirmUserAsync(request.EmailAddress, cancellationToken).ConfigureAwait(false);
+            await enforceVerificationRateLimit().ConfigureAwait(false);
+            await identityGateway.ResendSignUpVerificationAsync(
+                request.EmailAddress, request.IpAddress, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Resent verification code to {EmailAddress}", request.EmailAddress);
 
             return SignUpStep.VerificationRequired;

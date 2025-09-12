@@ -12,7 +12,6 @@ export const config = {
         '/((?!_next/static|_next/image|favicon.ico|error|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|eot|css|js)$|.well-known/).*)',
 };
 
-
 export default async function middleware(request: NextRequest) {
     const {pathname} = request.nextUrl;
 

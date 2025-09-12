@@ -108,7 +108,7 @@ export function SignUpEmail({
 
       <AuthCard>
         <form onSubmit={handleFormSubmit} noValidate>
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3 mb-4">
             <Label htmlFor="email" className="text-stone-100 font-medium text-base">
               Email address
             </Label>

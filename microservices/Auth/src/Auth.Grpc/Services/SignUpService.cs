@@ -18,8 +18,8 @@ public class SignUpService(
         await eligibilityGuard.EnforceMaxConfirmedUsersAsync().ConfigureAwait(false);
 
         var httpContext = context.GetHttpContext();
-        await httpContext.
-            EnforceFixedByEmailAsync(request.EmailAddress, 3600, 15, cancellationToken: context.CancellationToken)
+        await httpContext
+            .EnforceFixedByEmailAsync(request.EmailAddress, 3600, 15, cancellationToken: context.CancellationToken)
             .ConfigureAwait(false);
 
         logger.LogInformation("Starting sign up");
@@ -31,7 +31,9 @@ public class SignUpService(
                 IpAddress = ipAddress,
                 RequirePassword = request.RequirePassword,
                 Password = request.HasPassword ? request.Password : null,
-            }, context.CancellationToken).ConfigureAwait(false);
+            },
+            () => EnforceVerificationCodeLimit(httpContext, request.EmailAddress, context.CancellationToken),
+            context.CancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Sign up initiation completed");
 
@@ -73,11 +75,8 @@ public class SignUpService(
     public override async Task<Empty> ResendVerificationCodeAsync(ResendVerificationCodeRequest request, ServerCallContext context)
     {
         await eligibilityGuard.EnforceMaxConfirmedUsersAsync().ConfigureAwait(false);
-
         var httpContext = context.GetHttpContext();
-        await httpContext
-            .EnforceFixedByEmailAsync(request.EmailAddress, 3600, 5, cancellationToken: context.CancellationToken)
-            .ConfigureAwait(false);
+        await EnforceVerificationCodeLimit(httpContext, request.EmailAddress, context.CancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Resending verification code for {EmailAddress}", request.EmailAddress);
 
@@ -87,5 +86,19 @@ public class SignUpService(
 
         logger.LogInformation("Successfully processed resend verification code request for {EmailAddress}", request.EmailAddress);
         return new Empty();
+    }
+
+    private static async Task EnforceVerificationCodeLimit(HttpContext context, string emailAddress, CancellationToken cancellationToken)
+    {
+        var verificationCodePath  = Protos.SignUpService.Descriptor
+            .FindMethodByName(nameof(ResendVerificationCodeAsync))!
+            .FullName;
+        await context
+            .EnforceFixedByEmailAsync(
+                emailAddress,
+                3600,
+                5,
+                verificationCodePath,
+                cancellationToken).ConfigureAwait(false);
     }
 }
