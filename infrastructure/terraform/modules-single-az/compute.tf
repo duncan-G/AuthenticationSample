@@ -25,7 +25,7 @@ variable "instance_types_workers" {
 variable "desired_workers" {
   description = "Desired number of worker nodes"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "min_workers" {
@@ -37,7 +37,7 @@ variable "min_workers" {
 variable "max_workers" {
   description = "Maximum number of worker nodes"
   type        = number
-  default     = 6
+  default     = 3
 }
 
 variable "enable_spot" {

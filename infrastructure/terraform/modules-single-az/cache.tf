@@ -1,0 +1,120 @@
+# =============================================================================
+# Cache EC2 Infrastructure
+# =============================================================================
+# Single EC2 instance for cache services with external EBS volume
+# =============================================================================
+
+#region Variables
+
+# Cache EC2 instance variables
+variable "cache_instance_type" {
+  description = "EC2 instance type for cache instance"
+  type        = string
+  default     = "t4g.small"
+}
+
+variable "cache_instance_volume_size" {
+  description = "Size of the EBS volume for cache instance (in GB)"
+  type        = number
+  default     = 20
+}
+
+variable "cache_instance_volume_type" {
+  description = "Type of EBS volume for cache instance"
+  type        = string
+  default     = "gp3"
+}
+
+#endregion
+
+#region Resources
+
+# EBS Volume for Cache Instance
+resource "aws_ebs_volume" "cache_instance" {
+  availability_zone = aws_subnet.private.availability_zone
+  size              = var.cache_instance_volume_size
+  type              = var.cache_instance_volume_type
+  encrypted         = true
+
+  tags = {
+    Name        = "${var.project_name}-cache-instance-volume-${var.env}"
+    Environment = var.env
+    Purpose     = "Cache Instance External Storage"
+  }
+}
+
+# Cache EC2 Instance (not part of ASG)
+resource "aws_instance" "cache_worker" {
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.cache_instance_type
+  subnet_id              = aws_subnet.private.id
+  vpc_security_group_ids = [aws_security_group.instance.id]
+
+  iam_instance_profile = aws_iam_instance_profile.worker.name
+
+  # Bootstrap using userdata script; prefix environment variables
+  user_data = base64encode(join("\n", [
+    "PROJECT_NAME=\"${var.project_name}-${var.env}\"",
+    "AWS_REGION=\"${var.region}\"",
+    file("${path.module}/userdata/worker.sh")
+  ]))
+
+  tags = {
+    Name        = "${var.project_name}-cache-worker-${var.env}"
+    Environment = var.env
+    Role        = "worker"
+    Type        = "private"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.ssm_worker,
+    aws_iam_role_policy_attachment.cw_worker,
+    aws_iam_role_policy_attachment.worker_core
+  ]
+}
+
+# Attach EBS Volume to Cache Instance
+resource "aws_volume_attachment" "cache_worker_volume" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.cache_instance.id
+  instance_id = aws_instance.cache_worker.id
+
+  depends_on = [aws_instance.cache_worker]
+}
+
+#endregion
+
+#region Outputs
+
+# Cache Instance outputs
+output "cache_instance_id" {
+  description = "ID of the cache EC2 instance"
+  value       = aws_instance.cache_worker.id
+}
+
+output "cache_instance_arn" {
+  description = "ARN of the cache EC2 instance"
+  value       = aws_instance.cache_worker.arn
+}
+
+output "cache_instance_private_ip" {
+  description = "Private IP address of the cache EC2 instance"
+  value       = aws_instance.cache_worker.private_ip
+}
+
+output "cache_instance_public_ip" {
+  description = "Public IP address of the cache EC2 instance"
+  value       = aws_instance.cache_worker.public_ip
+}
+
+output "cache_instance_volume_id" {
+  description = "ID of the EBS volume attached to the cache instance"
+  value       = aws_ebs_volume.cache_instance.id
+}
+
+output "cache_instance_volume_attachment_id" {
+  description = "ID of the volume attachment for the cache instance"
+  value       = aws_volume_attachment.cache_worker_volume.id
+}
+
+#endregion
