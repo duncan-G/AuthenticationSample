@@ -11,23 +11,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="be6fae81-c3e9-4005-a034-879191f1bd73" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Auth.Core/Exceptions/UserAlreadyConfirmedException.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../.github/workflows/client-debug.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../../.github/workflows/client-debug.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/components/auth/signup-email.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/components/auth/signup-email.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/hooks/useAuth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/hooks/useAuth.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/__tests__/handle-api-error.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/__tests__/handle-api-error.test.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/handle-api-error.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/lib/services/handle-api-error.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" beforeDir="false" afterPath="$PROJECT_DIR$/../../clients/auth-sample/src/middleware.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimiterHttpContextExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimiterHttpContextExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimiterServiceCollectionsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libraries/Api/src/RateLimiting/RateLimiterServiceCollectionsExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.builds/service.stack.debug.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/../.builds/service.stack.debug.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityGateway.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityGateway.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/IIdentityService.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Auth.Core/Identity/IdentityService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Core/Identity/IdentityService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Services/SignUpService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Services/SignUpService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/Auth.IntegrationTests/ResendVerificationCodeSimpleIntegrationTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/Auth.IntegrationTests/ResendVerificationCodeSimpleIntegrationTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/Auth.UnitTests/Core/Identity/IdentityServiceResendTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/Auth.UnitTests/Core/Identity/IdentityServiceResendTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Auth.Grpc/Program.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../Greeter/Greeter/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/../Greeter/Greeter/Program.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/get_confirmed_user_count.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/get_confirmed_user_count.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_microservices.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/development/start_proxy.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -69,12 +62,14 @@
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/4dc5d2f96678478cb8386b88493a3620d19e00/b4/1f860b01/ConfiguredTaskAwaitable`1.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/4dc5d2f96678478cb8386b88493a3620d19e00/bc/a78ce88b/Task`1.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/4dc5d2f96678478cb8386b88493a3620d19e00/c1/3aa2bb4c/ExceptionDispatchInfo.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/52d36bd1897243358f9e287a56dfe20e12000/cd/1aebc3a3/ConfigurationManager.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/808e532dad22473caf5885a4d5487aab14e00/52/692e9283/RateLimiterEndpointConventionBuilderExtensions.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/9a9a35d57611425e841192820a040f095800/0e/f1694c6f/IWebHostEnvironment.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/a27e1a22eef14a3fa29620165fc7dce121200/c2/99dedbdf/AuthenticationHandler`1.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/ad8a2d84b813426785d50fc50f5c7e804b000/f9/681f76b0/IEndpointFilter.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/edbc66f0ef5d4b4882728f5066fe89874b000/e7/f210e1d7/HttpContext.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/125d90cbe97da7e78633339171ef38cf4af425a7d72948778c8d2f030ed1f83/TracerProviderBuilderExtensions.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/1437688a152e32a2f23519feb8b2ca54b6fd13c2566c39accb63bd88e3037/ConfigurationOptions.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/1b5d43b1c35a21028bef84d9ed084f2e4da66efd2276822ed9ba86b882fdfc/RedisResult.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/1bc61e7a9341f996fe63e4a84dc7a120e553f967b5885d9924af4732ef6c1/PipelineHandler.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/1c884aca99933d767520cd1e7f339f65deaed426b83e91f4c3a3777f968456/RedisCache.cs" root0="FORCE_HIGHLIGHTING" />
@@ -91,11 +86,13 @@
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/44f94290f78d2f71d82f9fb132d034494ce295de27e1acf6575e534911741/ClientBase.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/44f94355412aa2c5a9b656f19575ffc399704ff8eed4ec1b8a6b82f116f4cf/Metadata.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/458a79e5b3d1e6c61f71d7a4bed78cac2868745683424c7a7b04765e258aba5/AmazonClientException.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/485da50d43321b81edc28153271bdedb84943a243743e2deaa67a981587968/IConfiguration.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4a2d71dd9af1badc962725c46f45bdb6a17ca8e1b9a277fb5c4dd23688fe13e3/ServerCallContextExtensions.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4b39c179fad6ca711f88cff1da5050787cefd56ffa4fdc7115ebacb1b3ee6c1f/DefaultValidatorOptions.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4cdcea87783d56bcd6aee8666264c84d84482e36453fbf2a76c6b1cb805dcb/IAmazonCognitoIdentityProvider.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4f88bc42357e01c2b3f31c81be3ba0569f1f29465fd279311ed08489cd78b2/ServiceDescriptor.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/56723cdc8b5df0b3f8fcf89268af417267d9deb99f72f11d584585089d3fa2b/GetUserRequest.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/5896729be9d8ec5c9cb5a814a7d3f78419bb9cfbecf51d222d2dcf5c28a/IConfigurationSection.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/5d60243d4419cfa5c2bf26758d1621a33f60bdae577e587c8e283ff38d8a/AmazonServiceClient.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/61111f57e95a51475faca9c5f44a2ab7f36a6ba293e4d6eb3b539e859addd0c2/ClientConfig.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/621526284d3e4868b98948aff942206525763e57e194a27623b66c384466/ServiceProviderServiceExtensions.cs" root0="FORCE_HIGHLIGHTING" />
@@ -142,23 +139,13 @@
     <setting file="file://$PROJECT_DIR$/../../libraries/Authentication/src/SessionData.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/../../libraries/Authentication/src/TokenValidationParametersHelper.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/../../libraries/Exceptions/AuthErrorCodes.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/libraries/Exceptions/AuthErrorCodes.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/../../libraries/Exceptions/CommonErrorCodes.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/../../libraries/Exceptions/GrpcErrorDescriptor.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/../../libraries/Exceptions/IHasGrpcClientError.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Auth.Core/Exceptions/MaximumUsersReachedException.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Auth.Core/Identity/ClientSession.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Core/Identity/IdentityService.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Auth.Core/Identity/SignUpStep.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Grpc/Program.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Grpc/Program.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Grpc/Program.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Grpc/Program.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Grpc/Program.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Auth.Grpc/Services/AuthorizationService.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Grpc/Services/SignUpService.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Grpc/appsettings.Development.json" root0="FORCE_HIGHLIGHTING" />
-    <setting file="mock:///home/duncan/Projects/AuthSample/microservices/Auth/src/Auth.Infrastructure/Cognito/CognitoIdentityGateway.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/tests/Auth.IntegrationTests/obj/Debug/net9.0/Sign-upGrpc.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
@@ -170,65 +157,65 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    ".NET Launch Settings Profile.Auth.Grpc: https.executor": "Debug",
-    ".NET Launch Settings Profile.Authentication.Grpc: https.executor": "Debug",
-    "7bce517b-a3d9-40d1-94b9-1d119825959d.executor": "Debug",
-    "Attach to Process.1153809:Auth.executor": "Debug",
-    "Attach to Process.140293:Auth.executor": "Debug",
-    "Attach to Process.1615405:Auth.executor": "Debug",
-    "Attach to Process.169668:Auth.executor": "Debug",
-    "Attach to Process.1715345:Auth.executor": "Debug",
-    "Attach to Process.1810388:Auth.executor": "Debug",
-    "Attach to Process.1832919:Auth.executor": "Debug",
-    "Attach to Process.1846003:Auth.executor": "Debug",
-    "Attach to Process.1949588:Auth.executor": "Debug",
-    "Attach to Process.2035581:Auth.executor": "Debug",
-    "Attach to Process.2057760:Auth.executor": "Debug",
-    "Attach to Process.2068742:Auth.executor": "Debug",
-    "Attach to Process.2083157:Auth.executor": "Debug",
-    "Attach to Process.209645:Auth.executor": "Debug",
-    "Attach to Process.2128545:Auth.executor": "Debug",
-    "Attach to Process.264189:Auth.executor": "Debug",
-    "Attach to Process.287496:Auth.executor": "Debug",
-    "Attach to Process.288637:Auth.executor": "Debug",
-    "Attach to Process.294547:Auth.executor": "Debug",
-    "Attach to Process.297635:Auth.executor": "Debug",
-    "Attach to Process.29949:Auth.executor": "Debug",
-    "Attach to Process.304234:Auth.executor": "Debug",
-    "Attach to Process.321483:Auth.executor": "Debug",
-    "Attach to Process.336501:Auth.executor": "Debug",
-    "Attach to Process.345825:Auth.executor": "Debug",
-    "Attach to Process.350719:Auth.executor": "Debug",
-    "Attach to Process.360587:Auth.executor": "Debug",
-    "Attach to Process.364836:Auth.executor": "Debug",
-    "Attach to Process.389504:Auth.executor": "Debug",
-    "Attach to Process.394046:Auth.executor": "Debug",
-    "Attach to Process.396394:Auth.executor": "Debug",
-    "Attach to Process.399707:Auth.executor": "Debug",
-    "Attach to Process.39980:Auth.executor": "Debug",
-    "Attach to Process.526698:Auth.executor": "Debug",
-    "Attach to Process.688418:Auth.executor": "Debug",
-    "Attach to Process.739461:Auth.executor": "Debug",
-    "Attach to Process.747484:Auth.executor": "Debug",
-    "Attach to Process.896599:Auth.executor": "Debug",
-    "Attach to Process.90744:Auth.executor": "Debug",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "#79 on feature/sign-up",
-    "last_opened_file_path": "/home/duncan/Projects/TheDuncanGichimu/Microservices/AuthService/AuthService.sln",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "reference.settings.ide.settings.notifications",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;.NET Launch Settings Profile.Auth.Grpc: https.executor&quot;: &quot;Debug&quot;,
+    &quot;.NET Launch Settings Profile.Authentication.Grpc: https.executor&quot;: &quot;Debug&quot;,
+    &quot;7bce517b-a3d9-40d1-94b9-1d119825959d.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1153809:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.140293:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1615405:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.169668:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1715345:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1810388:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1832919:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1846003:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.1949588:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.2035581:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.2057760:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.2068742:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.2083157:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.209645:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.2128545:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.264189:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.287496:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.288637:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.294547:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.297635:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.29949:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.304234:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.321483:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.336501:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.345825:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.350719:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.360587:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.364836:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.389504:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.394046:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.396394:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.399707:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.39980:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.526698:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.688418:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.739461:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.747484:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.896599:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;Attach to Process.90744:Auth.executor&quot;: &quot;Debug&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;#79 on feature/sign-up&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/duncan/Projects/TheDuncanGichimu/Microservices/AuthService/AuthService.sln&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settings.ide.settings.notifications&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected=".NET Launch Settings Profile.Auth.Grpc: https">
     <configuration name="Authentication.SchemaBuilder" type="DotNetProject" factoryName=".NET Project">
       <option name="EXE_PATH" value="" />
@@ -320,7 +307,8 @@
       <workItem from="1757313023567" duration="2187000" />
       <workItem from="1757525269770" duration="5257000" />
       <workItem from="1757533262564" duration="1078000" />
-      <workItem from="1757550078029" duration="49379000" />
+      <workItem from="1757550078029" duration="56617000" />
+      <workItem from="1757805769558" duration="2231000" />
     </task>
     <task id="LOCAL-00001" summary="clean terraform config">
       <option name="closed" value="true" />

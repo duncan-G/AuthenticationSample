@@ -3,6 +3,21 @@
 # Source the deployment utilities
 source "$(dirname "$0")/../deployment/deployment_utils.sh"
 
+# Parse options for containerized microservices targeting
+proxy_containerized_microservices=false
+
+while getopts ":c-containerized-microservices" opt; do
+  case ${opt} in
+    c | containerized-microservices ) 
+      proxy_containerized_microservices=true
+      ;;
+    \? ) 
+      echo "Usage: $0 [-c | -containerized-microservices]"
+      exit 1
+      ;;
+  esac
+done
+
 # Get current version from running Envoy service if it exists
 CURRENT_VERSION=$(docker service inspect envoy_app 2>/dev/null | jq -r '.[0].Spec.Labels.version // "0"')
 
@@ -23,10 +38,17 @@ for origin in "${ORIGINS[@]}"; do
 done
 export PROCESSED_ORIGINS=$(echo -e "$ORIGIN_YAML" | sed '$d') # Remove last newline
 
-export AUTH_HOST=host.docker.internal
-export AUTH_PORT=10000
-export GREETER_HOST=host.docker.internal
-export GREETER_PORT=10001
+if [ "$proxy_containerized_microservices" = true ]; then
+    export AUTH_HOST=auth_app
+    export AUTH_PORT=443
+    export GREETER_HOST=greeter_app
+    export GREETER_PORT=443
+else
+    export AUTH_HOST=host.docker.internal
+    export AUTH_PORT=10000
+    export GREETER_HOST=host.docker.internal
+    export GREETER_PORT=10001
+fi
 
 echo "Starting Envoy proxy with unified configuration"
 
@@ -69,5 +91,4 @@ if [ "$CURRENT_VERSION" -gt 0 ]; then
     delete_config "envoy_clusters_$CURRENT_VERSION"
     delete_config "envoy_routes_$CURRENT_VERSION"
     delete_config "envoy_secrets_$CURRENT_VERSION"
-    delete_config "envoy_ca_secrets_$CURRENT_VERSION"
 fi

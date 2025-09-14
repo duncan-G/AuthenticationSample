@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using AuthSample.Auth.Core.Exceptions;
@@ -19,6 +20,7 @@ public class IdentityService(
     ISignUpEligibilityGuard signUpEligibilityGuard,
     ILogger<IdentityService> logger) : IIdentityService
 {
+    private static readonly ActivitySource ActivitySource = new("AuthSample.Auth.Core");
     private readonly IDatabase _cacheDb = cache.GetDatabase();
 
     public async Task<SignUpStep> InitiateSignUpAsync(
@@ -66,6 +68,8 @@ public class IdentityService(
         string? cookieHeader,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity($"{nameof(IdentityService)}.{nameof(ResolveSessionAsync)}");
+
         var accessTokenSessionId = ParseCookie(cookieHeader, "AT_SID");
 
         var cacheKey = $"sess:{accessTokenSessionId}";
@@ -87,19 +91,26 @@ public class IdentityService(
 
                         handler.ValidateToken(sessionData.AccessToken, validationParameters, out _);
 
-                        if (string.IsNullOrEmpty(clientIdClaim) || clientIdClaim != authOptions.Value.Audience)
+                        var clientIdMatches = !string.IsNullOrEmpty(clientIdClaim) && clientIdClaim == authOptions.Value.Audience;
+                        if (!clientIdMatches)
                         {
                             throw new SecurityTokenValidationException("Invalid or missing client_id claim");
                         }
 
                         return new ResolvedSession(sessionData, null, null, false);
                     }
-                    catch (SecurityTokenExpiredException)
+                    catch (SecurityTokenExpiredException ex)
                     {
+                        activity?.AddException(ex);
+                        activity?.SetTag("error.type", nameof(SecurityTokenExpiredException));
+                        activity?.SetTag("resolve.phase", "access_token_validation");
                         // proceed to refresh path
                     }
                     catch (Exception ex)
                     {
+                        activity?.AddException(ex);
+                        activity?.SetTag("error.type", ex.GetType().Name);
+                        activity?.SetTag("resolve.phase", "access_token_validation");
                         logger.LogWarning(ex, "Token validation failed; attempting refresh if possible");
                         // proceed to refresh path
                     }
@@ -118,6 +129,9 @@ public class IdentityService(
         if (refreshRecord is null)
         {
             // Invalid RT_SID, instruct caller to clear refresh cookie
+            activity?.SetTag("resolve.phase", "refresh");
+            activity?.SetTag("resolve.result", "refresh_record_missing");
+            activity?.SetStatus(ActivityStatusCode.Error, "missing_refresh_record");
             return new ResolvedSession(null, null, null, true);
         }
 
@@ -139,8 +153,12 @@ public class IdentityService(
             await _cacheDb.StringSetAsync(cacheKey, payload, ttl).ConfigureAwait(false);
             return new ResolvedSession(sessionToCache, accessTokenSessionId, sessionToCache.AccessTokenExpiry, false);
         }
-        catch (Exception ex)
+        catch (CognitoOperationFailedException ex)
         {
+            activity?.AddException(ex);
+            activity?.SetTag("error.type", ex.GetType().Name);
+            activity?.SetTag("resolve.phase", "refresh");
+            activity?.SetStatus(ActivityStatusCode.Error, "refresh_failed");
             logger.LogError(ex, "Failed to refresh session from cookies");
             return null;
         }

@@ -14,6 +14,8 @@ using AuthSample.Logging;
 using AuthSample.Api.Validation;
 using AuthSample.Auth.Infrastructure.DynamoDb;
 using FluentValidation;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,7 @@ var awsOptions = builder.AddAwsOptions("AuthSample-AuthService");
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
+    .AddEnvironmentVariables("Shared_")
     .AddSecretsManager(
         builder.Environment,
         awsOptions,

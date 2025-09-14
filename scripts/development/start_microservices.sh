@@ -57,7 +57,7 @@ if [ "$containerize_microservices" = true ]; then
         exit 1
     fi
 
-    confirmed_users_count="$("$script_dir"/get_confirmed_user_count.sh)" || exit 1
+    confirmed_users_count="$("$working_dir"/scripts/development/get_confirmed_user_count.sh)" || exit 1
 
     # Build service images (extend mapping as needed)
     # Current image mapping
@@ -77,12 +77,15 @@ if [ "$containerize_microservices" = true ]; then
         env ContainerRepository="$image_name" \
           dotnet publish --os linux --arch x64 /t:PublishContainer
         cd - >/dev/null
-    done
 
-    echo "Deploying services to swarm"
-    env HOME=$HOME \
-        env COGNITO_CONFIRMED_USERS_COUNT=${confirmed_users_count} \
-        docker stack deploy --compose-file microservices/.builds/service.stack.debug.yaml auth
+        echo "Deploying services to swarm"
+        env IMAGE_NAME=$image_name \
+            HOME=$HOME \
+            COGNITO_CONFIRMED_USERS_COUNT=${confirmed_users_count} \
+            AWS_PROFILE=$AWS_PROFILE \
+            AWS_REGION=$AWS_REGION \
+            docker stack deploy --compose-file microservices/.builds/service.stack.debug.yaml $service_name
+    done
     
 else
     # Generic helpers for multiple services

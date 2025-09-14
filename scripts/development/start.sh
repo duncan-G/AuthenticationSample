@@ -21,8 +21,12 @@ clean_database=false
 microservices=false
 containerize_microservices=false
 proxy=false
+proxy_containerized_microservices=false
 start_all=false
 start_all_containers=false
+
+export AWS_PROFILE="developer"
+export AWS_REGION="us-west-1"
 
 # Help message
 show_help() {
@@ -39,12 +43,13 @@ show_help() {
     echo "  -m, --microservices                 Start the microservices"
     echo "  -M, --containerize-microservices    Start microservices in containers"
     echo "  -p, --proxy                         Start the proxy"
+    echo "  -P, --proxy-containerized           Start proxy targeting containerized microservices"
     echo "  -h, --help                          Show this help message"
     exit 0
 }
 
 # Parse options
-while getopts ":aAcCbBDdMmp-:" opt; do
+while getopts ":aAcCbBDdMmpP-:" opt; do
     case ${opt} in
         a ) start_all=true ;;
         A ) start_all=true; start_all_containers=true ;;
@@ -57,6 +62,7 @@ while getopts ":aAcCbBDdMmp-:" opt; do
         m ) microservices=true ;;
         M ) microservices=true; containerize_microservices=true ;;
         p ) proxy=true ;;
+        P ) proxy=true; proxy_containerized_microservices=true ;;
         h ) show_help ;;
         - ) case "${OPTARG}" in
             all ) start_all=true ;;
@@ -70,6 +76,7 @@ while getopts ":aAcCbBDdMmp-:" opt; do
             microservices ) microservices=true ;;
             containerize-microservices ) microservices=true; containerize_microservices=true ;;
             proxy ) proxy=true ;;
+            proxy-containerized ) proxy_containerized_microservices=true ;;
             help ) show_help ;;
             * ) echo "Invalid option: --${OPTARG}" >&2; exit 1 ;;
         esac ;;
@@ -83,8 +90,8 @@ shift $((OPTIND -1))
 load_secrets() {
     local secret_name="$1"
     
-    local profile="developer"
-    local region="us-west-1"
+    local profile="$AWS_PROFILE"
+    local region="$AWS_REGION"
     local env_template_path="$PROJECT_ROOT/infrastructure/.env.template.dev"
     local prefix="Infrastructure_"
 
@@ -210,7 +217,11 @@ start_microservices() {
 # Function to start the proxy
 start_proxy() {
     print_info "Starting proxy..."
-    "$SCRIPT_DIR/start_proxy.sh"
+    if [ "$proxy_containerized_microservices" = true ]; then
+        "$SCRIPT_DIR/start_proxy.sh" --containerized-microservices
+    else
+        "$SCRIPT_DIR/start_proxy.sh"
+    fi
 }
 
 # Function to ensure backend environment is running
@@ -241,6 +252,7 @@ if [ "$start_all" = true ]; then
     if [ "$start_all_containers" = true ]; then
         client_container=true
         containerize_microservices=true
+        proxy_containerized_microservices=true
     fi
 fi
 

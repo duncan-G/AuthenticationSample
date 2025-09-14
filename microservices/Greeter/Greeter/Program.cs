@@ -16,6 +16,7 @@ var awsOptions = builder.AddAwsOptions("AuthSample-GreeterService");
 builder.Configuration
     .AddJsonFile("appsettings.json", false, true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
+    .AddEnvironmentVariables("Shared_")
     .AddSecretsManager(
         builder.Environment,
         awsOptions,
