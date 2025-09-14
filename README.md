@@ -43,7 +43,6 @@ cd AuthenticationSample
 ### 2. Access the Application
 - **Frontend**: https://localhost:3000
 - **Aspire Dashboard**: http://localhost:18888
-- **PgAdmin**: http://localhost:5050
 
 ## 📖 What's Next?
 
