@@ -110,7 +110,9 @@ export async function checkAuthentication(
 
     const activeCtx = trace.setSpan(context.active(), span);
     const response = await context.with(activeCtx, () =>
-      fetch(grpcWebUrl, { method: "POST", headers, body }),
+      withTimeout(DEFAULT_TIMEOUT_MS, (signal) =>
+        fetch(grpcWebUrl, { method: "POST", headers, body, signal }),
+      ),
     );
     const setCookies = extractSetCookies(response);
 

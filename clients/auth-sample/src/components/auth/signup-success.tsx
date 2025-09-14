@@ -17,7 +17,7 @@ export function SignUpSuccess({ onGoToSignIn }: SignUpSuccessProps) {
             <CheckCircle2 className="w-10 h-10 text-green-400" />
           </div>
           <h3 className="text-stone-100 text-xl font-semibold mb-2">Thank you for signing up</h3>
-          <p className="text-stone-300/80 text-sm mb-6">We're excited to have you! Your account is ready — sign in to get started.</p>
+          <p className="text-stone-300/80 text-sm mb-6">We&apos;re excited to have you! Your account is ready — sign in to get started.</p>
           <AuthButton
             onClick={onGoToSignIn}
             className="text-lg"

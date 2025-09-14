@@ -20,7 +20,7 @@ function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string 
   // Set the initial flow immediately
   React.useEffect(() => {
     auth.setCurrentFlow(initialFlow as AuthFlow)
-  }, [initialFlow])
+  }, [auth, initialFlow])
 
   const renderCurrentFlow = () => {
     switch (auth.currentFlow) {

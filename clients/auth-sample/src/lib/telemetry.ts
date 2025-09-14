@@ -50,7 +50,8 @@ export function initWebTelemetry(serviceName: string = "auth-sample-web") {
   }
 
   const shouldExportSpan = (span: ReadableSpan): boolean => {
-    // Restrict spans here
+    // Restrict spans here; mark parameter as used to satisfy lint
+    void span;
     return true;
   };
 

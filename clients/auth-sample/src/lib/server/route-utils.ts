@@ -21,7 +21,7 @@ export function isProtectedRoute(pathname: string): boolean {
  * Checks if a pathname is an authentication route
  */
 export function isAuthRoute(pathname: string): boolean {
-    return AUTH_ROUTES.includes(pathname as any);
+    return AUTH_ROUTES.some((route) => pathname === route);
 }
 
 /**

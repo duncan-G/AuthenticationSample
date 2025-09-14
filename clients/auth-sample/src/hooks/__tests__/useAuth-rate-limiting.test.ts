@@ -14,7 +14,7 @@ jest.mock('@/lib/services/grpc-clients', () => ({
 jest.mock('@/lib/workflows', () => ({
   startWorkflow: () => ({
     startStep: () => ({
-      run: (fn: () => Promise<any>) => fn(),
+      run: (fn: () => Promise<unknown>) => fn(),
       fail: jest.fn(),
       succeed: jest.fn()
     }),
