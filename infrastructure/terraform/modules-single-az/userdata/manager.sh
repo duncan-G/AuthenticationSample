@@ -90,7 +90,7 @@ get_az(){        imds_get "/latest/meta-data/placement/availability-zone"; }
 # ----------------------------------------------
 install_docker_stack(){
   pm update
-  pm install docker jq awscli || true
+  pm install docker jq awscli openssl || true
   systemctl enable --now docker
   if id "$SETUP_USER" >/dev/null 2>&1; then usermod -aG docker "$SETUP_USER" || true; fi
 
@@ -208,6 +208,25 @@ label_node_with_az(){
 }
 
 # ----------------------------------------------
+# Certificate Manager service configuration
+# ----------------------------------------------
+install_certificate_manager(){
+  log "Configuring certificate manager service …"
+
+  # Write environment file for the service
+  cat >/etc/certificate-manager.env <<ENV
+AWS_REGION=${AWS_REGION}
+AWS_SECRET_NAME=${AWS_SECRET_NAME}
+DOMAIN_NAME=${DOMAIN_NAME}
+ENV
+
+  # Ensure systemd is aware of latest units and start the service
+  systemctl daemon-reload
+  systemctl enable --now certificate-manager.service || true
+  log "Certificate manager service enabled"
+}
+
+# ----------------------------------------------
 # Main
 # ----------------------------------------------
 log "Bootstrap initiated — Docker Swarm manager setup starting"
@@ -242,5 +261,8 @@ put_param "network-name" "$NETWORK_NAME"
 create_overlay_network
 install_codedeploy_agent
 label_node_with_az
+
+# Install and start certificate manager service
+install_certificate_manager
 
 log "Manager initialised at $manager_addr — ready"
