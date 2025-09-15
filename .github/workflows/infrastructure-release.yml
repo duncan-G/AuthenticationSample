@@ -293,7 +293,7 @@ jobs:
 
     - name: Upload certificate-manager.sh to CodeDeploy bucket
       run: |
-        aws s3 cp infrastructure/terraform/modules-single-az/userdata/certificate-manager.sh \
+        aws s3 cp ./userdata/certificate-manager.sh \
           s3://${{ env.TF_VAR_codedeploy_bucket_name }}/${{ env.TF_VAR_certificate_manager_s3_key }} \
           --region ${{ vars.AWS_REGION }} \
           --only-show-errors
