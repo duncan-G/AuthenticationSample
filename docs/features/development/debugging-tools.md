@@ -63,23 +63,6 @@ public void ConfigureServices(IServiceCollection services)
 }
 ```
 
-### Database Debugging Integration
-
-PgAdmin integration for database inspection:
-
-```yaml
-# Database debugging service
-pgadmin:
-  image: dpage/pgadmin4:latest
-  ports:
-    - "5050:80"
-  environment:
-    - PGADMIN_DEFAULT_EMAIL=admin@example.com
-    - PGADMIN_DEFAULT_PASSWORD=admin
-  volumes:
-    - ./infrastructure/postgres/pg_admin/server.json:/pgadmin4/servers.json
-```
-
 ## Configuration
 
 ### Development Debugging Setup
@@ -252,18 +235,6 @@ open http://localhost:5050
 # Login credentials
 Email: admin@example.com
 Password: admin
-```
-
-#### Direct Database Access
-
-```bash
-# Connect to PostgreSQL directly
-docker exec -it $(docker ps -q -f name=postgres) psql -U postgres -d auth_sample
-
-# Common debugging queries
-SELECT * FROM users WHERE email = 'test@example.com';
-SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 10;
-EXPLAIN ANALYZE SELECT * FROM users WHERE email = $1;
 ```
 
 ### Performance Profiling

@@ -83,13 +83,6 @@ Key environment variables for development:
 NEXT_PUBLIC_AUTH_SERVICE_URL=https://localhost:8080
 NEXT_PUBLIC_GREETER_SERVICE_URL=https://localhost:8081
 
-# Database Configuration
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=auth_sample
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=<from-secrets>
-
 # Redis Configuration
 REDIS_HOST=localhost
 REDIS_PORT=6379
@@ -296,15 +289,6 @@ dotnet --version  # Should be 9.0+
 cd microservices/Auth
 dotnet clean
 dotnet build
-```
-
-#### Database Connection Issues
-```bash
-# Check PostgreSQL container
-docker service logs auth-sample_postgres
-
-# Verify database is accessible
-docker exec -it $(docker ps -q -f name=postgres) pg_isready -h localhost -p 5432
 ```
 
 ### Performance Issues

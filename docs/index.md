@@ -96,7 +96,7 @@
 ### Technology Stack
 - **Backend**: .NET 9.0, gRPC, ASP.NET Core
 - **Frontend**: Next.js 15.3+, React 19, TypeScript 5
-- **Infrastructure**: Docker, Envoy, PostgreSQL, Redis, AWS
+- **Infrastructure**: Docker, Envoy, Redis, AWS
 - **Observability**: OpenTelemetry, Aspire Dashboard
 
 ## 📈 Documentation Statistics
