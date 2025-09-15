@@ -291,13 +291,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Upload certificate-manager.sh to CodeDeploy bucket
-      run: |
-        aws s3 cp ./userdata/certificate-manager.sh \
-          s3://${{ env.TF_VAR_codedeploy_bucket_name }}/${{ env.TF_VAR_certificate_manager_s3_key }} \
-          --region ${{ vars.AWS_REGION }} \
-          --only-show-errors
-
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
@@ -310,6 +303,13 @@ jobs:
         role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
         role-session-name: GitHubActions-Terraform-Apply-${{ github.run_id }}
         aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Upload certificate-manager.sh to CodeDeploy bucket
+      run: |
+        aws s3 cp ./userdata/certificate-manager.sh \
+          s3://${{ env.TF_VAR_codedeploy_bucket_name }}/${{ env.TF_VAR_certificate_manager_s3_key }} \
+          --region ${{ vars.AWS_REGION }} \
+          --only-show-errors
 
     - name: Terraform Init
       run: |
