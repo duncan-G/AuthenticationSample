@@ -7,6 +7,7 @@ using Amazon;
 using Amazon.Runtime;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Moq;
 using Xunit;
 using AuthSample.Api.Secrets;
@@ -36,14 +37,15 @@ public class SecretsManagerConfigurationProviderTests
     private static object BuildProvider(object source, IConfigurationBuilder builder)
     {
         var buildMethod = source.GetType().GetMethod("Build", BindingFlags.Instance | BindingFlags.Public)!;
-        return buildMethod.Invoke(source, new object[] { builder })!;
+        return buildMethod.Invoke(source, [builder])!;
     }
 
     private static void InjectClient(object provider, IAmazonSecretsManager client)
     {
         var field = provider.GetType().GetField("_client", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        var lazy = Activator.CreateInstance(typeof(Lazy<>).MakeGenericType(typeof(IAmazonSecretsManager)),
-            new object[] { (Func<IAmazonSecretsManager>)(() => client) });
+        var lazy = Activator.CreateInstance(
+            typeof(Lazy<>).MakeGenericType(typeof(IAmazonSecretsManager)),
+            (Func<IAmazonSecretsManager>)(() => client));
         field.SetValue(provider, lazy);
     }
 
@@ -85,8 +87,10 @@ public class SecretsManagerConfigurationProviderTests
     {
         var builder = new ConfigurationBuilder();
         var aws = CreateAwsOptions();
+        var env = new Mock<IHostEnvironment>();
+        env.SetupGet(e => e.EnvironmentName).Returns("Development");
 
-        Action act = () => builder.AddSecretsManager(aws, _ => { });
+        Action act = () => builder.AddSecretsManager(env.Object, aws, _ => { });
 
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("SecretId cannot be null or empty.");
@@ -96,7 +100,7 @@ public class SecretsManagerConfigurationProviderTests
     public void Should_load_shared_entries_with_key_replacement()
     {
         var secretId = "test/secret";
-        var options = new AuthSample.Api.Secrets.SecretsManagerOptions
+        var options = new SecretsManagerOptions
         {
             SecretId = secretId,
             UseDevOverrides = false,
@@ -127,7 +131,7 @@ public class SecretsManagerConfigurationProviderTests
     public void Should_apply_app_prefix_and_shared_entries()
     {
         var secretId = "test/secret";
-        var options = new AuthSample.Api.Secrets.SecretsManagerOptions
+        var options = new SecretsManagerOptions
         {
             SecretId = secretId,
             Prefix = "App_",
@@ -158,7 +162,7 @@ public class SecretsManagerConfigurationProviderTests
     public void Should_apply_dev_overrides_over_shared_and_app()
     {
         var secretId = "test/secret";
-        var options = new AuthSample.Api.Secrets.SecretsManagerOptions
+        var options = new SecretsManagerOptions
         {
             SecretId = secretId,
             Prefix = "App_",
@@ -191,7 +195,7 @@ public class SecretsManagerConfigurationProviderTests
     public void Keys_should_be_case_insensitive()
     {
         var secretId = "test/secret";
-        var options = new AuthSample.Api.Secrets.SecretsManagerOptions
+        var options = new SecretsManagerOptions
         {
             SecretId = secretId,
             Prefix = null,
@@ -222,7 +226,7 @@ public class SecretsManagerConfigurationProviderTests
     public async Task Should_reload_after_interval_and_update_values()
     {
         var secretId = "test/secret";
-        var options = new AuthSample.Api.Secrets.SecretsManagerOptions
+        var options = new SecretsManagerOptions
         {
             SecretId = secretId,
             ReloadAfter = TimeSpan.FromMilliseconds(100)
