@@ -45,12 +45,6 @@ variable "production_environment_name" {
   default     = "prod"
 }
 
-# New: name of existing S3 bucket for CodeDeploy artifacts
-variable "codedeploy_bucket_name" {
-  description = "Name of the pre-existing S3 bucket used for CodeDeploy artifacts"
-  type        = string
-}
-
 #endregion
 
 #region Resources

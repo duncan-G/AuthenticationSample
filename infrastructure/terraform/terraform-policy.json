@@ -277,8 +277,7 @@
           ]
         }
       }
-    }
-    ,
+    },
     {
       "Sid": "DynamoDBPermissions",
       "Effect": "Allow",

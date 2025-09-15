@@ -43,6 +43,19 @@ variable "bucket_suffix" {
   type        = string
 }
 
+# CodeDeploy artifact bucket name (pre-existing)
+variable "codedeploy_bucket_name" {
+  description = "Name of the S3 bucket where CodeDeploy artifacts are stored"
+  type        = string
+}
+
+# S3 key for certificate-manager.sh within the CodeDeploy bucket
+variable "certificate_manager_s3_key" {
+  description = "S3 key (path) to certificate-manager.sh in the CodeDeploy bucket"
+  type        = string
+  default     = "infrastructure/certificate-manager.sh"
+}
+
 # Subdomain labels
 variable "api_subdomain" {
   description = "API subdomain label (e.g., 'api')"

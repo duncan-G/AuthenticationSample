@@ -361,16 +361,9 @@ resource "aws_launch_template" "manager" {
     "AWS_SECRET_NAME=\"${var.project_name}-secrets-${var.env}\"",
     # Use primary domain from module inputs
     "DOMAIN_NAME=\"${var.domain_name}\"",
-    # Provision certificate manager script and systemd unit from module files
-    "install -d -m 0755 /usr/local/bin",
-    "cat >/usr/local/bin/certificate-manager.sh <<'CERTMAN'",
-    replace(file("${path.module}/userdata/certificate-manager.sh"), "\r\n", "\n"),
-    "CERTMAN",
-    "chmod +x /usr/local/bin/certificate-manager.sh",
-    "cat >/etc/systemd/system/certificate-manager.service <<'UNIT'",
-    replace(file("${path.module}/userdata/certificate-manager.service"), "\r\n", "\n"),
-    "UNIT",
-    "systemctl daemon-reload",
+    # S3 location of certificate-manager.sh
+    "CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
+    "CERT_MANAGER_S3_KEY=\"${var.certificate_manager_s3_key}\"",
     file("${path.module}/userdata/manager.sh")
   ]))
 

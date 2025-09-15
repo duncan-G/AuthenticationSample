@@ -213,6 +213,64 @@ label_node_with_az(){
 install_certificate_manager(){
   log "Configuring certificate manager service …"
 
+  # Ensure dependencies and target directories
+  install -d -m 0755 /usr/local/bin
+  if ! command -v flock >/dev/null 2>&1; then pm install util-linux || true; fi
+
+  # Fetch certificate-manager.sh from CodeDeploy S3 bucket when variables are provided
+  if [[ -n ${CODEDEPLOY_BUCKET_NAME:-} && -n ${CERT_MANAGER_S3_KEY:-} ]]; then
+    log "Downloading s3://${CODEDEPLOY_BUCKET_NAME}/${CERT_MANAGER_S3_KEY} → /usr/local/bin/certificate-manager.sh"
+    aws s3 cp "s3://${CODEDEPLOY_BUCKET_NAME}/${CERT_MANAGER_S3_KEY}" \
+      /usr/local/bin/certificate-manager.sh \
+      --region "${AWS_REGION}" \
+      --only-show-errors || log "Warning: Failed to download certificate-manager.sh from S3"
+    chmod +x /usr/local/bin/certificate-manager.sh || true
+  else
+    log "Warning: CODEDEPLOY_BUCKET_NAME or CERT_MANAGER_S3_KEY not set; skipping download"
+  fi
+
+  # Install or update systemd unit
+  cat >/etc/systemd/system/certificate-manager.service <<'UNIT'
+[Unit]
+Description=Certificate Manager Daemon
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+
+# Writable state directory under /var/lib
+StateDirectory=certificate-manager
+WorkingDirectory=%S
+
+# Runtime directory for lock file
+RuntimeDirectory=certificate-manager
+RuntimeDirectoryMode=0755
+
+# Environment for certificate manager
+EnvironmentFile=/etc/certificate-manager.env
+
+ExecStart=/usr/bin/flock -n %t/certificate-manager/instance.lock /usr/local/bin/certificate-manager.sh --daemon
+
+Restart=always
+RestartSec=10
+
+SyslogIdentifier=certificate-manager
+StandardOutput=append:/var/log/certificate-manager/certificate-manager.log
+StandardError=append:/var/log/certificate-manager/certificate-manager.log
+
+LockPersonality=yes
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
   # Write environment file for the service
   cat >/etc/certificate-manager.env <<ENV
 AWS_REGION=${AWS_REGION}
