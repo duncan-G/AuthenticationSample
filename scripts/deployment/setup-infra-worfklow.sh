@@ -294,7 +294,7 @@ main() {
     
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
-    # Ensure SES identity exists and is verified before proceeding; provide guidance if not
+    # Ensure SES identity exists and is verified before proceeding
     validate_ses_identity
 
     create_terraform_state_backend

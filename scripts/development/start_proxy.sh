@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source the deployment utilities
-source "$(dirname "$0")/../deployment/deployment_utils.sh"
+source "$(dirname "$0")/../development/deployment_utils.sh"
 
 # Parse options for containerized microservices targeting
 proxy_containerized_microservices=false

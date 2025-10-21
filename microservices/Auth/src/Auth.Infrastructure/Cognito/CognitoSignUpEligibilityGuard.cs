@@ -23,7 +23,7 @@ public sealed class CognitoSignUpEligibilityGuard(
 
     public async Task EnforceMaxConfirmedUsersAsync(CancellationToken cancellationToken = default)
     {
-        if (!(await CanInitiateSignUpAsync(0,  cancellationToken).ConfigureAwait(false)))
+        if (!await CanInitiateSignUpAsync(0,  cancellationToken).ConfigureAwait(false))
         {
             throw new MaximumUsersReachedException();
         }
@@ -43,6 +43,35 @@ public sealed class CognitoSignUpEligibilityGuard(
         {
             logger.LogError(ex, "Failed to increment {CacheKey} in Redis; sign-up traffic may cause Cognito charges.", CacheKey);
         }
+    }
+
+    private async Task<bool> CanInitiateSignUpAsync(int attempts = 0, CancellationToken cancellationToken = default)
+    {
+        using var activity = ActivitySource.StartActivity(
+            $"{nameof(CognitoSignUpEligibilityGuard)}.{nameof(CanInitiateSignUpAsync)}");
+
+        var db = cache.GetDatabase();
+        try
+        {
+            var cached = await db.StringGetAsync(CacheKey).ConfigureAwait(false);
+            if (cached.HasValue && int.TryParse(cached.ToString(), out var cachedCount))
+            {
+                return cachedCount <= MaxConfirmedUsers;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to read {CacheKey} from Redis; denying sign-up to prevent unexpected costs.", CacheKey);
+            throw;
+        }
+
+        if (attempts > 0)
+        {
+            return false;
+        }
+
+        SeedConfirmedUsersCount();
+        return await CanInitiateSignUpAsync(attempts + 1, cancellationToken).ConfigureAwait(false);
     }
 
     private void SeedConfirmedUsersCount()
@@ -91,36 +120,6 @@ public sealed class CognitoSignUpEligibilityGuard(
             throw new InvalidOperationException("Failed to cache confirmed user count in Redis");
         }
     }
-
-    private async Task<bool> CanInitiateSignUpAsync(int attempts = 0, CancellationToken cancellationToken = default)
-    {
-        using var activity = ActivitySource.StartActivity(
-            $"{nameof(CognitoSignUpEligibilityGuard)}.{nameof(CanInitiateSignUpAsync)}");
-
-        var db = cache.GetDatabase();
-        try
-        {
-            var cached = await db.StringGetAsync(CacheKey).ConfigureAwait(false);
-            if (cached.HasValue && int.TryParse(cached.ToString(), out var cachedCount))
-            {
-                return cachedCount <= MaxConfirmedUsers;
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to read {CacheKey} from Redis; denying sign-up to prevent unexpected costs.", CacheKey);
-            throw;
-        }
-
-        if (attempts > 0)
-        {
-            return false;
-        }
-
-        SeedConfirmedUsersCount();
-        return await CanInitiateSignUpAsync(attempts + 1, cancellationToken).ConfigureAwait(false);
-    }
-
 }
 
 
