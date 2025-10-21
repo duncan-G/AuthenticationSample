@@ -8,16 +8,12 @@ This guide provides comprehensive step-by-step instructions for setting up the a
 
 Before starting, ensure you have the following tools installed on your system:
 
-### Required Software
+### Required Software and Services
 
 #### 1. Docker Desktop
 - **Version**: Latest stable version
 - **Purpose**: Container orchestration and development environment
 - **Installation**: Download from [docker.com](https://www.docker.com/products/docker-desktop/)
-- **Configuration**: 
-  - Enable Docker Swarm: `docker swarm init`
-  - Allocate at least 4GB RAM to Docker
-  - Enable file sharing for your project directory
 
 #### 2. .NET SDK
 - **Version**: .NET 9.0 or later
@@ -43,9 +39,28 @@ Before starting, ensure you have the following tools installed on your system:
 - **jq**: JSON processing tool
   - **Installation**: `brew install jq` (macOS) or download from [jqlang.github.io](https://jqlang.github.io/jq/)
   - **Purpose**: Processing JSON in setup scripts
-- **AWS CLI** (optional, for production deployment):
-  - **Installation**: Follow [AWS CLI installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-  - **Purpose**: Managing AWS resources and secrets
+
+#### 6. AWS Account and CLI
+- **Account**: AWS account with a Route 53 hosted zone (domain)
+- **CLI Installation**: Follow the [AWS CLI installation guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- **Purpose**: Managing AWS resources and secrets; required by setup and deployment scripts
+- **Verification**:
+  - `aws --version`
+
+#### 7. GitHub Account and CLI
+- **Account**: GitHub account with access to the repository
+- **Git Installation**: macOS `brew install git` (others: see [git-scm.com/downloads](https://git-scm.com/downloads))
+- **GitHub CLI Installation**: macOS `brew install gh` (others: see [cli.github.com](https://cli.github.com))
+- **Purpose**: Version control and CI/CD workflows
+- **Verification**:
+  - `git --version`
+  - `gh --version`
+
+#### 8. Vercel Account and API Key
+- **Account**: Vercel account
+- **API Token**: Create a Vercel API token for deployments
+- **Purpose**: Hosting/deploying the frontend client. API key is stored in Github Secrets.
+- **Docs**: See Vercel docs on creating an API token (`https://vercel.com/docs`)
 
 ## Initial Setup
 
@@ -58,137 +73,34 @@ cd AuthenticationSample
 
 ### 2. Run Initial Setup
 
-The setup script will pull required Docker images and install dependencies:
+The first time setting up this application, configure GitHub and AWS, then bootstrap the local environment.
 
+#### 2.1 AWS Setup (new repository)
+- Create an AWS SSO user with permissions listed in [infrastructure/terraform/setup-github-actions-oidc-policy.json](../../infrastructure/terraform/setup-github-actions-oidc-policy.json)
+- Configure your SSO profile:
 ```bash
-./setup.sh
+aws sso configure
 ```
-
-This script performs the following actions:
-- Cleans up Docker resources (containers, volumes, networks)
-- Pulls required Docker images:
-  - `mcr.microsoft.com/dotnet/aspire-dashboard:latest`
-  - `envoyproxy/envoy:v1.34-latest`
-  - `redis:latest`
-  - `amazon/dynamodb-local:latest`
-- Builds custom Docker images:
-  - `protoc-gen-grpc-web:latest` (for gRPC code generation)
-  - `auth-sample/postgres:latest` (PostgreSQL with custom configuration)
-- Installs npm dependencies for the frontend client
-
-## Environment Configuration
-
-The system uses environment template files that need to be configured for your local development environment.
-
-### Understanding Environment Templates
-
-Environment template files (`.env.template`) serve as blueprints for creating actual environment files (`.env`). They contain:
-- Required configuration keys
-- Default values where applicable
-- Comments explaining each setting
-
-**Important**: Template files are used by the `setup-secrets.sh` script to create secrets in AWS Secrets Manager for production deployments.
-
-### Environment Files Structure
-
-```text
-├── .env                                    # Root environment (created from infrastructure templates)
-├── microservices/
-│   ├── .env.template                      # Shared microservice settings
-│   ├── .env.template.dev                  # Development-specific overrides
-│   └── Auth/src/Auth.Grpc/
-│       └── .env.template                  # Auth service specific settings
-├── clients/auth-sample/
-│   └── .env.local.template               # Frontend environment settings
-└── infrastructure/
-    ├── .env.template.dev                 # Development infrastructure settings
-    └── .env.template.prod                # Production infrastructure settings
-```
-
-### Local Development Configuration
-
-For local development, you need to create the following environment files:
-
-#### 1. Root Environment File
-
-The root `.env` file is already provided with development defaults:
-
+- Set up OIDC access for GitHub Actions to provision AWS resources:
 ```bash
-# File: .env (already exists)
-CERTIFICATE_PASSWORD=hgZIlPQbmNCcGcXeOgUMfNICxnuFG
-ASPIRE_BROWSER_TOKEN=aspire
-PGADMIN_DEFAULT_EMAIL=pgadmin@pgadmin.com
-PGADMIN_DEFAULT_PASSWORD=pgadmin
-DATABASE_NAME=postgres
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
+# Provides GitHub Actions ability to provision AWS resources via Terraform
+./scripts/deployment/setup-infra-workflow.sh
+
+# You can remove most resources by running the following
+# (read or run the script to see what needs to be deleted manually)
+./scripts/deployment/remove-infra-workflow.sh
 ```
 
-#### 2. Frontend Environment File
+#### 2.2 Set up secrets
+Use the `setup-secrets.sh` script to configure secrets. This will create client `.env.local` files and store backend secrets in AWS Secrets Manager.
 
-Create the frontend environment file:
-
-```bash
-cp clients/auth-sample/.env.local.template clients/auth-sample/.env.local
-```
-
-Edit `clients/auth-sample/.env.local`:
-
-```bash
-# gRPC service endpoints (default values work for local development)
-NEXT_PUBLIC_AUTHENTICATION_SERVICE_URL=http://localhost:11000/auth
-NEXT_PUBLIC_GREETER_SERVICE_URL=https://localhost:11000/greet
-NEXT_PUBLIC_OTLP_HTTP_ENDPOINT=http://localhost:11000/otlp/v1
-
-# Disable TLS verification for local development
-NODE_TLS_REJECT_UNAUTHORIZED=0
-```
-
-#### 3. Microservice Environment Files
-
-For local development with microservices running outside containers, create:
-
-```bash
-# Shared microservice configuration
-cp microservices/.env.template microservices/.env
-cp microservices/.env.template.dev microservices/.env.dev
-
-# Auth service specific configuration
-cp microservices/Auth/src/Auth.Grpc/.env.template microservices/Auth/src/Auth.Grpc/.env
-```
-
-Edit the microservice environment files:
-
-**microservices/.env:**
-```bash
-# OpenTelemetry endpoint for observability
-Shared_ApplicationLogging__OtlpEndpoint=http://otel-collector_app:4317
-Shared_ApplicationLogging__OtlpProtocol=grpc
-
-# AWS Cognito settings (leave empty for local development)
-Shared_Authentication__Audience=
-Shared_Authentication__Authority=
-```
-
-**microservices/Auth/src/Auth.Grpc/.env:**
-```bash
-# AWS Cognito settings (leave empty for local development)
-Auth_Cognito__ClientId=
-Auth_Cognito__UserPoolId=
-Auth_Cognito__Secret=
-Auth_Cognito__RefreshTokenExpirationDays=30
-```
-
-### Production Environment Setup
-
-For production deployment, use the `setup-secrets.sh` script to configure AWS Secrets Manager:
-
+For development and initial production deployment:
 ```bash
 # Development secrets (stored in AWS Secrets Manager)
-./scripts/deployment/setup-secrets.sh -a your-project-name -p your-aws-profile
+./scripts/deployment/setup-secrets.sh -a your-project-name -p your-aws-profile <optional -f>
 
 # Production secrets (stored in AWS Secrets Manager)
-./scripts/deployment/setup-secrets.sh -a your-project-name -p your-aws-profile -P
+./scripts/deployment/setup-secrets.sh -a your-project-name -p your-aws-profile -P <optional -f>
 ```
 
 The script will:
@@ -196,6 +108,51 @@ The script will:
 2. Prompt you for values for each configuration key
 3. Store backend secrets in AWS Secrets Manager
 4. Create local `.env` files for frontend applications
+5. When re-run, only prompt for new secrets; use `-f` to overwrite all values
+
+NOTE: It is recommended to manage production secrets in AWS Console.
+
+#### 2.3 Bootstrap local environment
+The setup script pulls required Docker images and installs dependencies:
+```bash
+./setup.sh
+```
+
+This script performs the following actions:
+- Cleans up Docker resources (containers, volumes, networks)
+- Pulls required Docker images
+- Builds custom Docker images
+- Installs npm dependencies for the frontend client
+
+## Environment Configuration
+
+The system uses environment template files that need to be configured for your local development environment. For running the secrets setup, see section "2.2 Set up secrets" above.
+
+### Understanding Environment Templates
+
+Environment template files (`.env.template`) serve as blueprints for creating actual environment files (`.env`) and adding secrets to AWS Secret Manager. They contain:
+- Required configuration keys
+- Default values where applicable
+- Comments explaining each setting
+### Environment Files Structure
+
+```text
+├── .env                                    # Root environment (created from infrastructure templates)
+├── microservices/
+│   ├── .env.template                      # Shared microservice settings
+│   ├── .env.template.dev                  # Development-specific overrides
+│   └── <service-name>/**/
+│       └── .env.template                  # Optional per-service settings
+├── clients/
+│   └── <client-name>/
+│       └── .env.local.template            # Optional per-client settings
+└── infrastructure/
+    ├── .env.template.dev                 # Development infrastructure settings
+    └── .env.template.prod                # Production infrastructure settings
+```
+
+
+For usage of `setup-secrets.sh` (including flags and behaviors), refer to section "2.2 Set up secrets".
 
 ## Starting the Application
 

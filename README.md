@@ -9,7 +9,6 @@ A modern, production-ready authentication system built with microservices archit
 ### Quick Links
 - **[🚀 Quick Start Guide](docs/guides/developer-setup.md)** - Get up and running in minutes
 - **[🏛️ Architecture Overview](docs/guides/architecture-overview.md)** - System design and components  
-- **[📋 Feature Index](docs/index.md)** - Complete feature documentation
 - **[🔧 Troubleshooting](docs/guides/troubleshooting.md)** - Common issues and solutions
 
 ## ✨ Key Features
