@@ -146,11 +146,17 @@ describe('Authentication Flow Integration Tests', () => {
       const passwordButton = screen.getByText('Sign up with Password')
       await user.click(passwordButton)
 
+      // Debug: Check state immediately after click
+      console.log('After click - Flow:', screen.getByTestId('current-flow').textContent)
+      console.log('After click - Method:', screen.getByTestId('signup-method').textContent)
+
       // Should navigate to email options with password method
       await waitFor(() => {
+        console.log('In waitFor - Flow:', screen.getByTestId('current-flow').textContent)
+        console.log('In waitFor - Method:', screen.getByTestId('signup-method').textContent)
         expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
         expect(screen.getByTestId('signup-method')).toHaveTextContent('password')
-      })
+      }, { timeout: 5000 })
 
       // Should show password-specific content
       expect(screen.getByText('Create account with password')).toBeInTheDocument()

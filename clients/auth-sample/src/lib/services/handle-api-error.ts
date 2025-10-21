@@ -15,7 +15,7 @@ export const friendlyMessageFor: Record<KnownErrorCode, string> = {
         "We couldn't send a verification code. Please try again later.",
     [ErrorCodes.MaximumUsersReached]: "We've reached our user limit. Please try again later.",
     [ErrorCodes.ResourceExhausted]:
-        "You've reached the maximum number of attempts.",
+        "You've reached the maximum number of resend attempts (5 per hour).",
     [ErrorCodes.Unexpected]: "Something went wrong. Please try again in a moment.",
 };
 
@@ -94,10 +94,14 @@ export const handleApiError = (
     if (code === ErrorCodes.ResourceExhausted) {
         friendly = friendlyMessageFor[ErrorCodes.ResourceExhausted];
         const retryAfterMinutes = getRetryAfterMinutes({ retryAfterSeconds, serverMessage });
-        const retryAfterLabel = retryAfterMinutes === 1 ? "minute" : "minutes";
+        
         if (retryAfterMinutes && retryAfterMinutes > 0) {
+            const retryAfterLabel = retryAfterMinutes === 1 ? "minute" : "minutes";
             friendly = `${friendly} Please wait ${retryAfterMinutes} ${retryAfterLabel} before trying again.`;
+        } else {
+            friendly = `${friendly} Please wait before trying again.`;
         }
+        
         onRateLimitExceeded?.(retryAfterMinutes);
     }
 
