@@ -42,7 +42,7 @@ get_user_input() {
     prompt_user "Enter backend domain name (e.g., example.com)" "DOMAIN_NAME"
     
     # Prompt for Vercel API key for frontend deployments (optional)
-    prompt_user_optional "Enter Vercel API key (for frontend deployments, leave blank to skip)" "VERCEL_API_KEY"
+    prompt_user_optional "Enter Vercel API key (for frontend deployments, blank to leave unchanged)" "VERCEL_API_KEY"
     
     # Get Route53 hosted zone ID automatically
     if ! ROUTE53_HOSTED_ZONE_ID=$(get_route53_hosted_zone_id "$DOMAIN_NAME" "$AWS_PROFILE"); then
@@ -254,8 +254,7 @@ main() {
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
     TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
-    create_terraform_state_bucket "$TF_STATE_BUCKET"-dev
-    create_terraform_state_bucket "$TF_STATE_BUCKET"-prod
+    create_terraform_state_bucket "$TF_STATE_BUCKET"
     create_codedeploy_bucket
     setup_oidc_infrastructure
     setup_github_workflow
