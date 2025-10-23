@@ -226,7 +226,7 @@ jobs:
       if: always()
       run: |
         echo "## Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: terraform-dev" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action || 'plan' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Workspace**: $(terraform workspace show)" >> $GITHUB_STEP_SUMMARY
         
@@ -244,10 +244,10 @@ jobs:
       github.event_name == 'workflow_dispatch' &&
       needs.terraform-plan.outputs.has-changes == 'true'
     needs: terraform-plan
-    environment: ${{ github.event.inputs.environment }}
+    environment: terraform-dev
     
     concurrency:
-      group: terraform-apply-${{ github.event.inputs.environment }}
+      group: terraform-dev
       cancel-in-progress: false
 
     defaults:
@@ -340,7 +340,7 @@ jobs:
       if: always()
       run: |
         echo "## Terraform Apply/Destroy Results" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: terraform-dev" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
         
         case "${{ steps.apply.outputs.exitcode }}" in
