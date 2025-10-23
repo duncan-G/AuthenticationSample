@@ -109,7 +109,7 @@ jobs:
 
     - name: Setup Workspace
       run: |
-        WORKSPACE="${{ github.event.inputs.environment || 'terraform-stage' }}"
+        WORKSPACE="terraform-dev"
         terraform workspace select -or-create "$WORKSPACE"
         echo "Current workspace: $(terraform workspace show)"
 
@@ -290,7 +290,7 @@ jobs:
 
     - name: Setup Workspace
       run: |
-        WORKSPACE="dev"
+        WORKSPACE="terraform-dev"
         terraform workspace select -or-create "$WORKSPACE"
         echo "Current workspace: $(terraform workspace show)"
 
