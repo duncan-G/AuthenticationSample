@@ -1,4 +1,4 @@
-name: 'Infrastructure Debug'
+name: 'Infrastructure Dev'
 
 on:
   workflow_dispatch:
