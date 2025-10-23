@@ -36,7 +36,7 @@ describe('handleApiError', () => {
     handleApiError(error, mockSetErrorMessage, mockStep, mockOnRateLimitExceeded)
 
     expect(mockSetErrorMessage).toHaveBeenCalledWith(
-      friendlyMessageFor[ErrorCodes.ResourceExhausted]
+      `${friendlyMessageFor[ErrorCodes.ResourceExhausted]} Please wait before trying again.`
     )
     expect(mockOnRateLimitExceeded).toHaveBeenCalledWith(undefined)
     // Console logging is tested implicitly

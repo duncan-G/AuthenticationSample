@@ -17,10 +17,14 @@ jest.mock('@/lib/validation', () => ({
 function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string }) {
   const auth = useAuth()
 
-  // Set the initial flow immediately
+  // Set the initial flow once on mount to avoid resetting after state changes
+  const didInitRef = React.useRef(false)
   React.useEffect(() => {
-    auth.setCurrentFlow(initialFlow as AuthFlow)
-  }, [auth, initialFlow])
+    if (!didInitRef.current) {
+      auth.setCurrentFlow(initialFlow as AuthFlow)
+      didInitRef.current = true
+    }
+  }, [initialFlow])
 
   const renderCurrentFlow = () => {
     switch (auth.currentFlow) {

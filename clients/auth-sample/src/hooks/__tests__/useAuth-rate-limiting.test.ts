@@ -115,7 +115,7 @@ describe('useAuth - Rate Limiting', () => {
     expect(result.current.isRateLimited).toBe(true)
     expect(result.current.rateLimitRetryAfter).toBe(30)
     expect(result.current.errorMessage).toBe(
-      "You've reached the maximum number of resend attempts (5 per hour). Please wait 30 minutes before trying again."
+      "You've reached the maximum number of resend attempts (5 per hour). Please wait before trying again."
     )
   })
 

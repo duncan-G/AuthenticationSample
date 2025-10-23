@@ -92,16 +92,11 @@ export const handleApiError = (
     let friendly = resolveFriendlyMessage(code);
 
     if (code === ErrorCodes.ResourceExhausted) {
-        friendly = friendlyMessageFor[ErrorCodes.ResourceExhausted];
+        // Always show a stable friendly message without embedding dynamic minutes.
+        // The dynamic "try again in X minutes" is surfaced via the rate-limit UI,
+        // driven by the callback below.
         const retryAfterMinutes = getRetryAfterMinutes({ retryAfterSeconds, serverMessage });
-        
-        if (retryAfterMinutes && retryAfterMinutes > 0) {
-            const retryAfterLabel = retryAfterMinutes === 1 ? "minute" : "minutes";
-            friendly = `${friendly} Please wait ${retryAfterMinutes} ${retryAfterLabel} before trying again.`;
-        } else {
-            friendly = `${friendly} Please wait before trying again.`;
-        }
-        
+        friendly = `${friendlyMessageFor[ErrorCodes.ResourceExhausted]} Please wait before trying again.`;
         onRateLimitExceeded?.(retryAfterMinutes);
     }
 
