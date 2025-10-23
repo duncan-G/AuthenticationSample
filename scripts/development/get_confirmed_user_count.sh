@@ -23,18 +23,24 @@ fi
 
 get_confirmed_users_count() {
   local count
+  local err_file err
 
-  # Capture count; handle AWS CLI errors cleanly
-  if ! count=$(
+  # Capture count; handle AWS CLI errors cleanly and echo underlying error
+  err_file=$(mktemp)
+  count=$(
     aws cognito-idp list-users \
       --user-pool-id "${USER_POOL_ID}" \
       --profile "${AWS_PROFILE}" \
       --query "Users[?UserStatus=='CONFIRMED'] | length(@)" \
-      --output text 2>/dev/null
-  ); then
-    echo "Error: Failed to retrieve confirmed user count from Cognito (aws cli error)." >&2
+      --output text 2>"${err_file}"
+  )
+  if [[ $? -ne 0 ]]; then
+    err=$(cat "${err_file}")
+    rm -f "${err_file}"
+    echo "Error: Failed to retrieve confirmed user count from Cognito. AWS CLI error: ${err}" >&2
     return 1
   fi
+  rm -f "${err_file}"
 
   # Normalize whitespace
   count="${count//$'\r'/}"
