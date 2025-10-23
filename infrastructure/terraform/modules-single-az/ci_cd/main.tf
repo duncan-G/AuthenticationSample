@@ -1,4 +1,55 @@
 # =============================================================================
+# CI/CD Infrastructure (ECR Repos, CodeDeploy, IAM)
+# =============================================================================
+#
+# This module provisions:
+# • ECR repositories and lifecycle policies for microservices
+# • CodeDeploy apps, deployment groups, and CloudWatch log groups
+# • IAM roles/policies and attachments for CodeDeploy and GitHub Actions
+# • Instance profile for CodeDeploy on EC2
+# =============================================================================
+
+#region ECR Repositories (from container-registry.tf)
+
+resource "aws_ecr_repository" "microservices" {
+  for_each = toset(var.microservices)
+
+  name                 = "${var.project_name}/${each.key}-${var.env}"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Environment = var.env
+    Service     = each.key
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "microservices" {
+  for_each   = aws_ecr_repository.microservices
+  repository = each.value.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus     = "tagged"
+        tagPrefixList = ["v"]
+        countType     = "imageCountMoreThan"
+        countNumber   = 10
+      }
+      action = { type = "expire" }
+    }]
+  })
+}
+
+#endregion
+
+# =============================================================================
 # AWS CodeDeploy Infrastructure
 # =============================================================================
 # This file manages all infrastructure components required for AWS CodeDeploy:
@@ -13,41 +64,7 @@
 # Note: See ./.github/workflows/deploy-microservices.yml for deployment details
 # =============================================================================
 
-#region Configuration
-
-variable "microservices" {
-  description = "List of microservices to deploy/build (also used to create ECR repos)"
-  type        = list(string)
-  default     = []
-}
-
-variable "microservices_with_logs" {
-  description = "Subset of microservices that should have CloudWatch logs collected via CodeDeploy"
-  type        = list(string)
-  default     = []
-}
-
-variable "github_repository" {
-  description = "GitHub repo in 'owner/repo' format for OIDC trust policy"
-  type        = string
-  default     = ""
-}
-
-variable "staging_environment_name" {
-  description = "GitHub Actions staging environment name"
-  type        = string
-  default     = "stage"
-}
-
-variable "production_environment_name" {
-  description = "GitHub Actions production environment name"
-  type        = string
-  default     = "prod"
-}
-
-#endregion
-
-#region Resources
+#region CodeDeploy
 
 # CodeDeploy Applications
 resource "aws_codedeploy_app" "microservices" {
@@ -113,9 +130,9 @@ resource "aws_cloudwatch_log_group" "codedeploy_logs" {
 
 #endregion
 
-#region IAM Roles
+#region IAM Roles and Policies (from deploy-microservices.tf)
 
-# CodeDeploy Service Role for Github Actions to deploy microservices
+# CodeDeploy Service Role for AWS CodeDeploy service
 resource "aws_iam_role" "codedeploy_service_role" {
   name = "${var.project_name}-codedeploy-service-role-${var.env}"
 
@@ -137,7 +154,7 @@ resource "aws_iam_role" "codedeploy_service_role" {
   }
 }
 
-# GitHub Actions CodeDeploy Role for GitHub Actions to deploy via CodeDeploy
+# GitHub Actions CodeDeploy Role (OIDC)
 resource "aws_iam_role" "github_actions_codedeploy" {
   name = "${var.project_name}-github-actions-role-codedeploy-${var.env}"
 
@@ -169,7 +186,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
   }
 }
 
-# EC2 CodeDeploy Role for EC2 instances to work with CodeDeploy
+# EC2 CodeDeploy Role for instances
 resource "aws_iam_role" "ec2_codedeploy_role" {
   name = "${var.project_name}-ec2-codedeploy-role-${var.env}"
 
@@ -191,11 +208,7 @@ resource "aws_iam_role" "ec2_codedeploy_role" {
   }
 }
 
-#endregion
-
-#region IAM Policies
-
-# GitHub Actions CodeDeploy Policy for GitHub Actions to deploy via CodeDeploy
+# GitHub Actions CodeDeploy Policy
 resource "aws_iam_policy" "github_actions_codedeploy_policy" {
   name        = "${var.project_name}-github-actions-policy-codedeploy-${var.env}"
   description = "Policy for GitHub Actions to deploy via AWS CodeDeploy"
@@ -315,29 +328,22 @@ resource "aws_iam_policy" "ec2_codedeploy_policy" {
   }
 }
 
-#endregion
-
-#region IAM Policy Attachments
-
-# CodeDeploy Service Role Policy Attachment
+# Policy Attachments
 resource "aws_iam_role_policy_attachment" "codedeploy_service_role_policy" {
   role       = aws_iam_role.codedeploy_service_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
 }
 
-# GitHub Actions CodeDeploy Policy Attachment
 resource "aws_iam_role_policy_attachment" "github_actions_codedeploy_policy_attachment" {
   role       = aws_iam_role.github_actions_codedeploy.name
   policy_arn = aws_iam_policy.github_actions_codedeploy_policy.arn
 }
 
-# EC2 CodeDeploy Policy Attachment
 resource "aws_iam_role_policy_attachment" "ec2_codedeploy_policy_attachment" {
   role       = aws_iam_role.ec2_codedeploy_role.name
   policy_arn = aws_iam_policy.ec2_codedeploy_policy.arn
 }
 
-# Manager Instance CodeDeploy Policy Attachment
 resource "aws_iam_role_policy_attachment" "manager_codedeploy_policy_attachment" {
   role       = aws_iam_role.manager.name
   policy_arn = aws_iam_policy.ec2_codedeploy_policy.arn
@@ -350,24 +356,3 @@ resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
 }
 
 #endregion
-
-#region Outputs
-
-# CodeDeploy S3 Bucket Outputs
-output "codedeploy_bucket_name" {
-  value       = "${var.project_name}-codedeploy-${var.bucket_suffix}"
-  description = "Name of the S3 bucket for CodeDeploy deployment artifacts"
-}
-
-output "codedeploy_bucket_arn" {
-  value       = "arn:aws:s3:::${var.project_name}-codedeploy-${var.bucket_suffix}"
-  description = "ARN of the S3 bucket for CodeDeploy deployment artifacts"
-}
-
-# GitHub Actions CodeDeploy Role Output
-output "github_actions_codedeploy_role_arn" {
-  description = "ARN of the GitHub Actions CodeDeploy deployment role"
-  value       = aws_iam_role.github_actions_codedeploy.arn
-}
-
-#endregion 

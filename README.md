@@ -28,38 +28,42 @@ A modern, production-ready authentication system built with microservices archit
 - **Docker**
 - **.NET 9 SDK**
 - **Node.js 22+** and npm
-- **AWS cli** and AWS account with a **Domain** on Route53
+- **AWS cli** and AWS account with a **Hosted Zone**(doman) on Route53
 - **Git & Github cli** with repo in github
 - **Vercel** account with a API Key
 
-### 1. AWS Setup (New repo setup)
-- Create an AWS SSO user with permissions listed in  [setup-github-actions-oidc-poly.json](infrastructure/terraform/setup-github-actions-oidc-policy.json)
-- Configure your sso profile `aws sso configure`
-- Setup OIDC access for github to access AWS
+### 1. AWS Setup (New AWS Account setup)
+- Create an AWS SSO user group and profile with permissions listed in [setup-github-actions-oidc-policy.json](infrastructure/terraform/setup-github-actions-oidc-policy.json)
+    - Configure sso profile `aws sso configure infra-setup`
+    - This profile is used to provision dev resources in AWS
+- Setup Permissions to run github actions that will deploy AWS resources
     ```bash
-    # Provides github actions ability to provision AWS resources via terraform
     ./scripts/deployment/setup-infra-workflow.sh
-
-    # You can remove most resources by running the following (Read or run script to see what needs to be deleted manually)
-    ./scripts/deployment/remove-infra-workflow.sh
     ```
-- Setup Development secrets
+- Create an AWS SSO user group profile with permissions listed in [developer-policy.json](infrastructure/terraform/developer-policy.json)
+    - Configure sso profile `aws sso configure developer`
+    - This profile is used by applications to access AWS
+- Setup cloud dev resources the application needs
     ```bash
-    # Script will prompt you to manually enter secrets needed by the application. Client secrets will be stored in clients/auth-sample/.env.local while server secrets will be stored in AWS Secret Manager
+    ./scripts/development/privision-dev-aws-resources.sh
+    ```
+- Setup dev secrets
+    ```bash
     ./scripts/deployment/setup-secrets.sh
     ```
 
 ### 2. Local Setup & Start
 ```bash
-# Start everything
+# Pull needed containers and run npm install
 ./setup.sh
+
+# Start everything
 ./start.sh -a
 
 # Restart a specific microservice
 ./restart <MicroserviceName>
 
-# Start everything, but run applications in containers
-# Normally used for testing prod environment
+# Start everything, but run applications in containers (prod-like)
 ./start.sh -A
 ```
 
@@ -69,7 +73,7 @@ The start.sh script provides granular control over which components to start:
 # Backend infrastructure (Docker Swarm, certificates)
 ./start.sh -b
 
-# Similar to (-b) but creates new certificates
+# Similar to (-b) but alwys creates new certificates
 ./start.sh -B
 
 # Databases (Redis, DynamoDB)
@@ -94,11 +98,10 @@ The start.sh script provides granular control over which components to start:
 # Frontend (when using containerized services)
 ./start.sh -C
 ```
-Stopping the Application
 
 ##### Stop services
 ```bash
-# This will entire backend and prune all volumes
+# This will entire backend, client and prune all volumes
 ./stop.sh
 
 ```

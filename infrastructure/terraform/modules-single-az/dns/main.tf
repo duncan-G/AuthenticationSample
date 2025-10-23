@@ -24,8 +24,8 @@ resource "aws_route53_record" "api_a" {
   type    = "A"
 
   alias {
-    name                   = aws_lb.main.dns_name
-    zone_id                = aws_lb.main.zone_id
+    name                   = var.load_balancer_dns_name
+    zone_id                = var.load_balancer_zone_id
     evaluate_target_health = false
   }
 }
@@ -36,8 +36,8 @@ resource "aws_route53_record" "api_aaaa" {
   type    = "AAAA"
 
   alias {
-    name                   = aws_lb.main.dns_name
-    zone_id                = aws_lb.main.zone_id
+    name                   = var.load_balancer_dns_name
+    zone_id                = var.load_balancer_zone_id
     evaluate_target_health = false
   }
 }
@@ -49,8 +49,8 @@ resource "aws_route53_record" "auth_a" {
   type    = "A"
 
   alias {
-    name                   = aws_lb.main.dns_name
-    zone_id                = aws_lb.main.zone_id
+    name                   = var.load_balancer_dns_name
+    zone_id                = var.load_balancer_zone_id
     evaluate_target_health = false
   }
 }
@@ -61,8 +61,8 @@ resource "aws_route53_record" "auth_aaaa" {
   type    = "AAAA"
 
   alias {
-    name                   = aws_lb.main.dns_name
-    zone_id                = aws_lb.main.zone_id
+    name                   = var.load_balancer_dns_name
+    zone_id                = var.load_balancer_zone_id
     evaluate_target_health = false
   }
 }
@@ -79,34 +79,5 @@ resource "aws_route53_record" "spf" {
 }
 
 #endregion
-
-#region Outputs
-
-# Hosted Zone outputs
-output "hosted_zone_id" {
-  description = "Route53 hosted zone ID"
-  value       = local.hosted_zone_id
-}
-
-output "hosted_zone_name" {
-  description = "Route53 hosted zone name"
-  value       = local.hosted_zone_name
-}
-
-# Domain URL outputs
-output "main_domain_url" {
-  description = "Main domain URL"
-  value       = "https://${var.domain_name}"
-}
-
-output "api_domain_url" {
-  description = "API subdomain URL"
-  value       = "https://${var.api_subdomain}.${var.domain_name}"
-}
-
-output "auth_domain_url" {
-  description = "Auth subdomain URL"
-  value       = "https://${var.auth_subdomain}.${var.domain_name}"
-}
 
 #endregion

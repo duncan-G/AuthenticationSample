@@ -17,54 +17,7 @@ source "$UTILS_DIR/github-utils.sh"
 
 print_header "🚀 Terraform Github Actions Workflow Setup Script"
 
-# Function to get Route53 hosted zone ID from domain
-get_route53_hosted_zone_id() {
-    local domain_name="$1"
-    
-    print_info "Looking up Route53 hosted zone for domain: $domain_name"
-    
-    # Find the hosted zone for the exact domain name
-    HOSTED_ZONE_ID=$(aws route53 list-hosted-zones --profile "$AWS_PROFILE" --query "HostedZones[?Name=='${domain_name}.'].Id" --output text 2>/dev/null)
-    
-    if [ -z "$HOSTED_ZONE_ID" ]; then
-        print_error "Could not find Route53 hosted zone for domain: $domain_name"
-        print_error "Please ensure the hosted zone exists in Route53 before running this script"
-        exit 1
-    else
-        # Remove the /hostedzone/ prefix if present
-        HOSTED_ZONE_ID=$(echo "$HOSTED_ZONE_ID" | sed 's|/hostedzone/||')
-        ROUTE53_HOSTED_ZONE_ID="$HOSTED_ZONE_ID"
-        print_success "Found Route53 hosted zone ID: $ROUTE53_HOSTED_ZONE_ID"
-    fi
-}
-
-# Validate SES identity exists and is verified; compute ARN
-validate_ses_identity() {
-    print_info "Validating SES domain identity for $DOMAIN_NAME in region $AWS_REGION"
-
-    local status
-    status=$(aws ses get-identity-verification-attributes \
-        --identities "$DOMAIN_NAME" \
-        --region "$AWS_REGION" \
-        --profile "$AWS_PROFILE" \
-        --query "VerificationAttributes.\"$DOMAIN_NAME\".VerificationStatus" \
-        --output text 2>/dev/null || true)
-
-    if [ -z "$status" ] || [ "$status" = "None" ] || [ "$status" = "NotFound" ]; then
-        print_error "SES identity for domain '$DOMAIN_NAME' not found in region '$AWS_REGION'."
-        print_info  "Run: scripts/deployment/setup_ses_email_identity.sh to create and verify the identity."
-        exit 1
-    fi
-
-    if [ "$status" != "Success" ]; then
-        print_error "SES identity for '$DOMAIN_NAME' exists but is not verified (status: $status)."
-        print_info  "Wait for verification or rerun scripts/deployment/setup_ses_email_identity.sh with DNS records in place."
-        exit 1
-    fi
-
-    SES_IDENTITY_ARN="arn:aws:ses:${AWS_REGION}:${AWS_ACCOUNT_ID}:identity/${DOMAIN_NAME}"
-    print_success "SES identity verified. ARN: $SES_IDENTITY_ARN"
-}
+# Hosted zone lookup uses shared utils
 
 # Function to get user input
 get_user_input() {
@@ -90,7 +43,9 @@ get_user_input() {
     prompt_user_optional "Enter Vercel API key (for frontend deployments, leave blank to skip)" "VERCEL_API_KEY"
     
     # Get Route53 hosted zone ID automatically
-    get_route53_hosted_zone_id "$DOMAIN_NAME"
+    if ! ROUTE53_HOSTED_ZONE_ID=$(get_route53_hosted_zone_id "$DOMAIN_NAME" "$AWS_PROFILE"); then
+        exit 1
+    fi
     
     # Calculate bucket suffix using the same logic as elsewhere
     BUCKET_SUFFIX=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
@@ -121,10 +76,10 @@ get_user_input() {
 }
 
 # Function to create S3 bucket for Terraform state
-create_terraform_state_backend() {
+create_terraform_state_bucket() {
     TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
     
-    print_info "Creating S3 bucket for Terraform state backend: $TF_STATE_BUCKET"
+    print_info "Creating S3 bucket for Terraform state bucket: $TF_STATE_BUCKET"
 
     if ! aws s3api head-bucket --bucket "$TF_STATE_BUCKET" --profile "$AWS_PROFILE" 2>/dev/null; then
         aws s3api create-bucket --bucket "$TF_STATE_BUCKET" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
@@ -185,8 +140,7 @@ setup_github_workflow() {
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
         "EDGE_SHARED_SECRET:$(openssl rand -hex 16)" \
-        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET" \
-        "SES_IDENTITY_ARN:$SES_IDENTITY_ARN"
+        "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET"
 
     # Conditionally add Vercel secret only if provided
     if [ -n "${VERCEL_API_KEY}" ]; then
@@ -234,7 +188,6 @@ display_final_instructions() {
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
     echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
-    echo -e "${GREEN}   SES Identity ARN: $SES_IDENTITY_ARN${NC}"
     
     print_info "You can now use the GitHub Actions workflows!"
     echo "   • Terraform: Actions → 'Infrastructure Release' → Run workflow"
@@ -294,10 +247,7 @@ main() {
     
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
-    # Ensure SES identity exists and is verified before proceeding
-    validate_ses_identity
-
-    create_terraform_state_backend
+    create_terraform_state_bucket
     create_codedeploy_bucket
     setup_oidc_infrastructure
     setup_github_workflow

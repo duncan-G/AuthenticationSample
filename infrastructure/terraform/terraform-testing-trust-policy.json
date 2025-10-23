@@ -1,0 +1,29 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                    "token.actions.githubusercontent.com:sub": [
+                        "repo:${GITHUB_REPO_FULL}:environment:${STAGING_ENVIRONMENT}",
+                        "repo:${GITHUB_REPO_FULL}:environment:${PRODUCTION_ENVIRONMENT}"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "LocalSSO",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/aws-reserved/sso.amazonaws.com/${AWS_REGION}/AWSReservedSSO_${AWS_SSO_PERMISSION_SET_NAME}_${AWS_SSO_PERMISSION_SET_GUID}"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}

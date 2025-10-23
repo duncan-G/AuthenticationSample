@@ -153,5 +153,6 @@ else
     # Launch all registered services
     for service_name in "${SERVICES[@]}"; do
         start_service "$service_name"
+        sleep 5
     done
 fi

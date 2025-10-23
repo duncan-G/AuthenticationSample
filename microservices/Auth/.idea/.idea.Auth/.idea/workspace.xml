@@ -10,11 +10,47 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="be6fae81-c3e9-4005-a034-879191f1bd73" name="Changes" comment="" />
+    <list default="true" id="be6fae81-c3e9-4005-a034-879191f1bd73" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../../README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../docs/guides/developer-setup.md" beforeDir="false" afterPath="$PROJECT_DIR$/../../docs/guides/developer-setup.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/github-trust-policy.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/auth-email-delivery.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/auth-provider.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/auth-user.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/cache.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/certificate.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/client.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/compute.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/container-registry.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/database.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/deploy-microservices.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/dns.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/load-balancer.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/network-security.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/network.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/otel-collector.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/providers.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/userdata/certificate-manager.service" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/userdata/certificate-manager.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/userdata/manager.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/userdata/worker.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../infrastructure/terraform/modules-single-az/variables.tf" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Auth/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/deployment/setup-infra-worfklow.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/deployment/setup-infra-worfklow.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/deployment/setup-oidc-infra.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/deployment/setup-oidc-infra.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../scripts/utils/aws-utils.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../scripts/utils/aws-utils.sh" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ChangesViewManager">
+    <option name="groupingKeys">
+      <option value="directory" />
+      <option value="repository" />
+    </option>
   </component>
   <component name="DpaMonitoringSettings">
     <option name="firstShow" value="false" />
@@ -298,6 +334,7 @@
       <workItem from="1757533262564" duration="1078000" />
       <workItem from="1757550078029" duration="56617000" />
       <workItem from="1757805769558" duration="3947000" />
+      <workItem from="1761018502967" duration="7253000" />
     </task>
     <task id="LOCAL-00001" summary="clean terraform config">
       <option name="closed" value="true" />
@@ -421,19 +458,6 @@
             </endOffsets>
           </properties>
           <option name="timeStamp" value="40" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoSignUpEligibilityGuard.cs</url>
-          <line>49</line>
-          <properties documentPath="$PROJECT_DIR$/src/Auth.Infrastructure/Cognito/CognitoSignUpEligibilityGuard.cs" containingFunctionPresentation="Method 'SeedConfirmedUsersCount'">
-            <startOffsets>
-              <option value="1773" />
-            </startOffsets>
-            <endOffsets>
-              <option value="1806" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="47" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/tests/Auth.IntegrationTests/ResendVerificationCodeSimpleIntegrationTests.cs</url>

@@ -110,7 +110,7 @@ prompt_for_missing
 DEPLOYMENT_BUCKET="${PROJECT_NAME}-codedeploy-${BUCKET_SUFFIX}"
 
 ORIGINAL_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../infrastructure/terraform" && pwd)/terraform-policy.json"
-ORIGINAL_TRUST_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../infrastructure/terraform" && pwd)/github-trust-policy.json"
+ORIGINAL_TRUST_POLICY_FILE_PATH="$(cd "$SCRIPT_DIR/../../infrastructure/terraform" && pwd)/terraform-github-trust-policy.json"
 
 PROCESSED_POLICY_FILE_PATH=$(mktemp)
 PROCESSED_TRUST_POLICY_FILE_PATH=$(mktemp)

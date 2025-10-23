@@ -78,14 +78,4 @@ resource "aws_iam_role_policy_attachment" "worker_refresh_tokens_rw" {
   policy_arn = aws_iam_policy.refresh_tokens_rw.arn
 }
 
-# Outputs
-output "refresh_tokens_table_name" {
-  description = "Name of the DynamoDB table for refresh tokens"
-  value       = aws_dynamodb_table.refresh_tokens.name
-}
-
-output "refresh_tokens_table_arn" {
-  description = "ARN of the DynamoDB table for refresh tokens"
-  value       = aws_dynamodb_table.refresh_tokens.arn
-}
 

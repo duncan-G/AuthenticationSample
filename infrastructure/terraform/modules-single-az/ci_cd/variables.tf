@@ -1,8 +1,3 @@
-# ---------------------------------------------------------------------------
-# Shared Variables
-# ---------------------------------------------------------------------------
-# Variables used across the stack.
-
 variable "region" {
   description = "AWS region for all resources (set via TF_VAR_region)"
   type        = string
@@ -28,16 +23,6 @@ variable "env" {
   }
 }
 
-variable "domain_name" {
-  description = "Primary domain (e.g., example.com)"
-  type        = string
-
-  validation {
-    condition     = length(var.domain_name) > 0
-    error_message = "Domain name must not be empty"
-  }
-}
-
 variable "bucket_suffix" {
   description = "Suffix to ensure unique S3 bucket names across envs"
   type        = string
@@ -49,20 +34,32 @@ variable "codedeploy_bucket_name" {
   type        = string
 }
 
-# S3 key for certificate-manager.sh within the CodeDeploy bucket
-variable "certificate_manager_s3_key" {
-  description = "S3 key (path) to certificate-manager.sh in the CodeDeploy bucket"
-  type        = string
-  default     = "infrastructure/certificate-manager.sh"
+variable "microservices" {
+  description = "List of microservices to deploy/build (also used to create ECR repos)"
+  type        = list(string)
+  default     = []
 }
 
-# Subdomain labels
-variable "api_subdomain" {
-  description = "API subdomain label (e.g., 'api')"
-  type        = string
+variable "microservices_with_logs" {
+  description = "Subset of microservices that should have CloudWatch logs collected via CodeDeploy"
+  type        = list(string)
+  default     = []
 }
 
-variable "auth_subdomain" {
-  description = "Auth subdomain label (e.g., 'auth')"
+variable "github_repository" {
+  description = "GitHub repo in 'owner/repo' format for OIDC trust policy"
   type        = string
+  default     = ""
+}
+
+variable "staging_environment_name" {
+  description = "GitHub Actions staging environment name"
+  type        = string
+  default     = "stage"
+}
+
+variable "production_environment_name" {
+  description = "GitHub Actions production environment name"
+  type        = string
+  default     = "prod"
 }

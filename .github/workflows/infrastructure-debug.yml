@@ -1,7 +1,6 @@
-name: 'Infrastructure Release'
+name: 'Infrastructure Debug (Dev)'
 
 on:
-  # Manual trigger with choice of action
   workflow_dispatch:
     inputs:
       action:
@@ -13,56 +12,25 @@ on:
           - plan
           - deploy
           - destroy
-      environment:
-        description: 'Target Environment'
-        required: true
-        default: 'terraform-prod'
-        type: choice
-        options:
-          - terraform-stage
-          - terraform-prod
-      multi_az:
-        description: 'Enable multi-az configuration'
-        required: false
-        default: false
-        type: boolean
 
-  # Automatic plan on pull requests
   pull_request:
     branches: [ main ]
     paths:
-      - 'infrastructure/terraform/modules-single-az/**'
-      - 'infrastructure/terraform/modules-multi-az/**'
-      - 'infrastructure/terraform/prod/**'
+      - 'infrastructure/terraform/dev/**'
 
-  # Only plan on main branch pushes (no auto-deploy)
   push:
     branches: [ main ]
     paths:
-      - 'infrastructure/terraform/modules-single-az/**'
-      - 'infrastructure/terraform/modules-multi-az/**'
-      - 'infrastructure/terraform/prod/**'
+      - 'infrastructure/terraform/dev/**'
 
 env:
-  TERRAFORM_VERSION: "1.12.2"
-  TF_ROOT_DIR: ${{ (github.event.inputs.multi_az == 'true') && 'infrastructure/terraform/modules-multi-az' || 'infrastructure/terraform/modules-single-az' }}
+  TERRAFORM_VERSION: "1.13.0"
+  TF_ROOT_DIR: 'infrastructure/terraform/dev'
   TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
   TF_VAR_region: ${{ vars.AWS_REGION }}
-  TF_VAR_github_repository: ${{ github.repository }}
-  TF_VAR_codedeploy_bucket_name: ${{ secrets.DEPLOYMENT_BUCKET }}
-  TF_VAR_env: ${{ github.event.inputs.environment == 'terraform-prod' && 'prod' || 'stage' }}
-  TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
-  TF_VAR_route53_hosted_zone_id: ${{ secrets.ROUTE53_HOSTED_ZONE_ID }}
-  TF_VAR_bucket_suffix: ${{ secrets.BUCKET_SUFFIX }}
-  TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_KEY }}
-  TF_VAR_vercel_root_directory: "clients/auth-sample"
-  TF_VAR_microservices: '["auth", "envoy", "otel-collector"]'
-  TF_VAR_microservices_with_logs: '["auth", "envoy"]'
-  TF_VAR_edge_shared_secret: ${{ secrets.EDGE_SHARED_SECRET }}
-  TF_VAR_api_subdomain: 'api'
-  TF_VAR_auth_subdomain: 'auth'
-  TF_VAR_auth_callback: '["https://auth.${{ vars.DOMAIN_NAME }}/auth/callback"]'
-  TF_VAR_auth_logout: '["https://auth.${{ vars.DOMAIN_NAME }}/auth/logout-complete"]'
+  TF_VAR_env: 'dev'
+  TF_VAR_auth_callback: '["https://localhost:3000/auth/callback"]'
+  TF_VAR_auth_logout: '["https://localhost:3000/auth/logout-complete"]'
 
 permissions:
   contents: read
@@ -74,11 +42,11 @@ jobs:
   terraform-plan:
     name: 'Terraform Plan'
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'terraform-stage' }}
+    environment: terraform-dev
     
     # Only allow one terraform run at a time per environment
     concurrency:
-      group: terraform-${{ github.event.inputs.environment || 'terraform-stage' }}
+      group: terraform-dev
       cancel-in-progress: false
 
     defaults:
@@ -128,7 +96,7 @@ jobs:
         
         # Initialize with partial backend configuration
         terraform init \
-          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}-dev" \
           -backend-config="region=${{ vars.AWS_REGION }}" \
           -backend-config="workspace_key_prefix=$TF_WORKSPACE_PREFIX" \
           -no-color
@@ -202,7 +170,7 @@ jobs:
       if: steps.plan.outputs.exitcode == 2
       uses: actions/upload-artifact@v4
       with:
-        name: terraform-plan-${{ github.event.inputs.environment || 'terraform-stage' }}-${{ github.run_id }}
+        name: terraform-plan-dev-${{ github.run_id }}
         path: ${{ env.TF_ROOT_DIR }}/tfplan-*
         retention-days: 5
 
@@ -259,7 +227,7 @@ jobs:
       if: always()
       run: |
         echo "## Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment**: ${{ github.event.inputs.environment || 'terraform-stage' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action || 'plan' }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Workspace**: $(terraform workspace show)" >> $GITHUB_STEP_SUMMARY
         
@@ -309,9 +277,9 @@ jobs:
       run: |
         # Initialize with partial backend configuration
         terraform init \
-          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}-dev" \
           -backend-config="region=${{ vars.AWS_REGION }}" \
-          -backend-config="workspace_key_prefix=${{ vars.PROJECT_NAME }}/${{ (github.event.inputs.multi_az == 'true') && 'multi-az' || 'single-az' }}" \
+          -backend-config="workspace_key_prefix=${{ vars.PROJECT_NAME }}/dev" \
           -no-color
         
         # Verify backend configuration
@@ -323,7 +291,7 @@ jobs:
 
     - name: Setup Workspace
       run: |
-        WORKSPACE="${{ github.event.inputs.environment }}"
+        WORKSPACE="dev"
         terraform workspace select -or-create "$WORKSPACE"
         echo "Current workspace: $(terraform workspace show)"
 
@@ -331,7 +299,7 @@ jobs:
       if: github.event.inputs.action == 'deploy'
       uses: actions/download-artifact@v4
       with:
-        name: terraform-plan-${{ github.event.inputs.environment }}-${{ github.run_id }}
+        name: terraform-plan-dev-${{ github.run_id }}
         path: ${{ env.TF_ROOT_DIR }}/
 
     - name: Terraform Apply
@@ -373,7 +341,7 @@ jobs:
       if: always()
       run: |
         echo "## Terraform Apply/Destroy Results" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
         echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
         
         case "${{ steps.apply.outputs.exitcode }}" in

@@ -1,4 +1,65 @@
 # =============================================================================
+# ACM Certificate for Public TLS (API and Auth subdomains)
+# =============================================================================
+// Issues a single certificate with SANs for api.<domain> and auth.<domain>
+// and validates it via Route53 DNS records.
+# =============================================================================
+
+#region TLS Certificate
+
+# Route53 hosted zone lookup for certificate DNS validation
+data "aws_route53_zone" "hosted_zone" {
+  zone_id = var.route53_hosted_zone_id
+}
+
+locals {
+  hosted_zone_id = data.aws_route53_zone.hosted_zone.zone_id
+}
+
+resource "aws_acm_certificate" "public" {
+  domain_name = "${var.api_subdomain}.${var.domain_name}"
+  subject_alternative_names = [
+    "${var.auth_subdomain}.${var.domain_name}"
+  ]
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name        = "${var.project_name}-public-cert-${var.env}"
+    Environment = var.env
+  }
+}
+
+# Create DNS validation records for each domain on the certificate
+resource "aws_route53_record" "acm_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.public.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  zone_id         = local.hosted_zone_id
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  records         = [each.value.record]
+  allow_overwrite = true
+}
+
+# Wait for DNS validation to complete and the certificate to be ISSUED
+resource "aws_acm_certificate_validation" "public" {
+  certificate_arn         = aws_acm_certificate.public.arn
+  validation_record_fqdns = [for record in aws_route53_record.acm_validation : record.fqdn]
+}
+
+#endregion
+
+# =============================================================================
 # EC2 Compute Infrastructure
 # =============================================================================
 # IAM roles/policies, instance profiles, launch templates and ASGs for
@@ -6,69 +67,7 @@
 # and scaling alarms.
 # =============================================================================
 
-// Uses shared variables from variables.tf and data sources from data.tf
-
-#region Configuration
-
-variable "instance_type_managers" {
-  description = "EC2 instance type for Swarm managers"
-  type        = string
-  default     = "t4g.small"
-}
-
-variable "instance_types_workers" {
-  description = "List of instance types for workers (used for MixedInstancesPolicy if spot enabled)"
-  type        = list(string)
-  default     = ["t4g.small", "m6g.medium"]
-}
-
-variable "desired_workers" {
-  description = "Desired number of worker nodes"
-  type        = number
-  default     = 1
-}
-
-variable "min_workers" {
-  description = "Minimum number of worker nodes"
-  type        = number
-  default     = 1
-}
-
-variable "max_workers" {
-  description = "Maximum number of worker nodes"
-  type        = number
-  default     = 3
-}
-
-variable "enable_spot" {
-  description = "Whether to use Spot capacity for workers"
-  type        = bool
-  default     = false
-}
-
-variable "authenticated_policy_arn" {
-  description = "If provided, attaches this policy ARN to the authenticated Cognito role"
-  type        = string
-  default     = ""
-}
-
-variable "manager_min_size" {
-  description = "Minimum number of manager instances (should be odd for quorum)"
-  type        = number
-  default     = 1
-}
-
-variable "manager_max_size" {
-  description = "Maximum number of manager instances"
-  type        = number
-  default     = 3
-}
-
-variable "manager_desired_capacity" {
-  description = "Desired number of manager instances"
-  type        = number
-  default     = 1
-}
+#region EC2 Compute
 
 # Locals for IAM ARNs
 locals {
@@ -79,10 +78,6 @@ locals {
   ]
   secrets_prefix_arn = "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project_name}-secrets*"
 }
-
-#endregion
-
-#region IAM Roles
 
 # Worker role
 resource "aws_iam_role" "worker" {
@@ -143,10 +138,6 @@ resource "aws_iam_instance_profile" "manager" {
   }
 }
 
-#endregion
-
-#region IAM Policies
-
 # Worker core permissions policy
 resource "aws_iam_policy" "worker_core" {
   name        = "${var.project_name}-worker-core-${var.env}"
@@ -192,7 +183,7 @@ resource "aws_iam_policy" "worker_core" {
   }
 }
 
-# Manager core permissions policy (includes worker permissions + management capabilities)
+# Manager core permissions policy
 resource "aws_iam_policy" "manager_core" {
   name        = "${var.project_name}-manager-core-${var.env}"
   description = "Core permissions for manager nodes"
@@ -242,10 +233,6 @@ resource "aws_iam_policy" "manager_core" {
   }
 }
 
-#endregion
-
-#region IAM Policy Attachments
-
 # Managed policy attachments (SSM + CloudWatch)
 resource "aws_iam_role_policy_attachment" "ssm_worker" {
   role       = aws_iam_role.worker.name
@@ -278,10 +265,6 @@ resource "aws_iam_role_policy_attachment" "manager_core" {
   policy_arn = aws_iam_policy.manager_core.arn
 }
 
-#endregion
-
-#region Resources
-
 # CloudWatch Log Groups for EC2 instances
 resource "aws_cloudwatch_log_group" "manager" {
   name              = "/aws/ec2/${var.project_name}-${var.env}-docker-manager"
@@ -303,7 +286,7 @@ resource "aws_cloudwatch_log_group" "worker" {
   }
 }
 
-# Launch Template for Workers (no user_data; bootstrap via SSM associations)
+# Launch Template for Workers
 resource "aws_launch_template" "worker" {
   name_prefix   = "${var.project_name}-worker-${var.env}-"
   description   = "Launch template for worker nodes"
@@ -357,7 +340,7 @@ resource "aws_launch_template" "manager" {
     "PROJECT_NAME=\"${var.project_name}-${var.env}\"",
     "AWS_REGION=\"${var.region}\"",
     # Certificate manager configuration for manager nodes
-    # Secret name convention matches application configs (e.g., auth-sample-secrets-development)
+    # Secret name convention matches application configs (e.g., auth-sample-secrets-dev)
     "AWS_SECRET_NAME=\"${var.project_name}-secrets-${var.env}\"",
     # Use primary domain from module inputs
     "DOMAIN_NAME=\"${var.domain_name}\"",
@@ -384,7 +367,7 @@ resource "aws_launch_template" "manager" {
   ]
 }
 
-# Auto Scaling Group for Workers (single group)
+# Auto Scaling Group for Workers
 resource "aws_autoscaling_group" "workers" {
   name                      = "${var.project_name}-workers-asg-${var.env}"
   vpc_zone_identifier       = [aws_subnet.private.id]
@@ -434,7 +417,7 @@ resource "aws_autoscaling_group" "managers" {
   name                      = "${var.project_name}-managers-asg-${var.env}"
   vpc_zone_identifier       = [aws_subnet.private.id]
   health_check_type         = "EC2"
-  health_check_grace_period = 600 # Longer grace period for manager initialization
+  health_check_grace_period = 600
 
   min_size         = var.manager_min_size
   max_size         = var.manager_max_size
@@ -543,81 +526,6 @@ resource "aws_cloudwatch_metric_alarm" "worker_cpu_low" {
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.workers.name
   }
-}
-
-#endregion
-
-#region Outputs
-
-# Auto Scaling Group outputs
-output "worker_asg_name" {
-  description = "Name of the worker Auto Scaling Group"
-  value       = aws_autoscaling_group.workers.name
-}
-
-output "manager_asg_name" {
-  description = "Name of the manager Auto Scaling Group"
-  value       = aws_autoscaling_group.managers.name
-}
-
-output "worker_asg_arn" {
-  description = "ARN of the worker Auto Scaling Group"
-  value       = aws_autoscaling_group.workers.arn
-}
-
-output "manager_asg_arn" {
-  description = "ARN of the manager Auto Scaling Group"
-  value       = aws_autoscaling_group.managers.arn
-}
-
-# Launch Template outputs
-output "worker_launch_template_id" {
-  description = "ID of the worker launch template"
-  value       = aws_launch_template.worker.id
-}
-
-output "manager_launch_template_id" {
-  description = "ID of the manager launch template"
-  value       = aws_launch_template.manager.id
-}
-
-# Target Group outputs
-output "worker_target_group_arn" {
-  description = "ARN of the worker HTTP target group"
-  value       = aws_lb_target_group.workers.arn
-}
-
-# IAM Role outputs
-output "worker_role_arn" {
-  description = "ARN of the worker IAM role"
-  value       = aws_iam_role.worker.arn
-}
-
-output "manager_role_arn" {
-  description = "ARN of the manager IAM role"
-  value       = aws_iam_role.manager.arn
-}
-
-# Instance Profile outputs
-output "worker_instance_profile_name" {
-  description = "Name of the worker instance profile"
-  value       = aws_iam_instance_profile.worker.name
-}
-
-output "manager_instance_profile_name" {
-  description = "Name of the manager instance profile"
-  value       = aws_iam_instance_profile.manager.name
-}
-
-# CloudWatch Log Group outputs
-output "manager_log_group_name" {
-  description = "Name of the manager CloudWatch log group"
-  value       = aws_cloudwatch_log_group.manager.name
-}
-
-output "worker_log_group_name" {
-  description = "Name of the worker CloudWatch log group"
-  value       = aws_cloudwatch_log_group.worker.name
 }
 
 #endregion

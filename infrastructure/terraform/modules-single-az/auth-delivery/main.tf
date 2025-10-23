@@ -1,23 +1,19 @@
 # =============================================================================
-# AWS SES Email Delivery Infrastructure
+# Authentication Email Delivery Infrastructure (SES)
 # =============================================================================
-# This file manages all infrastructure components required for AWS SES:
-# 
-# • SES domain verification and DKIM configuration for email delivery
-# • Route53 DNS records for SES verification
-# • Email delivery configuration for applications
+#
+# This module provisions:
+# • SES domain identity, DKIM and Route53 verification records
+#
+# NOTE: In the future this module can be merged into a communication module.
 # =============================================================================
 
-#region Configuration
+#region SES Email Delivery (from auth-email-delivery.tf)
 
 # Data Sources
 data "aws_route53_zone" "this" {
   zone_id = var.route53_hosted_zone_id
 }
-
-#endregion
-
-#region Resources
 
 # SES Domain Identity for Email Delivery
 resource "aws_ses_domain_identity" "this" {
@@ -55,17 +51,3 @@ resource "aws_route53_record" "dkim" {
 }
 
 #endregion
-
-#region Outputs
-
-output "ses_domain_identity_arn" {
-  value       = aws_ses_domain_identity.this.arn
-  description = "ARN of the SES domain identity"
-}
-
-output "ses_domain_identity_domain" {
-  value       = aws_ses_domain_identity.this.domain
-  description = "Domain name for SES identity"
-}
-
-#endregion 

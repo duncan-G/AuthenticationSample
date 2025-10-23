@@ -256,7 +256,7 @@ if [ "$start_all" = true ]; then
     fi
 fi
 
-load_secrets "auth-sample-secrets-development"
+load_secrets "auth-sample-secrets-dev"
 
 # Start components based on flags
 if [ "$backend_environment" = true ]; then

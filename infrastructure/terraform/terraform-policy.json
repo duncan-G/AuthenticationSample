@@ -90,8 +90,10 @@
         "s3:PutBucketPublicAccessBlock"
       ],
       "Resource": [
-        "arn:aws:s3:::${TF_STATE_BUCKET}",
-        "arn:aws:s3:::${TF_STATE_BUCKET}/*",
+        "arn:aws:s3:::${TF_STATE_BUCKET}-dev",
+        "arn:aws:s3:::${TF_STATE_BUCKET}-dev/*",
+        "arn:aws:s3:::${TF_STATE_BUCKET}-prod",
+        "arn:aws:s3:::${TF_STATE_BUCKET}-prod/*",
         "arn:aws:s3:::${DEPLOYMENT_BUCKET}",
         "arn:aws:s3:::${DEPLOYMENT_BUCKET}/*"
       ]
@@ -169,7 +171,7 @@
         "secretsmanager:*"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:*:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}-secrets-development*"
+        "arn:aws:secretsmanager:*:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}-secrets-dev*"
       ]
     },
     {
