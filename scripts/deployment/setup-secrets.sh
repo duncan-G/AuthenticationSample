@@ -91,9 +91,9 @@ determine_secret_name() {
 discover_templates() {
   readarray -d '' TEMPLATE_FILES < <(
     if [[ $PROD_MODE == true ]]; then
-      find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.template.prod' \) -print0
+      find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.template.prod' -o -name '*.env.local.template' \) -print0
     else
-      find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.template.dev' \) -print0
+      find "$PROJECT_ROOT" -type f \( -name '*.env.template' -o -name '*.env.template.dev' -o -name '*.env.local.template' \) -print0
     fi
   )
 }
@@ -168,14 +168,16 @@ process_client_templates() {
     fi
 
     # Remove .template from filename while preserving environment suffix
-    local basename_tmpl="$(basename "$tmpl")"
-    local out_name="${basename_tmpl/.template/}"
-    local out_file="$(dirname "$tmpl")/$out_name"
-    : > "$out_file"
-    for k in $(printf '%s\n' "${!values[@]}" | sort); do
-      echo "$k=${values[$k]}" >> "$out_file"
-    done
-    print_success "Created ${out_file#$PROJECT_ROOT/}"
+    if [[ $PROD_MODE != true ]]; then
+      local basename_tmpl="$(basename "$tmpl")"
+      local out_name="${basename_tmpl/.template/}"
+      local out_file="$(dirname "$tmpl")/$out_name"
+      : > "$out_file"
+      for k in $(printf '%s\n' "${!values[@]}" | sort); do
+        echo "$k=${values[$k]}" >> "$out_file"
+      done
+      print_success "Created ${out_file#$PROJECT_ROOT/}"
+    fi
   done
 }
 

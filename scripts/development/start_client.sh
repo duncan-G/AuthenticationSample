@@ -97,9 +97,13 @@ stop_if_running() {
 start_client_macos() {
   print_info "Starting client (macOS)..."
   # Next.js will automatically load .env.local file
-  # Launch a new Terminal tab/window and run the client; save child PID into PID_FILE
-  osascript -e "tell application \"Terminal\" to do script \"cd '$CLIENT_DIR' && npm run dev & echo \\$! > '$PID_FILE'; wait\"" >/dev/null
-  print_info "Client start command issued. PID will be in $PID_FILE once started."
+  # Launch a new Terminal tab/window and run the client
+  osascript >/dev/null <<OSA
+ tell application "Terminal"
+   do script "cd '$CLIENT_DIR' && npm run dev"
+ end tell
+OSA
+  print_info "Client start command issued in Terminal."
 }
 
 start_client_linux() {

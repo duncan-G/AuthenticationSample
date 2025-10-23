@@ -12,7 +12,7 @@ The deployment process involves setting up a complete production-ready infrastru
 - **Container Infrastructure**: ECR for container images
 - **Networking**: VPC, subnets, security groups, and DNS
 - **Monitoring**: CloudWatch and OpenTelemetry integration
-- **CI/CD**: GitHub Actions with OIDC authentication
+- **CI/CD**: GitHub Actions with OIDC authentication & AWS CodeDeploy
 
 ## Prerequisites
 
@@ -44,35 +44,46 @@ Your AWS user/role needs the following permissions:
 
 ## Phase 1: Initial AWS Setup
 
-### Step 1: Configure AWS Profile
+### Step 1: AWS Setup (Production account setup)
 
-Set up an AWS profile for infrastructure deployment:
+- Create an AWS SSO user group and profile with permissions listed in [setup-github-actions-oidc-policy.json](../../infrastructure/terraform/setup-github-actions-oidc-policy.json)
+  - Configure SSO profile `aws sso configure infra-setup`
+  - This profile is used to provision prod resources in AWS
+- Set up OIDC access for GitHub Actions to deploy AWS resources:
+  ```bash
+  ./scripts/deployment/setup-infra-worfklow.sh
 
+  # Optional: remove most of the provisioned resources
+  ./scripts/deployment/remove-infra-workflow.sh
+  ```
+- In GitHub, run the Infrastructure Release workflow to provision cloud resources for production
+  - Workflow: Infrastructure Release (environment: prod)
+- Create an AWS SSO user group and profile with permissions listed in [developer-policy.json](../../infrastructure/terraform/developer-policy.json)
+  - Configure SSO profile `aws sso configure developer`
+  - This profile is used by applications to access AWS
+  - NOTE: There are variables in the JSON that need to be substituted with real values
+
+### Step 2: Set up secrets
+
+Use the `setup-secrets.sh` script to configure secrets. This creates client `.env.local` files and stores backend secrets in AWS Secrets Manager.
+
+For development and production:
 ```bash
-# Configure AWS profile
-aws configure --profile infra-setup
-# Enter your AWS Access Key ID, Secret, and region (e.g., us-west-1)
+# Development secrets (stored in AWS Secrets Manager)
+./scripts/deployment/setup-secrets.sh -a your-project-name -p your-aws-profile <optional -f>
 
-# Test authentication
-aws sts get-caller-identity --profile infra-setup
+# Production secrets (stored in AWS Secrets Manager)
+./scripts/deployment/setup-secrets.sh -a your-project-name -p your-aws-profile -P <optional -f>
 ```
 
-### Step 2: Domain and Route53 Setup
+The script will:
+1. Discover all `.env.template` files
+2. Prompt you for values for each configuration key
+3. Store backend secrets in AWS Secrets Manager
+4. Create local `.env` files for frontend applications
+5. When re-run, only prompt for new secrets; use `-f` to overwrite all values
 
-Ensure your domain has a Route53 hosted zone:
-
-```bash
-# List hosted zones to verify your domain
-aws route53 list-hosted-zones --profile infra-setup
-
-# If no hosted zone exists, create one
-aws route53 create-hosted-zone \
-  --name yourdomain.com \
-  --caller-reference $(date +%s) \
-  --profile infra-setup
-```
-
-**Important**: Update your domain registrar's nameservers to point to the Route53 nameservers.
+NOTE: It is recommended to manage production secrets in the AWS Console.
 
 ### Step 3: SES Domain Verification
 

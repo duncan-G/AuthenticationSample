@@ -23,13 +23,22 @@ SERVICES=(
   greeter
 )
 
-declare -A SERVICE_DIRS=(
-    [auth]="Auth"
-    [greeter]="Greeter")
-declare -A SERVICE_CSPROJ=(
-    [auth]="src/Auth.Grpc/Auth.Grpc.csproj"
-    [greeter]="Greeter/Greeter.csproj"
-)
+# POSIX-compatible lookups to avoid bash associative arrays on macOS's older bash
+service_dir_for() {
+  case "$1" in
+    auth) echo "Auth" ;;
+    greeter) echo "Greeter" ;;
+    *) echo "" ;;
+  esac
+}
+
+service_csproj_for() {
+  case "$1" in
+    auth) echo "src/Auth.Grpc/Auth.Grpc.csproj" ;;
+    greeter) echo "Greeter/Greeter.csproj" ;;
+    *) echo "" ;;
+  esac
+}
 
 # Parse options
 while getopts ":c-containerize" opt; do
@@ -61,19 +70,22 @@ if [ "$containerize_microservices" = true ]; then
 
     # Build service images (extend mapping as needed)
     # Current image mapping
-    declare -A SERVICE_IMAGES=(
-        [auth]="auth-sample/auth"
-        [greeter]="auth-sample/greeter"
-    )
+    service_image_for() {
+        case "$1" in
+            auth) echo "auth-sample/auth" ;;
+            greeter) echo "auth-sample/greeter" ;;
+            *) echo "" ;;
+        esac
+    }
 
     for service_name in "${SERVICES[@]}"; do
-        image_name="${SERVICE_IMAGES[$service_name]}"
+        image_name="$(service_image_for "$service_name")"
         if [[ -z "${image_name:-}" ]]; then
             echo "Warning: No image mapping for $service_name; skipping build"
             continue
         fi
         echo "Building $service_name service"
-        cd "$working_dir/microservices/${SERVICE_DIRS[$service_name]}"
+        cd "$working_dir/microservices/$(service_dir_for "$service_name")"
         env ContainerRepository="$image_name" \
           dotnet publish --os linux --arch x64 /t:PublishContainer
         cd - >/dev/null
@@ -93,8 +105,8 @@ else
         local name="$1"
         local logfile="$LOG_DIR/$name.log"
         local pidfile="$PID_DIR/$name.pid"
-        local service_dir="${SERVICE_DIRS[$name]:-}"
-        local csproj_rel="${SERVICE_CSPROJ[$name]:-}"
+        local service_dir="$(service_dir_for "$name")"
+        local csproj_rel="$(service_csproj_for "$name")"
 
         if [[ -z "${service_dir:-}" || -z "${csproj_rel:-}" ]]; then
             echo "Error: Unknown service '$name'"
@@ -104,50 +116,14 @@ else
         echo "Starting $name service"
         (
             cd "$working_dir/microservices/$service_dir"
+            echo "current directory: $(pwd)"
+            echo "csproj_rel: $csproj_rel"
             nohup setsid env $DOTNET_ENV_VARS dotnet watch run \
                 --project "$csproj_rel" \
                 >>"$logfile" 2>&1 &
             echo $! > "$pidfile"
         )
         echo ">> Started $name (PID $(<"$pidfile")) → $logfile"
-    }
-
-    stop_service() {
-        local name="$1"
-        local pidfile="$PID_DIR/$name.pid"
-        if [[ -f "$pidfile" ]]; then
-            local pid
-            pid=$(<"$pidfile")
-            if kill -0 "-$pid" 2>/dev/null || kill -0 "$pid" 2>/dev/null; then
-                echo "Stopping $name (PID/PGID $pid)"
-                if kill -0 "-$pid" 2>/dev/null; then
-                    kill -INT -- "-$pid" || true
-                else
-                    kill -INT "$pid" 2>/dev/null || true
-                    pkill -INT -P "$pid" 2>/dev/null || true
-                fi
-                for _ in {1..5}; do
-                    sleep 1
-                    if ! kill -0 "-$pid" 2>/dev/null && ! kill -0 "$pid" 2>/dev/null; then
-                        break
-                    fi
-                done
-                if kill -0 "-$pid" 2>/dev/null; then
-                    kill -9 -- "-$pid" || true
-                elif kill -0 "$pid" 2>/dev/null; then
-                    pkill -9 -P "$pid" 2>/dev/null || true
-                    kill -9 "$pid" 2>/dev/null || true
-                fi
-            fi
-            rm -f "$pidfile"
-        fi
-    }
-
-    restart_service() {
-        local name="$1"
-        echo "Restarting $name service"
-        stop_service "$name"
-        start_service "$name"
     }
 
     # Launch all registered services

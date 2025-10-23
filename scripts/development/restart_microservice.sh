@@ -80,14 +80,22 @@ else
   PID_DIR="$working_dir/pids"
   DOTNET_ENV_VARS="DOTNET_USE_POLLING_FILE_WATCHER=1"
 
-  declare -A SERVICE_DIRS=(
-    [auth]="Auth"
-    [greeter]="Greeter"
-  )
-  declare -A SERVICE_CSPROJ=(
-    [auth]="src/Auth.Grpc/Auth.Grpc.csproj"
-    [greeter]="Greeter/Greeter.csproj"
-  )
+  # POSIX-compatible lookups to avoid associative arrays (macOS default bash)
+  service_dir_for() {
+    case "$1" in
+      auth) echo "Auth" ;;
+      greeter) echo "Greeter" ;;
+      *) echo "" ;;
+    esac
+  }
+
+  service_csproj_for() {
+    case "$1" in
+      auth) echo "src/Auth.Grpc/Auth.Grpc.csproj" ;;
+      greeter) echo "Greeter/Greeter.csproj" ;;
+      *) echo "" ;;
+    esac
+  }
 
   mkdir -p "$LOG_DIR" "$PID_DIR"
 
@@ -95,8 +103,8 @@ else
     local name="$1"
     local logfile="$LOG_DIR/$name.log"
     local pidfile="$PID_DIR/$name.pid"
-    local service_dir="${SERVICE_DIRS[$name]:-}"
-    local csproj_rel="${SERVICE_CSPROJ[$name]:-}"
+    local service_dir="$(service_dir_for "$name")"
+    local csproj_rel="$(service_csproj_for "$name")"
     if [[ -z "${service_dir:-}" || -z "${csproj_rel:-}" ]]; then
       echo "Error: Unknown service '$name'"
       return 1
@@ -143,7 +151,7 @@ else
     fi
   }
 
-  if [[ -z "${SERVICE_DIRS[$service_name]:-}" ]]; then
+  if [[ -z "$(service_dir_for "$service_name")" ]]; then
     echo "Error: Unknown service '$service_name'"
     exit 1
   fi

@@ -142,6 +142,7 @@ Environment template files (`.env.template`) serve as blueprints for creating ac
 │   ├── .env.template.dev                  # Development-specific overrides
 │   └── <service-name>/**/
 │       └── .env.template                  # Optional per-service settings
+│       └── .env.template.dev              # Optional per-service Devlopment-specific settings
 ├── clients/
 │   └── <client-name>/
 │       └── .env.local.template            # Optional per-client settings
