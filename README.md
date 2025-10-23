@@ -40,7 +40,7 @@ A modern, production-ready authentication system built with microservices archit
     ```bash
     ./scripts/deployment/setup-infra-workflow.sh
     ```
-- Go to github actions and run [infrastructure dev pipeline](.github/workflows/infrastructure-dev.yml) to setup cloud environment for dev
+- Go to github actions and run [infrastructure dev pipeline](.github/workflows/infrastructure-debug.yml) to setup cloud environment for dev
 - Create an AWS SSO user group profile with permissions listed in [developer-policy.json](infrastructure/terraform/developer-policy.json)
     - Configure sso profile `aws sso configure developer`
     - This profile is used by applications to access AWS

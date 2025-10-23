@@ -71,6 +71,11 @@ get_user_input() {
   prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
 }
 
+bucket_exists() {
+  local bucket="$1"
+  aws s3api head-bucket --bucket "$bucket" --profile "$AWS_PROFILE" 2>/dev/null
+}
+
 ########################################
 # Validation
 ########################################
@@ -88,86 +93,6 @@ validate_environment() {
   validate_aws_region "$AWS_REGION"
   check_terraform
   check_github_cli
-}
-
-########################################
-# State bucket naming
-########################################
-compute_tf_state_bucket() {
-  local account_id="$1"
-  local repo_full
-  repo_full=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-  local bucket_suffix
-  bucket_suffix=$(echo "${account_id}-${repo_full}" | md5sum | cut -c1-8)
-  TF_STATE_BUCKET="terraform-state-${bucket_suffix}-dev"
-}
-
-########################################
-# S3 backend bucket
-########################################
-bucket_exists() {
-  local bucket="$1"
-  aws s3api head-bucket --bucket "$bucket" --profile "$AWS_PROFILE" 2>/dev/null
-}
-
-create_bucket() {
-  local bucket="$1"
-  local region="$2"
-
-  print_info "Creating S3 bucket $bucket in $region"
-
-  if [ "$region" = "us-east-1" ]; then
-    # us-east-1 does not accept a LocationConstraint
-    aws s3api create-bucket \
-      --bucket "$bucket" \
-      --profile "$AWS_PROFILE"
-  else
-    aws s3api create-bucket \
-      --bucket "$bucket" \
-      --region "$region" \
-      --create-bucket-configuration LocationConstraint="$region" \
-      --profile "$AWS_PROFILE"
-  fi
-}
-
-configure_bucket_baseline() {
-  local bucket="$1"
-  aws s3api put-bucket-versioning \
-    --bucket "$bucket" \
-    --versioning-configuration Status=Enabled \
-    --profile "$AWS_PROFILE"
-
-  aws s3api put-bucket-encryption \
-    --bucket "$bucket" \
-    --profile "$AWS_PROFILE" \
-    --server-side-encryption-configuration '{
-      "Rules": [
-        {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}
-      ]
-    }'
-
-  aws s3api put-public-access-block \
-    --bucket "$bucket" \
-    --profile "$AWS_PROFILE" \
-    --public-access-block-configuration \
-      BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-
-  aws s3api put-bucket-tagging \
-    --bucket "$bucket" \
-    --profile "$AWS_PROFILE" \
-    --tagging "TagSet=[{Key=Name,Value=${PROJECT_NAME}-tf-state-dev},{Key=Environment,Value=dev}]"
-
-  print_success "Terraform state bucket configured"
-}
-
-ensure_backend_bucket() {
-  print_info "Ensuring Terraform state bucket exists: $TF_STATE_BUCKET"
-  if ! bucket_exists "$TF_STATE_BUCKET"; then
-    create_bucket "$TF_STATE_BUCKET" "$AWS_REGION"
-  else
-    print_warning "S3 bucket $TF_STATE_BUCKET already exists"
-  fi
-  configure_bucket_baseline "$TF_STATE_BUCKET"
 }
 
 ########################################
@@ -249,11 +174,8 @@ main() {
 
   get_user_input
   validate_environment
-  AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
-  compute_tf_state_bucket "$AWS_ACCOUNT_ID"
 
   if [[ "$ACTION" = "deploy" ]]; then
-    ensure_backend_bucket
     run_terraform_pipeline
   else
     run_terraform_destroy

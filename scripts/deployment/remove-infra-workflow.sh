@@ -162,8 +162,10 @@ display_state_bucket_cleanup_instructions() {
     print_info "To manually delete the S3 buckets, run these commands:"
     
     echo -e "${YELLOW}# Delete Terraform state bucket:${NC}"
-    echo -e "${GREEN}aws s3 rm s3://$TERRAFORM_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
-    echo -e "${GREEN}aws s3api delete-bucket --bucket $TERRAFORM_BUCKET_NAME --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws s3 rm s3://$TERRAFORM_BUCKET_NAME-dev --recursive --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws s3api delete-bucket --bucket $TERRAFORM_BUCKET_NAME-dev --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws s3 rm s3://$TERRAFORM_BUCKET_NAME-prod --recursive --profile $AWS_PROFILE${NC}"
+    echo -e "${GREEN}aws s3api delete-bucket --bucket $TERRAFORM_BUCKET_NAME-prod --profile $AWS_PROFILE${NC}"
     
     echo -e "${YELLOW}# Delete CodeDeploy bucket:${NC}"
     echo -e "${GREEN}aws s3 rm s3://$CODE_DEPLOY_BUCKET_NAME --recursive --profile $AWS_PROFILE${NC}"
@@ -189,13 +191,11 @@ display_final_summary() {
     # Certbot/EBS resources removed
     
     print_info "Additional cleanup steps:"
-    echo "1. Remove GitHub repository secrets:"
-    echo "   AWS_ACCOUNT_ID, TF_STATE_BUCKET, PROJECT_NAME, GITHUB_REPOSITORY, EDGE_SHARED_SECRET"
-    echo "2. Remove GitHub repository variables:"
-    echo "   AWS_REGION"
+    echo "1. Remove GitHub repository secrets"
+    echo "2. Remove GitHub repository variables"
     echo "3. Remove GitHub environments:"
-    echo "   terraform-stage, terraform-prod,"
-    echo "   stage, prod"
+    echo "   terraform-stage, terraform-prod, terraform-dev"
+    echo "   stage, prod, dev"
     
     print_warning "Note: This cleanup does NOT delete your terraform infrastructure."
     print_info "To delete infrastructure, run: terraform destroy"

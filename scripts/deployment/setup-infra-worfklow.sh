@@ -79,18 +79,18 @@ get_user_input() {
 
 # Function to create S3 bucket for Terraform state
 create_terraform_state_bucket() {
-    TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
+    local tf_state_bucket="$1"
     
-    print_info "Creating S3 bucket for Terraform state bucket: $TF_STATE_BUCKET"
+    print_info "Creating S3 bucket for Terraform state bucket: $tf_state_bucket"
 
-    if ! aws s3api head-bucket --bucket "$TF_STATE_BUCKET" --profile "$AWS_PROFILE" 2>/dev/null; then
-        aws s3api create-bucket --bucket "$TF_STATE_BUCKET" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
-        print_success "S3 bucket $TF_STATE_BUCKET created."
+    if ! aws s3api head-bucket --bucket "$tf_state_bucket" --profile "$AWS_PROFILE" 2>/dev/null; then
+        aws s3api create-bucket --bucket "$tf_state_bucket" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
+        print_success "S3 bucket $tf_state_bucket created."
     else
-        print_warning "S3 bucket $TF_STATE_BUCKET already exists."
+        print_warning "S3 bucket $tf_state_bucket already exists."
     fi
 
-    aws s3api put-bucket-versioning --bucket "$TF_STATE_BUCKET" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
+    aws s3api put-bucket-versioning --bucket "$tf_state_bucket" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
 }
 
 # Function to create S3 bucket for CodeDeploy
@@ -253,7 +253,9 @@ main() {
     
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
-    create_terraform_state_bucket
+    TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
+    create_terraform_state_bucket "$TF_STATE_BUCKET"-dev
+    create_terraform_state_bucket "$TF_STATE_BUCKET"-prod
     create_codedeploy_bucket
     setup_oidc_infrastructure
     setup_github_workflow
