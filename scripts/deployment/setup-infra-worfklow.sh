@@ -128,6 +128,7 @@ setup_oidc_infrastructure() {
         --tf-state-bucket "$TF_STATE_BUCKET" \
         --stage-workspace "$STAGE_WORKSPACE" \
         --prod-workspace "$PROD_WORKSPACE" \
+        --dev-workspace "$DEV_WORKSPACE" \
         --bucket-suffix "$BUCKET_SUFFIX"
 }
 
@@ -202,7 +203,7 @@ display_final_instructions() {
     
     print_info "Next steps:"
     echo "   1. Set up application secrets using setup-secrets.sh"
-    echo "   2. Deploy infrastructure using Terraform (Release|Debug) workflow"
+    echo "   2. Deploy infrastructure using Terraform workflow"
     echo "   3. Use CodeDeploy workflows for application deployments"
 }
 
