@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option csharp_namespace = "AuthSample.Auth.Grpc.Protos";
+
+package auth;
+
+service AuthorizationService {
+  rpc Check (google.protobuf.Empty) returns (google.protobuf.Empty);
+}

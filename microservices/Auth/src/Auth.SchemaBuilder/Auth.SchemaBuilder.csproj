@@ -9,4 +9,15 @@
         <RootNamespace>Auth.SchemaBuilder</RootNamespace>
     </PropertyGroup>
 
+    <ItemGroup>
+        <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.6.1" />
+        <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.9" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Auth.Infrastructure\Auth.Infrastructure.csproj" />
+    </ItemGroup>
+
 </Project>

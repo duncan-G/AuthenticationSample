@@ -169,7 +169,7 @@
         "secretsmanager:*"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:*:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}-secrets-development*"
+        "arn:aws:secretsmanager:*:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}-secrets-dev*"
       ]
     },
     {
@@ -277,6 +277,14 @@
           ]
         }
       }
+    },
+    {
+      "Sid": "DynamoDBPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:*"
+      ],
+      "Resource": "*"
     }
   ]
 }

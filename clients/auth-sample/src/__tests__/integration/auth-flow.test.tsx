@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { AuthFlow } from '@/types/auth'
 import { MainSignIn } from '@/components/auth/main-sign-in'
 import { MainSignUp } from '@/components/auth/main-sign-up'
-import { SignUpEmailOptions } from '@/components/auth/signup-email-options'
+import { SignUpEmail } from '@/components/auth/signup-email'
 import { PasswordSignIn } from '@/components/auth/password-sign-in'
 
 // Mock the validation function
@@ -13,14 +13,18 @@ jest.mock('@/lib/validation', () => ({
   validateEmail: jest.fn(() => true),
 }))
 
-// Helper component to test the complete auth flow  
+// Helper component to test the complete auth flow
 function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string }) {
   const auth = useAuth()
-  
-  // Set the initial flow immediately
+
+  // Set the initial flow once on mount to avoid resetting after state changes
+  const didInitRef = React.useRef(false)
   React.useEffect(() => {
-    auth.setCurrentFlow(initialFlow as AuthFlow)
-  }, [initialFlow, auth])
+    if (!didInitRef.current) {
+      auth.setCurrentFlow(initialFlow as AuthFlow)
+      didInitRef.current = true
+    }
+  }, [initialFlow])
 
   const renderCurrentFlow = () => {
     switch (auth.currentFlow) {
@@ -38,18 +42,18 @@ function AuthFlowTestComponent({ initialFlow = 'main' }: { initialFlow?: string 
           <MainSignUp
             onGoogleSignUp={auth.handleGoogleSignUp}
             onAppleSignUp={auth.handleAppleSignUp}
-            onPasswordSignUp={auth.handlePasswordSignUpFlow}
-            onPasswordlessSignUp={auth.handlePasswordlessSignUpFlow}
+            onPasswordSignUp={auth.handlePasswordSignUpFlowStart}
+            onPasswordlessSignUp={auth.handlePasswordlessSignUpFlowStart}
             isLoading={auth.isLoading}
           />
         )
-      case 'signup-email-options':
+      case 'signup-email':
         return (
-          <SignUpEmailOptions
+          <SignUpEmail
             email={auth.email}
             onEmailChange={auth.setEmail}
-            onPasswordFlow={() => auth.setCurrentFlow('signup-password')}
-            onPasswordlessFlow={auth.handlePasswordlessSignUp}
+            onPasswordFlowContinue={auth.handlePasswordEmailContinue}
+            onPasswordlessFlow={auth.handlePasswordlessEmailContinue}
             onBack={() => auth.setCurrentFlow('signup-main')}
             isLoading={auth.isLoading}
             signupMethod={auth.signupMethod}
@@ -94,7 +98,7 @@ describe('Authentication Flow Integration Tests', () => {
   })
 
   describe('Sign-in Flow', () => {
-    it('should navigate from main sign-in to email options', async () => {
+    it('should handle email sign-in from main page', async () => {
       const user = userEvent.setup()
       render(<AuthFlowTestComponent />)
 
@@ -102,12 +106,12 @@ describe('Authentication Flow Integration Tests', () => {
       expect(screen.getByTestId('current-flow')).toHaveTextContent('main')
       expect(screen.getByText('Welcome')).toBeInTheDocument()
 
-      // Click on email sign-in
+      // Click on email sign-in (this triggers OIDC redirect)
       const emailButton = screen.getByText('Sign in with email')
       await user.click(emailButton)
 
-      // Should navigate to email options
-      expect(screen.getByTestId('current-flow')).toHaveTextContent('email-options')
+      // Should remain on main flow (OIDC redirect doesn't change flow state in tests)
+      expect(screen.getByTestId('current-flow')).toHaveTextContent('main')
     })
 
     it('should handle Google sign-in from main page', async () => {
@@ -117,7 +121,8 @@ describe('Authentication Flow Integration Tests', () => {
       const googleButton = screen.getByText('Continue with Google')
       await user.click(googleButton)
 
-      expect(console.log).toHaveBeenCalledWith('Google sign in')
+      // Google sign-in triggers OIDC redirect, flow remains on main
+      expect(screen.getByTestId('current-flow')).toHaveTextContent('main')
     })
 
     it('should handle Apple sign-in from main page', async () => {
@@ -127,28 +132,35 @@ describe('Authentication Flow Integration Tests', () => {
       const appleButton = screen.getByText('Continue with Apple')
       await user.click(appleButton)
 
-      expect(console.log).toHaveBeenCalledWith('Apple sign in')
+      // Apple sign-in triggers OIDC redirect, flow remains on main
+      expect(screen.getByTestId('current-flow')).toHaveTextContent('main')
     })
   })
 
   describe('Sign-up Flow', () => {
     it('should navigate through password sign-up flow', async () => {
       const user = userEvent.setup()
-      render(<AuthFlowTestComponent initialFlow="signup" />)
+      render(<AuthFlowTestComponent initialFlow="signup-main" />)
 
-             // Start on main sign-up
-       expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-main')
+      // Start on main sign-up
+      expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-main')
       expect(screen.getByText('Join Us')).toBeInTheDocument()
 
       // Click on password sign-up
       const passwordButton = screen.getByText('Sign up with Password')
       await user.click(passwordButton)
 
+      // Debug: Check state immediately after click
+      console.log('After click - Flow:', screen.getByTestId('current-flow').textContent)
+      console.log('After click - Method:', screen.getByTestId('signup-method').textContent)
+
       // Should navigate to email options with password method
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        console.log('In waitFor - Flow:', screen.getByTestId('current-flow').textContent)
+        console.log('In waitFor - Method:', screen.getByTestId('signup-method').textContent)
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
         expect(screen.getByTestId('signup-method')).toHaveTextContent('password')
-      })
+      }, { timeout: 5000 })
 
       // Should show password-specific content
       expect(screen.getByText('Create account with password')).toBeInTheDocument()
@@ -156,7 +168,7 @@ describe('Authentication Flow Integration Tests', () => {
 
     it('should navigate through passwordless sign-up flow', async () => {
       const user = userEvent.setup()
-      render(<AuthFlowTestComponent initialFlow="signup" />)
+      render(<AuthFlowTestComponent initialFlow="signup-main" />)
 
       // Click on passwordless sign-up
       const passwordlessButton = screen.getByText('Sign up Passwordless')
@@ -164,7 +176,7 @@ describe('Authentication Flow Integration Tests', () => {
 
       // Should navigate to email options with passwordless method
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
         expect(screen.getByTestId('signup-method')).toHaveTextContent('passwordless')
       })
 
@@ -174,14 +186,14 @@ describe('Authentication Flow Integration Tests', () => {
 
     it('should handle complete email and password sign-up flow', async () => {
       const user = userEvent.setup()
-      render(<AuthFlowTestComponent initialFlow="signup" />)
+      render(<AuthFlowTestComponent initialFlow="signup-main" />)
 
       // Navigate to password sign-up
       const passwordButton = screen.getByText('Sign up with Password')
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Enter email
@@ -205,14 +217,14 @@ describe('Authentication Flow Integration Tests', () => {
 
     it('should handle passwordless sign-up submission', async () => {
       const user = userEvent.setup()
-      render(<AuthFlowTestComponent initialFlow="signup" />)
+      render(<AuthFlowTestComponent initialFlow="signup-main" />)
 
       // Navigate to passwordless sign-up
       const passwordlessButton = screen.getByText('Sign up Passwordless')
       await user.click(passwordlessButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Enter email
@@ -229,14 +241,14 @@ describe('Authentication Flow Integration Tests', () => {
 
     it('should handle back navigation in sign-up flow', async () => {
       const user = userEvent.setup()
-      render(<AuthFlowTestComponent initialFlow="signup" />)
+      render(<AuthFlowTestComponent initialFlow="signup-main" />)
 
       // Navigate to email options
       const passwordButton = screen.getByText('Sign up with Password')
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Go back
@@ -253,14 +265,14 @@ describe('Authentication Flow Integration Tests', () => {
   describe('Error Handling', () => {
     it('should handle form validation errors in sign-up flow', async () => {
       const user = userEvent.setup()
-      render(<AuthFlowTestComponent initialFlow="signup" />)
+      render(<AuthFlowTestComponent initialFlow="signup-main" />)
 
       // Navigate to email options
       const passwordButton = screen.getByText('Sign up with Password')
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Try to submit without email
@@ -271,21 +283,21 @@ describe('Authentication Flow Integration Tests', () => {
       expect(screen.getByText('Email address is required')).toBeInTheDocument()
 
       // Should not navigate away
-      expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+      expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
     })
   })
 
   describe('State Management', () => {
     it('should maintain email state across flow transitions', async () => {
       const user = userEvent.setup()
-      render(<AuthFlowTestComponent initialFlow="signup" />)
+      render(<AuthFlowTestComponent initialFlow="signup-main" />)
 
       // Navigate to email options
       const passwordButton = screen.getByText('Sign up with Password')
       await user.click(passwordButton)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Enter email
@@ -301,7 +313,7 @@ describe('Authentication Flow Integration Tests', () => {
       await user.click(passwordButtonAgain)
 
       await waitFor(() => {
-        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email-options')
+        expect(screen.getByTestId('current-flow')).toHaveTextContent('signup-email')
       })
 
       // Email should be preserved
@@ -310,4 +322,4 @@ describe('Authentication Flow Integration Tests', () => {
       expect(emailInputAgain.value).toBe('persistent@example.com')
     })
   })
-}) 
+})

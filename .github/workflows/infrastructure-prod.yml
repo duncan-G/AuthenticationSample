@@ -1,0 +1,385 @@
+name: 'Infrastructure Prod'
+
+on:
+  # Manual trigger with choice of action
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Infrastructure Action'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - deploy
+          - destroy
+      environment:
+        description: 'Target Environment'
+        required: true
+        default: 'terraform-prod'
+        type: choice
+        options:
+          - terraform-stage
+          - terraform-prod
+      multi_az:
+        description: 'Enable multi-az configuration'
+        required: false
+        default: false
+        type: boolean
+
+  # Automatic plan on pull requests
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/terraform/modules-single-az/**'
+      - 'infrastructure/terraform/modules-multi-az/**'
+      - 'infrastructure/terraform/prod/**'
+
+  # Only plan on main branch pushes (no auto-deploy)
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/terraform/modules-single-az/**'
+      - 'infrastructure/terraform/modules-multi-az/**'
+      - 'infrastructure/terraform/prod/**'
+
+env:
+  TERRAFORM_VERSION: "1.12.2"
+  TF_ROOT_DIR: 'infrastructure/terraform/dev'
+  TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+  TF_VAR_region: ${{ vars.AWS_REGION }}
+  TF_VAR_github_repository: ${{ github.repository }}
+  TF_VAR_codedeploy_bucket_name: ${{ secrets.DEPLOYMENT_BUCKET }}
+  TF_VAR_env: ${{ github.event.inputs.environment == 'terraform-prod' && 'prod' || 'stage' }}
+  TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+  TF_VAR_route53_hosted_zone_id: ${{ secrets.ROUTE53_HOSTED_ZONE_ID }}
+  TF_VAR_bucket_suffix: ${{ secrets.BUCKET_SUFFIX }}
+  TF_VAR_vercel_api_token: ${{ secrets.VERCEL_API_KEY }}
+  TF_VAR_vercel_root_directory: "clients/auth-sample"
+  TF_VAR_microservices: '["auth", "envoy", "otel-collector"]'
+  TF_VAR_microservices_with_logs: '["auth", "envoy"]'
+  TF_VAR_edge_shared_secret: ${{ secrets.EDGE_SHARED_SECRET }}
+  TF_VAR_api_subdomain: 'api'
+  TF_VAR_auth_subdomain: 'auth'
+  TF_VAR_auth_callback: '["https://auth.${{ vars.DOMAIN_NAME }}/auth/callback"]'
+  TF_VAR_auth_logout: '["https://auth.${{ vars.DOMAIN_NAME }}/auth/logout-complete"]'
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+  issues: write
+
+jobs:
+  terraform-plan:
+    name: 'Terraform Plan'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'terraform-stage' }}
+    
+    # Only allow one terraform run at a time per environment
+    concurrency:
+      group: terraform-${{ github.event.inputs.environment || 'terraform-stage' }}
+      cancel-in-progress: false
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./${{ env.TF_ROOT_DIR }}
+
+    outputs:
+      plan-exitcode: ${{ steps.plan.outputs.exitcode }}
+      plan-output: ${{ steps.plan.outputs.stdout }}
+      has-changes: ${{ steps.plan.outputs.exitcode == 2 }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+        terraform_wrapper: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with: 
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
+        role-session-name: GitHubActions-Terraform-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Terraform Format Check
+      id: fmt
+      run: |
+        if ! terraform fmt -check -recursive; then
+          echo "❌ Terraform files are not properly formatted"
+          echo "Run 'terraform fmt -recursive' to fix formatting issues"
+          exit 1
+        fi
+        echo "✅ All Terraform files are properly formatted"
+
+    - name: Terraform Init
+      id: init
+      run: |
+        echo "🔧 Initializing Terraform..."
+
+        # Prefix used in terraform state bucket
+        TF_WORKSPACE_PREFIX="${{ vars.PROJECT_NAME }}/${{ (github.event.inputs.multi_az == 'true') && 'multi-az' || 'single-az' }}"
+        
+        # Initialize with partial backend configuration
+        terraform init \
+          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+          -backend-config="region=${{ vars.AWS_REGION }}" \
+          -backend-config="workspace_key_prefix=$TF_WORKSPACE_PREFIX" \
+          -no-color
+        
+        # Verify backend configuration
+        if ! terraform state list > /dev/null 2>&1; then
+          echo "⚠️  Warning: Unable to access Terraform state"
+        else
+          echo "✅ Terraform state backend is accessible"
+        fi
+
+    - name: Setup Workspace
+      run: |
+        WORKSPACE="${{ github.event.inputs.environment || 'terraform-stage' }}"
+        terraform workspace select -or-create "$WORKSPACE"
+        echo "Current workspace: $(terraform workspace show)"
+
+    - name: Terraform Validate
+      id: validate
+      run: |
+        echo "✅ Validating Terraform configuration..."
+        terraform validate -no-color
+
+    - name: Terraform Plan
+      id: plan
+      run: |
+        echo "📋 Running Terraform plan..."
+        
+        # Set plan file name based on action
+        PLAN_FILE="tfplan-${{ github.event.inputs.action || 'plan' }}"
+        
+        # Temporarily disable exit-on-error to capture Terraform's exit codes
+        # Terraform returns exit code 2 for successful plans with changes (not an error!)
+        set +e
+
+        # Determine plan type
+        case "${{ github.event.inputs.action }}" in
+          "destroy")
+            echo "🔥 Planning infrastructure destruction..."
+            terraform plan -destroy -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode
+            PLAN_EXIT_CODE=$?
+            ;;
+          *)
+            echo "🚀 Planning infrastructure deployment..."
+            terraform plan -no-color -input=false -out="$PLAN_FILE" -detailed-exitcode
+            PLAN_EXIT_CODE=$?
+            ;;
+        esac
+        
+        # Restore exit-on-error behavior
+        set -e
+        
+        # Save exit code and plan file for other steps
+        echo "exitcode=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
+        echo "plan-file=$PLAN_FILE" >> $GITHUB_OUTPUT
+        
+        # Handle Terraform exit codes properly
+        if [ $PLAN_EXIT_CODE -eq 1 ]; then
+          echo "❌ Terraform plan failed with errors"
+          exit 1
+        elif [ $PLAN_EXIT_CODE -eq 2 ]; then
+          echo "📋 Terraform plan completed successfully - changes detected"
+        elif [ $PLAN_EXIT_CODE -eq 0 ]; then
+          echo "✅ Terraform plan completed successfully - no changes needed"
+        else
+          echo "❓ Unexpected exit code: $PLAN_EXIT_CODE"
+          exit 1
+        fi
+
+    - name: Upload Plan File
+      if: steps.plan.outputs.exitcode == 2
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-plan-${{ github.event.inputs.environment || 'terraform-stage' }}-${{ github.run_id }}
+        path: ${{ env.TF_ROOT_DIR }}/tfplan-*
+        retention-days: 5
+
+    - name: Update Pull Request
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      env:
+        PLAN: ${{ steps.plan.outputs.stdout }}
+        FMT: ${{ steps.fmt.outcome }}
+        INIT: ${{ steps.init.outcome }}
+        VALIDATE: ${{ steps.validate.outcome }}
+        PLAN_EXITCODE: ${{ steps.plan.outputs.exitcode }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { PLAN, FMT, INIT, VALIDATE, PLAN_EXITCODE } = process.env;
+          const hasChanges = PLAN_EXITCODE === '2';
+          const hasError = PLAN_EXITCODE === '1';
+          
+          const planStatus = hasError ? '❌ Error' : hasChanges ? '📋 Has Changes' : '✅ No Changes';
+          
+          const output = `## Terraform Plan Results
+          
+          | Step | Status |
+          |------|--------|
+          | 🖌 Format | \`${FMT}\` |
+          | ⚙️ Init | \`${INIT}\` |
+          | 🤖 Validate | \`${VALIDATE}\` |
+          | 📋 Plan | ${planStatus} |
+          
+          ${hasChanges || hasError ? `
+          <details><summary>📋 Show Plan Output</summary>
+          
+          \`\`\`hcl
+          ${PLAN}
+          \`\`\`
+          
+          </details>
+          ` : ''}
+          
+          ${hasError ? '❌ **Plan failed!** Please review the errors above.' : ''}
+          ${hasChanges ? '⚠️ **This PR will make infrastructure changes.** Review carefully before merging.' : ''}
+          
+          *Triggered by: @${{ github.actor }} • Event: \`${{ github.event_name }}\`*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          });
+
+    - name: Plan Summary
+      if: always()
+      run: |
+        echo "## Terraform Plan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ github.event.inputs.environment || 'terraform-stage' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Action**: ${{ github.event.inputs.action || 'plan' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Workspace**: $(terraform workspace show)" >> $GITHUB_STEP_SUMMARY
+        
+        case "${{ steps.plan.outputs.exitcode }}" in
+          "0") echo "- **Result**: ✅ No changes needed" >> $GITHUB_STEP_SUMMARY ;;
+          "1") echo "- **Result**: ❌ Plan failed" >> $GITHUB_STEP_SUMMARY ;;
+          "2") echo "- **Result**: 📋 Changes detected" >> $GITHUB_STEP_SUMMARY ;;
+        esac
+
+  terraform-apply:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.inputs.action == 'deploy' || github.event.inputs.action == 'destroy') &&
+      github.event_name == 'workflow_dispatch' &&
+      needs.terraform-plan.outputs.has-changes == 'true'
+    needs: terraform-plan
+    environment: ${{ github.event.inputs.environment }}
+    
+    concurrency:
+      group: terraform-apply-${{ github.event.inputs.environment }}
+      cancel-in-progress: false
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./${{ env.TF_ROOT_DIR }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+        terraform_wrapper: false
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-terraform
+        role-session-name: GitHubActions-Terraform-Apply-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Terraform Init
+      run: |
+        # Initialize with partial backend configuration
+        TF_WORKSPACE_PREFIX="${{ vars.PROJECT_NAME }}/${{ (github.event.inputs.multi_az == 'true') && 'multi-az' || 'single-az' }}"
+        terraform init \
+          -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+          -backend-config="region=${{ vars.AWS_REGION }}" \
+          -backend-config="workspace_key_prefix=$TF_WORKSPACE_PREFIX" \
+          -no-color
+        
+        # Verify backend configuration
+        if ! terraform state list > /dev/null 2>&1; then
+          echo "⚠️  Warning: Unable to access Terraform state"
+        else
+          echo "✅ Terraform state backend is accessible"
+        fi
+
+    - name: Setup Workspace
+      run: |
+        WORKSPACE="${{ github.event.inputs.environment }}"
+        terraform workspace select -or-create "$WORKSPACE"
+        echo "Current workspace: $(terraform workspace show)"
+
+    - name: Download Plan File
+      if: github.event.inputs.action == 'deploy'
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-plan-${{ github.event.inputs.environment }}-${{ github.run_id }}
+        path: ${{ env.TF_ROOT_DIR }}/
+
+    - name: Terraform Apply
+      id: apply
+      run: |
+        echo "🚀 Applying Terraform changes..."
+        
+        # Determine if this is a destroy operation
+        if [ "${{ github.event.inputs.action }}" = "destroy" ]; then
+          echo "🔥 Running Terraform destroy..."
+          terraform destroy -no-color -input=false -auto-approve
+        else
+          echo "🚀 Running Terraform apply..."
+          terraform apply -no-color -input=false -auto-approve "${{ steps.plan.outputs.plan-file }}"
+        fi
+        
+        APPLY_EXIT_CODE=$?
+        
+        if [ $APPLY_EXIT_CODE -eq 0 ]; then
+          echo "✅ Terraform operation completed successfully"
+          echo "success=true" >> $GITHUB_OUTPUT
+          echo "exitcode=0" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Terraform operation failed"
+          echo "success=false" >> $GITHUB_OUTPUT
+          echo "exitcode=$APPLY_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $APPLY_EXIT_CODE
+        fi
+
+    - name: Terraform Output
+      if: github.event.inputs.action == 'deploy'
+      run: |
+        echo "## Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+        terraform output -no-color | while IFS= read -r line; do
+          echo "- $line" >> $GITHUB_STEP_SUMMARY
+        done
+
+    - name: Apply Summary
+      if: always()
+      run: |
+        echo "## Terraform Apply/Destroy Results" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+        
+        case "${{ steps.apply.outputs.exitcode }}" in
+          "0") echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY ;;
+          *) echo "- **Status**: ❌ Failed" >> $GITHUB_STEP_SUMMARY ;;
+        esac
+        
+        echo "- **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

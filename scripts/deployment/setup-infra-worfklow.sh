@@ -17,26 +17,7 @@ source "$UTILS_DIR/github-utils.sh"
 
 print_header "🚀 Terraform Github Actions Workflow Setup Script"
 
-# Function to get Route53 hosted zone ID from domain
-get_route53_hosted_zone_id() {
-    local domain_name="$1"
-    
-    print_info "Looking up Route53 hosted zone for domain: $domain_name"
-    
-    # Find the hosted zone for the exact domain name
-    HOSTED_ZONE_ID=$(aws route53 list-hosted-zones --profile "$AWS_PROFILE" --query "HostedZones[?Name=='${domain_name}.'].Id" --output text 2>/dev/null)
-    
-    if [ -z "$HOSTED_ZONE_ID" ]; then
-        print_error "Could not find Route53 hosted zone for domain: $domain_name"
-        print_error "Please ensure the hosted zone exists in Route53 before running this script"
-        exit 1
-    else
-        # Remove the /hostedzone/ prefix if present
-        HOSTED_ZONE_ID=$(echo "$HOSTED_ZONE_ID" | sed 's|/hostedzone/||')
-        ROUTE53_HOSTED_ZONE_ID="$HOSTED_ZONE_ID"
-        print_success "Found Route53 hosted zone ID: $ROUTE53_HOSTED_ZONE_ID"
-    fi
-}
+# Hosted zone lookup uses shared utils
 
 # Function to get user input
 get_user_input() {
@@ -53,16 +34,20 @@ get_user_input() {
     prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
     prompt_user "Enter Terraform stage workspace name" "STAGE_WORKSPACE" "terraform-stage"
     prompt_user "Enter Terraform prod workspace name" "PROD_WORKSPACE" "terraform-prod"
+    prompt_user "Enter Terraform dev workspace name" "DEV_WORKSPACE" "terraform-dev"
     prompt_user "Enter runtime stage environment label" "RUNTIME_STAGE_ENV" "stage"
     prompt_user "Enter runtime prod environment label" "RUNTIME_PROD_ENV" "prod"
+    prompt_user "Enter runtime dev environment label" "RUNTIME_DEV_ENV" "dev"
     
     prompt_user "Enter backend domain name (e.g., example.com)" "DOMAIN_NAME"
     
     # Prompt for Vercel API key for frontend deployments (optional)
-    prompt_user_optional "Enter Vercel API key (for frontend deployments, leave blank to skip)" "VERCEL_API_KEY"
+    prompt_user_optional "Enter Vercel API key (for frontend deployments, blank to leave unchanged)" "VERCEL_API_KEY"
     
     # Get Route53 hosted zone ID automatically
-    get_route53_hosted_zone_id "$DOMAIN_NAME"
+    if ! ROUTE53_HOSTED_ZONE_ID=$(get_route53_hosted_zone_id "$DOMAIN_NAME" "$AWS_PROFILE"); then
+        exit 1
+    fi
     
     # Calculate bucket suffix using the same logic as elsewhere
     BUCKET_SUFFIX=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
@@ -93,19 +78,19 @@ get_user_input() {
 }
 
 # Function to create S3 bucket for Terraform state
-create_terraform_state_backend() {
-    TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
+create_terraform_state_bucket() {
+    local tf_state_bucket="$1"
     
-    print_info "Creating S3 bucket for Terraform state backend: $TF_STATE_BUCKET"
+    print_info "Creating S3 bucket for Terraform state bucket: $tf_state_bucket"
 
-    if ! aws s3api head-bucket --bucket "$TF_STATE_BUCKET" --profile "$AWS_PROFILE" 2>/dev/null; then
-        aws s3api create-bucket --bucket "$TF_STATE_BUCKET" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
-        print_success "S3 bucket $TF_STATE_BUCKET created."
+    if ! aws s3api head-bucket --bucket "$tf_state_bucket" --profile "$AWS_PROFILE" 2>/dev/null; then
+        aws s3api create-bucket --bucket "$tf_state_bucket" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" --profile "$AWS_PROFILE"
+        print_success "S3 bucket $tf_state_bucket created."
     else
-        print_warning "S3 bucket $TF_STATE_BUCKET already exists."
+        print_warning "S3 bucket $tf_state_bucket already exists."
     fi
 
-    aws s3api put-bucket-versioning --bucket "$TF_STATE_BUCKET" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
+    aws s3api put-bucket-versioning --bucket "$tf_state_bucket" --versioning-configuration Status=Enabled --profile "$AWS_PROFILE"
 }
 
 # Function to create S3 bucket for CodeDeploy
@@ -136,13 +121,14 @@ create_codedeploy_bucket() {
 
 setup_oidc_infrastructure() {
     print_info "Setting up OIDC infrastructure (delegated script)..."
-    "$SCRIPT_DIR/setup-oidc-infrastructure.sh" \
+    "$SCRIPT_DIR/setup-oidc-infra.sh" \
         --aws-profile "$AWS_PROFILE" \
         --project-name "$PROJECT_NAME" \
         --github-repo "$GITHUB_REPO_FULL" \
         --tf-state-bucket "$TF_STATE_BUCKET" \
         --stage-workspace "$STAGE_WORKSPACE" \
         --prod-workspace "$PROD_WORKSPACE" \
+        --dev-workspace "$DEV_WORKSPACE" \
         --bucket-suffix "$BUCKET_SUFFIX"
 }
 
@@ -173,16 +159,20 @@ setup_github_workflow() {
         "DOMAIN_NAME:$DOMAIN_NAME" \
         "TF_STAGE_WORKSPACE:$STAGE_WORKSPACE" \
         "TF_PROD_WORKSPACE:$PROD_WORKSPACE" \
+        "TF_DEV_WORKSPACE:$DEV_WORKSPACE" \
         "RUNTIME_STAGE_ENV:$RUNTIME_STAGE_ENV" \
         "RUNTIME_PROD_ENV:$RUNTIME_PROD_ENV" \
+        "RUNTIME_DEV_ENV:$RUNTIME_DEV_ENV"
 
     create_github_environments "$GITHUB_REPO_FULL" \
         "$STAGE_WORKSPACE" \
-        "$PROD_WORKSPACE"
-    
+        "$PROD_WORKSPACE" \
+        "$DEV_WORKSPACE"
+
     create_github_environments "$GITHUB_REPO_FULL" \
         "$RUNTIME_STAGE_ENV" \
-        "$RUNTIME_PROD_ENV"
+        "$RUNTIME_PROD_ENV" \
+        "$RUNTIME_DEV_ENV"
 }
 
 # Function to display final instructions
@@ -207,7 +197,7 @@ display_final_instructions() {
     echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
     
     print_info "You can now use the GitHub Actions workflows!"
-    echo "   • Terraform: Actions → 'Infrastructure Release' → Run workflow"
+    echo "   • Terraform: Actions → 'Infrastructure (Release|Debug)' → Run workflow"
     echo "   • CodeDeploy: Actions → 'Authentication Service Deployment' → Run workflow"
     echo "   • Automatic: Pull requests will show terraform plans"
     
@@ -215,7 +205,6 @@ display_final_instructions() {
     echo "   1. Set up application secrets using setup-secrets.sh"
     echo "   2. Deploy infrastructure using Terraform workflow"
     echo "   3. Use CodeDeploy workflows for application deployments"
-    echo "   4. Certificate renewal will use the ECR certbot image"
 }
 
 # Function to show usage
@@ -233,27 +222,7 @@ show_usage() {
     echo "Prerequisites:"
     echo "  - AWS CLI configured with appropriate profile"
     echo "  - GitHub CLI authenticated"
-    echo "  - Docker installed and running"
     exit 1
-}
-
-# Function to check Docker availability
-check_docker() {
-    print_info "Checking Docker availability..."
-    
-    if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed or not in PATH"
-        print_error "Please install Docker and ensure it's running"
-        exit 1
-    fi
-    
-    if ! docker info &> /dev/null; then
-        print_error "Docker is not running or not accessible"
-        print_error "Please start Docker and ensure you have permissions to run docker commands"
-        exit 1
-    fi
-    
-    print_success "Docker is available and running"
 }
 
 # Main execution
@@ -264,7 +233,6 @@ main() {
     
     check_aws_cli
     check_github_cli
-    check_docker
 
     GITHUB_REPO_FULL=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
     if ! validate_repo "$GITHUB_REPO_FULL"; then
@@ -285,7 +253,8 @@ main() {
     
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
     
-    create_terraform_state_backend
+    TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
+    create_terraform_state_bucket "$TF_STATE_BUCKET"
     create_codedeploy_bucket
     setup_oidc_infrastructure
     setup_github_workflow

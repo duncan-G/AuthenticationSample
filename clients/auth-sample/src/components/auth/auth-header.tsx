@@ -17,8 +17,11 @@ export function AuthHeader({ title, subtitle, showBackButton, onBack }: AuthHead
           size="sm"
           onClick={onBack}
           className="p-2 text-stone-300 hover:text-stone-200 hover:bg-stone-700/30 rounded-full"
+          aria-label="Back"
+          title="Back"
         >
           <ArrowLeft className="w-5 h-5" />
+          <span className="sr-only">Back</span>
         </Button>
         <h1 className="text-2xl font-bold text-amber-50 ml-4">{title}</h1>
       </div>

@@ -77,7 +77,11 @@ prompt_for_missing() {
 
 determine_secret_name() {
   SECRET_NAME="${PROJECT_NAME}-secrets"
-  [[ $PROD_MODE == false ]] && SECRET_NAME+="-development"
+  if [[ $PROD_MODE == true ]]; then
+    SECRET_NAME+="-prod"
+  else
+    SECRET_NAME+="-dev"
+  fi
   print_info "Secret name: $SECRET_NAME"
 }
 

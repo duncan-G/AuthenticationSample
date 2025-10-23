@@ -11,7 +11,7 @@
         "secretsmanager:UpdateSecret"
       ],
       "Resource": [
-        "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:PROJECT_NAME-secrets-development-*"
+        "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:${PROJECT_NAME}-secrets-dev"
       ]
     },
     {
@@ -32,24 +32,12 @@
       "Resource": "*"
     },
     {
-      "Sid": "ReadOnlyAccess",
+      "Sid": "CognitoAccess",
       "Effect": "Allow",
       "Action": [
-        "ec2:Describe*",
-        "s3:Get*",
-        "s3:List*",
-        "cloudwatch:Get*",
-        "cloudwatch:List*",
-        "cloudwatch:Describe*",
-        "logs:Describe*",
-        "logs:Get*",
-        "logs:List*",
-        "logs:StartQuery",
-        "logs:StopQuery",
-        "logs:TestMetricFilter",
-        "logs:FilterLogEvents"
+        "cognito-idp:*"
       ],
-      "Resource": "*"
+      "Resource": "arn:aws:cognito-idp:${REGION}:${ACCOUNT_ID}:userpool/${USER_POOL_ID}"
     }
   ]
 } 

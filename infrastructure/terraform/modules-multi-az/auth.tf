@@ -147,4 +147,3 @@ output "cognito_user_pool_client_id_back_dev" { value = aws_cognito_user_pool_cl
 output "cognito_auth_url_dev" {
   value = length(local.redirect_uri) > 0 ? "https://${aws_cognito_user_pool_domain.this["dev"].domain}.auth.${var.region}.amazoncognito.com/oauth2/authorize?response_type=code&client_id=${aws_cognito_user_pool_client.web["dev"].id}&redirect_uri=${local.redirect_uri}" : ""
 }
-

@@ -4,9 +4,10 @@ import { useAuth } from "@/hooks/useAuth"
 import { useState, useEffect } from "react"
 import {
   MainSignUp,
-  SignUpEmailOptions,
+  SignUpEmail,
   SignUpPassword,
-  SignUpPasswordless,
+  SignUpVerification,
+  SignUpSuccess,
   AuthFlowTransition
 } from "@/components/auth"
 
@@ -59,26 +60,27 @@ export default function SignUpPage() {
             <MainSignUp
               onGoogleSignUp={auth.handleGoogleSignUp}
               onAppleSignUp={auth.handleAppleSignUp}
-              onPasswordSignUp={auth.handlePasswordSignUpFlow}
-              onPasswordlessSignUp={auth.handlePasswordlessSignUpFlow}
+              onPasswordSignUp={auth.handlePasswordSignUpFlowStart}
+              onPasswordlessSignUp={auth.handlePasswordlessSignUpFlowStart}
               isLoading={auth.isLoading}
             />
           </AuthFlowTransition>
         )
-      case "signup-email-options":
+      case "signup-email":
         return (
           <AuthFlowTransition
-            flowKey="signup-email-options"
+            flowKey="signup-email"
             direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
-            <SignUpEmailOptions
+            <SignUpEmail
               email={auth.email}
               onEmailChange={auth.setEmail}
-              onPasswordFlow={() => auth.setCurrentFlow("signup-password")}
-              onPasswordlessFlow={() => auth.setCurrentFlow("signup-passwordless")}
+              onPasswordFlowContinue={auth.handlePasswordEmailContinue}
+              onPasswordlessFlow={auth.handlePasswordlessEmailContinue}
               onBack={() => auth.setCurrentFlow("signup-main")}
               isLoading={auth.isLoading}
+              serverError={auth.errorMessage}
               signupMethod={auth.signupMethod}
             />
           </AuthFlowTransition>
@@ -97,27 +99,42 @@ export default function SignUpPage() {
               onPasswordChange={auth.setPassword}
               onPasswordConfirmationChange={auth.setPasswordConfirmation}
               onPasswordSignUp={auth.handlePasswordSignUp}
-              onBack={() => auth.setCurrentFlow("signup-email-options")}
+              onBack={() => auth.setCurrentFlow("signup-email")}
               isLoading={auth.isLoading}
+              serverError={auth.errorMessage}
             />
           </AuthFlowTransition>
         )
-      case "signup-passwordless":
+      case "signup-verification":
         return (
           <AuthFlowTransition
-            flowKey="signup-passwordless"
+            flowKey="signup-verification"
             direction={getFlowDirection()}
             isLoading={auth.isLoading}
           >
-            <SignUpPasswordless
+            <SignUpVerification
               email={auth.email}
               otpCode={auth.otpCode}
               onOtpChange={auth.setOtpCode}
-              onResendEmail={auth.handlePasswordlessSignUp}
+              onResendEmail={auth.handleResendVerificationCode}
               onVerifyOtp={auth.handleSignUpOtpVerification}
-              onBack={() => auth.setCurrentFlow("signup-email-options")}
+              onBack={() => auth.setCurrentFlow("signup-email")}
               isLoading={auth.isLoading}
+              isResendLoading={auth.isResendLoading}
+              serverError={auth.errorMessage}
+              isRateLimited={auth.isRateLimited}
+              rateLimitRetryAfter={auth.rateLimitRetryAfter}
             />
+          </AuthFlowTransition>
+        )
+      case "signup-success":
+        return (
+          <AuthFlowTransition
+            flowKey="signup-success"
+            direction={getFlowDirection()}
+            isLoading={auth.isLoading}
+          >
+            <SignUpSuccess onGoToSignIn={auth.handleEmailSignIn} />
           </AuthFlowTransition>
         )
       default:

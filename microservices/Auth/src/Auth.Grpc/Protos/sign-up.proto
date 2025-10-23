@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option csharp_namespace = "AuthSample.Auth.Grpc.Protos";
+
+package auth;
+
+service SignUpService {
+  rpc InitiateSignUpAsync (InitiateSignUpRequest) returns (InitiateSignUpResponse);
+
+  rpc VerifyAndSignInAsync (VerifyAndSignInRequest) returns (VerifyAndSignInResponse);
+
+  rpc ResendVerificationCodeAsync (ResendVerificationCodeRequest) returns (google.protobuf.Empty);
+}
+
+enum SignUpStep {
+  UNSPECIFIED = 0;
+  PASSWORD_REQUIRED = 1;
+  VERIFICATION_REQUIRED = 2;
+  SIGN_IN_REQUIRED= 3;
+  REDIRECT_REQUIRED = 4;
+}
+
+message InitiateSignUpRequest {
+  string email_address = 1;
+  bool require_password = 2;
+  optional string password = 3;
+}
+
+message InitiateSignUpResponse {
+  SignUpStep next_step = 1;
+}
+
+message VerifyAndSignInRequest {
+  string email_address = 1;
+  string name = 3;
+  string verification_code = 2;
+}
+
+message VerifyAndSignInResponse {
+  SignUpStep next_step = 1;
+}
+
+message ResendVerificationCodeRequest {
+  string email_address = 1;
+}

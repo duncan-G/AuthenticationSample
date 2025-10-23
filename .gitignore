@@ -248,3 +248,13 @@ certificates
 # Pids
 pids
 
+# tmp
+tmp/
+
+# Kiro
+.kiro/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+tfplan

@@ -6,10 +6,9 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import {GreeterClient} from "@/app/services/greet/GreetServiceClientPb";
-import {HelloRequest} from "@/app/services/greet/greet_pb";
+import { createGreeterClient } from "@/lib/services/grpc-clients";
+import { HelloRequest } from "@/lib/services/auth/greet/greet_pb";
 import { ThemeToggle } from "@/components/theme/theme-toggle"
-import { config } from '@/lib/config'
 
 interface Message {
   id: string
@@ -24,10 +23,8 @@ export default function Component() {
   const [inputValue, setInputValue] = useState("")
   const [error, setError] = useState('');
   const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
-  if (!config.authServiceUrl) {
-    throw new Error('NEXT_PUBLIC_AUTH_SERVICE_URL is not set')
-  }
-  const client = new GreeterClient(config.authServiceUrl);
+
+  const client = createGreeterClient();
 
   const removeMessage = (messageId: string) => {
     // Clear timer for this message

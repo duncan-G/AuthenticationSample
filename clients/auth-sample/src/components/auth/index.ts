@@ -7,9 +7,10 @@ export { PasskeySignIn } from "./passkey-sign-in"
 
 // Sign-up components
 export { MainSignUp } from "./main-sign-up"
-export { SignUpEmailOptions } from "./signup-email-options"
+export { SignUpEmail } from "./signup-email"
 export { SignUpPassword } from "./signup-password"
-export { SignUpPasswordless } from "./signup-passwordless"
+export { SignUpVerification } from "./signup-verification"
+export { SignUpSuccess } from "./signup-success"
 
 // Shared components
 export { AuthCard } from "./auth-card"

@@ -63,7 +63,3 @@ else
     close_terminal_window
     echo "Attempted to close any open client terminal windows."
 fi 
-
-if [ -f "$CLIENT_DIR/.env.local" ]; then
-    rm -f "$CLIENT_DIR/.env.local"
-fi

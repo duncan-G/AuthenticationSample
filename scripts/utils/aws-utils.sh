@@ -165,6 +165,41 @@ validate_aws_region() {
     return 0  # Don't fail, just warn
 }
 
+# Function to get Route53 hosted zone ID from a domain name
+get_route53_hosted_zone_id() {
+    local domain_name="$1"
+    local profile="${2:-$AWS_PROFILE}"
+
+    if [ -z "$domain_name" ]; then
+        print_error "Domain name is required to lookup hosted zone"
+        return 1
+    fi
+
+    if [ -z "$profile" ]; then
+        print_error "AWS profile is required to lookup hosted zone"
+        return 1
+    fi
+
+    print_info "Looking up Route53 hosted zone for domain: $domain_name"
+
+    local hosted_zone_id
+    hosted_zone_id=$(aws route53 list-hosted-zones \
+        --profile "$profile" \
+        --query "HostedZones[?Name=='${domain_name}.'].Id" \
+        --output text 2>/dev/null)
+
+    if [ -z "$hosted_zone_id" ] || [ "$hosted_zone_id" = "None" ]; then
+        print_error "Could not find Route53 hosted zone for domain: $domain_name"
+        return 1
+    fi
+
+    # Remove the /hostedzone/ prefix if present
+    hosted_zone_id=$(echo "$hosted_zone_id" | sed 's|/hostedzone/||')
+
+    print_success "Found Route53 hosted zone ID: $hosted_zone_id"
+    printf '%s\n' "$hosted_zone_id"
+}
+
 # Function to create S3 bucket with standard configuration
 create_s3_bucket_with_config() {
     local bucket_name="$1"
@@ -288,4 +323,4 @@ get_secret() {
 export -f check_aws_cli check_aws_profile check_aws_authentication
 export -f get_aws_account_id validate_aws_region check_jq
 export -f create_s3_bucket_with_config create_s3_bucket_with_lifecycle
-export -f get_secret 
+export -f get_secret get_route53_hosted_zone_id 

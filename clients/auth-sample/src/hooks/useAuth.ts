@@ -1,6 +1,39 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { useAuth as useOidcAuth } from "react-oidc-context"
 import type { AuthFlow, AuthState, AuthHandlers } from "@/types/auth"
+import { createSignUpServiceClient } from "@/lib/services/grpc-clients"
+import {
+  InitiateSignUpRequest,
+  VerifyAndSignInRequest,
+  ResendVerificationCodeRequest,
+  SignUpStep,
+} from "@/lib/services/auth/sign-up/sign-up_pb"
+import { startWorkflow } from "@/lib/workflows"
+import type { WorkflowHandle } from "@/lib/workflows"
+import {friendlyMessageFor, handleApiError} from "@/lib/services/handle-api-error";
+import { ErrorCodes } from "@/lib/services/error-codes"
 
+/** Wrap an async handler with loading toggles. */
+const withLoading =
+  (setIsLoading: (v: boolean) => void, fn: () => Promise<void>) =>
+  async () => {
+    setIsLoading(true)
+    try {
+      await fn()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+/** Optionally run a client call inside a workflow step. */
+const runInStep = async <T>(
+  step: ReturnType<WorkflowHandle["startStep"]> | undefined,
+  runner: () => Promise<T>
+): Promise<T> => {
+  return step ? step.run(runner) : runner()
+}
+
+/** -------- Hook -------- */
 export function useAuth(): AuthState & AuthHandlers {
   const [currentFlow, setCurrentFlow] = useState<AuthFlow>("main")
   const [email, setEmail] = useState("")
@@ -8,103 +41,239 @@ export function useAuth(): AuthState & AuthHandlers {
   const [passwordConfirmation, setPasswordConfirmation] = useState("")
   const [otpCode, setOtpCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [signupMethod, setSignupMethod] = useState<"password" | "passwordless" | undefined>()
+  const [isResendLoading, setIsResendLoading] = useState(false)
+  const [signupMethod, setSignupMethod] = useState<
+    "password" | "passwordless" | undefined
+  >()
+  const [errorMessage, setErrorMessage] = useState<string | undefined>()
+  const [isRateLimited, setIsRateLimited] = useState(false)
+  const [rateLimitRetryAfter, setRateLimitRetryAfter] = useState<number | undefined>()
 
-  // Sign-in handlers
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true)
-    // Implement Google OAuth flow
-    console.log("Google sign in")
-    setIsLoading(false)
+  const oidc = useOidcAuth()
+  const client = createSignUpServiceClient()
+  const signupWorkflowRef = useRef<WorkflowHandle | null>(null)
+
+  /** Ensure a workflow exists (optionally forcing a fresh one). */
+  const ensureSignupWorkflow = (
+    attrs?: Record<string, unknown>,
+    force?: boolean
+  ) => {
+    if (!signupWorkflowRef.current || force) {
+      signupWorkflowRef.current = startWorkflow("signup", "v1", attrs)
+    }
   }
 
-  const handleAppleSignIn = async () => {
-    setIsLoading(true)
-    // Implement Apple OAuth flow
-    console.log("Apple sign in")
-    setIsLoading(false)
-  }
+  /** Centralized OIDC redirect sign-in handler factory (DRY). */
+  const makeOidcRedirectHandler = () =>
+    withLoading(setIsLoading, async () => {
+      await oidc.signinRedirect()
+    })
 
-  const handleEmailSignIn = () => {
-    setCurrentFlow("email-options")
-  }
+  // ---------- Sign-in handlers (all OIDC redirect) ----------
+  const handleGoogleSignIn = makeOidcRedirectHandler()
+  const handleAppleSignIn = makeOidcRedirectHandler()
+  const handleEmailSignIn = makeOidcRedirectHandler()
+  const handlePasswordSignIn = makeOidcRedirectHandler()
+  const handlePasswordlessSignIn = makeOidcRedirectHandler()
+  const handlePasskeySignIn = makeOidcRedirectHandler()
+  const handleOtpVerification = makeOidcRedirectHandler()
 
-  const handlePasswordSignIn = async () => {
-    setIsLoading(true)
-    // Implement password sign in
-    console.log("Password sign in with:", email, password)
-    setIsLoading(false)
-  }
-
-  const handlePasswordlessSignIn = async () => {
-    setIsLoading(true)
-    // Send magic link or OTP
-    console.log("Sending passwordless link to:", email)
-    setIsLoading(false)
-  }
-
-  const handlePasskeySignIn = async () => {
-    setIsLoading(true)
-    // Implement WebAuthn passkey flow
-    console.log("Passkey sign in for:", email)
-    setIsLoading(false)
-  }
-
-  const handleOtpVerification = async () => {
-    setIsLoading(true)
-    // Verify OTP code
-    console.log("Verifying OTP:", otpCode)
-    setIsLoading(false)
-  }
-
-  // Sign-up handlers
-  const handleGoogleSignUp = async () => {
-    setIsLoading(true)
+  // ---------- Sign-up handlers ----------
+  const handleGoogleSignUp = withLoading(setIsLoading, async () => {
+    ensureSignupWorkflow({ method: "google" }, true)
     // Implement Google OAuth sign up flow
+    // (left as-is intentionally)
     console.log("Google sign up")
-    setIsLoading(false)
-  }
+  })
 
-  const handleAppleSignUp = async () => {
-    setIsLoading(true)
+  const handleAppleSignUp = withLoading(setIsLoading, async () => {
+    ensureSignupWorkflow({ method: "apple" }, true)
     // Implement Apple OAuth sign up flow
+    // (left as-is intentionally)
     console.log("Apple sign up")
-    setIsLoading(false)
-  }
+  })
 
-  const handleEmailSignUp = () => {
-    setCurrentFlow("signup-email-options")
-  }
-
-  const handlePasswordSignUpFlow = () => {
+  const handlePasswordSignUpFlowStart = () => {
+    setErrorMessage(undefined)
     setSignupMethod("password")
-    setCurrentFlow("signup-email-options")
+    ensureSignupWorkflow({ method: "password" }, true)
+    setCurrentFlow("signup-email")
   }
 
-  const handlePasswordlessSignUpFlow = () => {
+  const handlePasswordlessSignUpFlowStart = () => {
+    setErrorMessage(undefined)
     setSignupMethod("passwordless")
-    setCurrentFlow("signup-email-options")
+    ensureSignupWorkflow({ method: "passwordless" }, true)
+    setCurrentFlow("signup-email")
   }
 
-  const handlePasswordSignUp = async () => {
-    setIsLoading(true)
-    // Implement password sign up
-    console.log("Password sign up with:", email, password)
-    setIsLoading(false)
+  /** After email entered (password flow): check availability. */
+  const handlePasswordEmailContinue = withLoading(setIsLoading, async () => {
+    ensureSignupWorkflow()
+    const step = signupWorkflowRef.current?.startStep("checkEmailAvailability")
+
+    try {
+      const request = new InitiateSignUpRequest()
+      request.setEmailAddress(email)
+      request.setRequirePassword(true)
+
+      const response = await runInStep(step, () =>
+        client.initiateSignUpAsync(request, {})
+      )
+      const nextStep = response.getNextStep()
+
+      if (nextStep === SignUpStep.PASSWORD_REQUIRED) {
+        setCurrentFlow("signup-password")
+      } else if (nextStep === SignUpStep.VERIFICATION_REQUIRED) {
+        setCurrentFlow("signup-verification")
+      } else {
+        step?.fail(ErrorCodes.Unexpected, "Unknown error")
+        setErrorMessage(friendlyMessageFor[ErrorCodes.Unexpected])
+        return
+      }
+
+      step?.succeed({ email })
+      setErrorMessage(undefined)  
+
+    } catch (err: unknown) {
+        handleApiError(err, setErrorMessage, step)
+    }
+  })
+
+  /** After email entered (passwordless flow): send verification. */
+  const handlePasswordlessEmailContinue = withLoading(
+    setIsLoading,
+    async () => {
+      ensureSignupWorkflow()
+      const step = signupWorkflowRef.current?.startStep("initiatePasswordless")
+
+      try {
+          const request = new InitiateSignUpRequest()
+          request.setEmailAddress(email)
+          // Breadcrumb for integration test and diagnostics
+          console.log('Sending verification email to:', email)
+
+          await runInStep(step, () => client.initiateSignUpAsync(request, {}))
+
+          step?.succeed({email})
+          setErrorMessage(undefined)
+          setCurrentFlow("signup-verification")
+      } catch (err) {
+          handleApiError(err, setErrorMessage, step)
+      }
+    }
+  )
+
+  /** Initiate password signup (send verification for password flow). */
+  const handlePasswordSignUp = withLoading(setIsLoading, async () => {
+    ensureSignupWorkflow()
+    const step = signupWorkflowRef.current?.startStep("initiatePassword")
+
+    try {
+        const request = new InitiateSignUpRequest()
+        request.setEmailAddress(email)
+        request.setPassword(password)
+        request.setRequirePassword(true)
+
+        await runInStep(step, () => client.initiateSignUpAsync(request, {}))
+
+        step?.succeed({email})
+        setErrorMessage(undefined)
+        // Keeping original flow transition as in provided code.
+        setCurrentFlow("signup-verification")
+    } catch (err) {
+        handleApiError(err, setErrorMessage, step)
+    }
+  })
+
+  /** Verify OTP and create account. */
+  const handleSignUpOtpVerification = withLoading(
+    setIsLoading,
+    async () => {
+      ensureSignupWorkflow()
+      const step = signupWorkflowRef.current?.startStep("verifyAndCreateAccount")
+      try {
+          const request = new VerifyAndSignInRequest()
+          request.setEmailAddress(email)
+          request.setVerificationCode(otpCode)
+
+          // Fallback name from email local-part if not collected via UI
+          const derivedName = email.includes("@") ? email.split("@")[0] : email
+          request.setName(derivedName || "User")
+
+          const response = await runInStep(step, () => client.verifyAndSignInAsync(request, {}))
+          const nextStep = response.getNextStep()
+
+          if (nextStep === SignUpStep.REDIRECT_REQUIRED) {
+            step?.succeed({ email })
+            signupWorkflowRef.current?.succeed()
+            signupWorkflowRef.current = null
+            if (typeof window !== "undefined") {
+              window.location.replace("/")
+            }
+          } else if (nextStep === SignUpStep.SIGN_IN_REQUIRED) {
+            step?.succeed({ email })
+            signupWorkflowRef.current?.succeed()
+            signupWorkflowRef.current = null
+            setErrorMessage(undefined)
+            setCurrentFlow("signup-success")
+          } else {
+            step?.fail(ErrorCodes.Unexpected, "Unknown error")
+            setErrorMessage(friendlyMessageFor[ErrorCodes.Unexpected])
+          }
+      } catch (err) {
+          handleApiError(err, setErrorMessage, step)
+      }
+    }
+  )
+
+  /** Resend verification code during signup. */
+  const handleResendVerificationCode = withLoading(
+    setIsResendLoading,
+    async () => {
+      ensureSignupWorkflow()
+      const step = signupWorkflowRef.current?.startStep("resendVerificationCode")
+      
+      // Clear previous rate limit state
+      setIsRateLimited(false)
+      setRateLimitRetryAfter(undefined)
+      
+      try {
+        const request = new ResendVerificationCodeRequest()
+        request.setEmailAddress(email)
+
+        await runInStep(step, () => client.resendVerificationCodeAsync(request, {}))
+
+        step?.succeed({ email })
+        setErrorMessage(undefined)
+      } catch (err) {
+        handleApiError(
+          err, 
+          setErrorMessage, 
+          step,
+          (retryAfterMinutes) => {
+            setIsRateLimited(true)
+            setRateLimitRetryAfter(retryAfterMinutes)
+          }
+        )
+      }
+    }
+  )
+
+  // ---------- Setters that clear server errors ----------
+  const handleSetEmail = (value: string) => {
+    setEmail(value)
+    if (errorMessage) setErrorMessage(undefined)
   }
 
-  const handlePasswordlessSignUp = async () => {
-    setIsLoading(true)
-    // Send verification email for sign up
-    console.log("Sending verification email to:", email)
-    setIsLoading(false)
+  const handleSetOtpCode = (value: string) => {
+    setOtpCode(value)
+    if (errorMessage) setErrorMessage(undefined)
   }
 
-  const handleSignUpOtpVerification = async () => {
-    setIsLoading(true)
-    // Verify sign up OTP code
-    console.log("Verifying sign up OTP:", otpCode)
-    setIsLoading(false)
+  const handleSetCurrentFlow = (flow: AuthFlow) => {
+    if (errorMessage) setErrorMessage(undefined)
+    setCurrentFlow(flow)
   }
 
   return {
@@ -114,7 +283,13 @@ export function useAuth(): AuthState & AuthHandlers {
     passwordConfirmation,
     otpCode,
     isLoading,
+    isResendLoading,
     signupMethod,
+    errorMessage,
+    isRateLimited,
+    rateLimitRetryAfter,
+
+    // sign-in
     handleGoogleSignIn,
     handleAppleSignIn,
     handleEmailSignIn,
@@ -122,18 +297,23 @@ export function useAuth(): AuthState & AuthHandlers {
     handlePasswordlessSignIn,
     handlePasskeySignIn,
     handleOtpVerification,
+
+    // sign-up
     handleGoogleSignUp,
     handleAppleSignUp,
-    handleEmailSignUp,
-    handlePasswordSignUpFlow,
-    handlePasswordlessSignUpFlow,
+    handlePasswordSignUpFlowStart,
+    handlePasswordlessSignUpFlowStart,
+    handlePasswordEmailContinue,
+    handlePasswordlessEmailContinue,
     handlePasswordSignUp,
-    handlePasswordlessSignUp,
     handleSignUpOtpVerification,
-    setCurrentFlow,
-    setEmail,
+    handleResendVerificationCode,
+
+    // setters
+    setCurrentFlow: handleSetCurrentFlow,
+    setEmail: handleSetEmail,
     setPassword,
     setPasswordConfirmation,
-    setOtpCode,
+    setOtpCode: handleSetOtpCode,
   }
-} 
+}

@@ -21,8 +21,12 @@ clean_database=false
 microservices=false
 containerize_microservices=false
 proxy=false
+proxy_containerized_microservices=false
 start_all=false
 start_all_containers=false
+
+export AWS_PROFILE="developer"
+export AWS_REGION="us-west-1"
 
 # Help message
 show_help() {
@@ -39,12 +43,13 @@ show_help() {
     echo "  -m, --microservices                 Start the microservices"
     echo "  -M, --containerize-microservices    Start microservices in containers"
     echo "  -p, --proxy                         Start the proxy"
+    echo "  -P, --proxy-containerized           Start proxy targeting containerized microservices"
     echo "  -h, --help                          Show this help message"
     exit 0
 }
 
 # Parse options
-while getopts ":aAcCbBDdMmp-:" opt; do
+while getopts ":aAcCbBDdMmpP-:" opt; do
     case ${opt} in
         a ) start_all=true ;;
         A ) start_all=true; start_all_containers=true ;;
@@ -57,6 +62,7 @@ while getopts ":aAcCbBDdMmp-:" opt; do
         m ) microservices=true ;;
         M ) microservices=true; containerize_microservices=true ;;
         p ) proxy=true ;;
+        P ) proxy=true; proxy_containerized_microservices=true ;;
         h ) show_help ;;
         - ) case "${OPTARG}" in
             all ) start_all=true ;;
@@ -70,6 +76,7 @@ while getopts ":aAcCbBDdMmp-:" opt; do
             microservices ) microservices=true ;;
             containerize-microservices ) microservices=true; containerize_microservices=true ;;
             proxy ) proxy=true ;;
+            proxy-containerized ) proxy_containerized_microservices=true ;;
             help ) show_help ;;
             * ) echo "Invalid option: --${OPTARG}" >&2; exit 1 ;;
         esac ;;
@@ -83,8 +90,8 @@ shift $((OPTIND -1))
 load_secrets() {
     local secret_name="$1"
     
-    local profile="developer"
-    local region="us-west-1"
+    local profile="$AWS_PROFILE"
+    local region="$AWS_REGION"
     local env_template_path="$PROJECT_ROOT/infrastructure/.env.template.dev"
     local prefix="Infrastructure_"
 
@@ -102,7 +109,9 @@ load_secrets() {
     fi
 
     if ! check_aws_authentication "$profile"; then
-        exit 1
+        print_info "Logging in to AWS..."
+        aws sso login --profile "$profile"
+        print_success "Logged in to AWS"
     fi
 
     
@@ -185,8 +194,8 @@ start_backend_environment() {
     fi
 }
 
-# Function to handle database
-handle_database() {
+# Function to start the database
+start_database() {
     print_info "Starting database..."
     if [ "$clean_database" = true ]; then
         "$SCRIPT_DIR/start_database.sh" --clean
@@ -208,7 +217,19 @@ start_microservices() {
 # Function to start the proxy
 start_proxy() {
     print_info "Starting proxy..."
-    "$SCRIPT_DIR/start_proxy.sh"
+    if [ "$proxy_containerized_microservices" = true ]; then
+        "$SCRIPT_DIR/start_proxy.sh" --containerized-microservices
+    else
+        "$SCRIPT_DIR/start_proxy.sh"
+    fi
+}
+
+# Function to ensure backend environment is running
+ensure_backend_environment() {
+    if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
+        print_error "Docker Swarm is not active. Please run './start.sh -b' first to initialize the environment"
+        exit 1
+    fi
 }
 
 # Main execution
@@ -225,34 +246,69 @@ if [ "$start_all" = true ]; then
     backend_environment=true
     client=true
     microservices=true
+    proxy=true
     
     # If starting all in containers, set container flags
     if [ "$start_all_containers" = true ]; then
-        proxy=true
         client_container=true
         containerize_microservices=true
+        proxy_containerized_microservices=true
     fi
 fi
 
-load_secrets "auth-sample-secrets-development"
+load_secrets "auth-sample-secrets-dev"
 
 # Start components based on flags
-if [ "$database" = true ]; then
-    handle_database
-fi
-
 if [ "$backend_environment" = true ]; then
     start_backend_environment
+fi
+
+if [ "$database" = true ]; then
+    ensure_backend_environment
+    start_database
 fi
 
 if [ "$client" = true ]; then
     start_client
 fi
 
+if [ "$proxy" = true ]; then
+    ensure_backend_environment
+    start_proxy
+fi
+
 if [ "$microservices" = true ]; then
+    ensure_backend_environment
     start_microservices
 fi
 
-if [ "$proxy" = true ]; then
-    start_proxy
+# If microservices are running locally, wait here and stop on Ctrl-C
+if [ "$microservices" = true ] && [ "$containerize_microservices" = false ]; then
+    PID_DIR="$working_dir/pids"
+    trap '"$SCRIPT_DIR/stop.sh"; exit 0' INT TERM
+    echo -e "\n>> Services are up. Press Ctrl-C to stop.\n"
+    while true; do
+        sleep 1
+        for pidfile in "$PID_DIR"/*.pid; do
+            [[ -e $pidfile ]] || continue
+            # Skip client.pid; it's managed separately
+            if [[ $(basename "$pidfile") == "client.pid" || $(basename "$pidfile") == "client_terminal.pid" ]]; then
+                continue
+            fi
+            name=$(basename "$pidfile" .pid)
+            pid=$(<"$pidfile")
+            restart_marker="$PID_DIR/$name.restart"
+
+            if [[ -f "$restart_marker" ]]; then
+                rm -f "$restart_marker"
+                "$SCRIPT_DIR/restart_microservice.sh" "$name" || true
+                continue
+            fi
+
+            if ! kill -0 "$pid" 2>/dev/null && ! kill -0 "-$pid" 2>/dev/null; then
+                echo "$name stopped unexpectedly. Restarting..."
+                "$SCRIPT_DIR/restart_microservice.sh" "$name" || true
+            fi
+        done
+    done
 fi

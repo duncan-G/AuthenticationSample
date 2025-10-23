@@ -50,4 +50,3 @@ output "ses_domain_identity_domain" {
 }
 #endregion
 
-

@@ -16,6 +16,7 @@ interface SignUpPasswordProps {
   onPasswordSignUp: () => Promise<void>
   onBack: () => void
   isLoading: boolean
+  serverError?: string
 }
 
 export function SignUpPassword({
@@ -26,7 +27,8 @@ export function SignUpPassword({
   onPasswordConfirmationChange,
   onPasswordSignUp,
   onBack,
-  isLoading
+  isLoading,
+  serverError
 }: SignUpPasswordProps) {
   const passwordInputRef = useRef<HTMLInputElement>(null)
   const [passwordErrors, setPasswordErrors] = useState<string[]>([])
@@ -84,7 +86,7 @@ export function SignUpPassword({
       />
 
       <AuthCard>
-        <p className="text-stone-200/90 text-center">Creating account for {email}</p>
+        <p className="text-stone-200/90 text-center">Creating account for <b>{email}</b></p>
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-6 mb-6">
@@ -141,9 +143,19 @@ export function SignUpPassword({
             </div>
           </div>
 
+          {/* Reserve space for server error below inputs, allow up to 2 lines */}
+          <div className="min-h-[40px] mb-4 flex items-center">
+            {serverError && (
+              <div className="flex items-center space-x-2 text-red-400 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0"><path fillRule="evenodd" d="M9.401 1.592a3.75 3.75 0 0 1 5.198 0l7.81 7.81a3.75 3.75 0 0 1 0 5.198l-7.81 7.81a3.75 3.75 0 0 1-5.198 0l-7.81-7.81a3.75 3.75 0 0 1 0-5.198l7.81-7.81Zm2.599 5.658a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V8a.75.75 0 0 1 .75-.75Zm0 10.5a.998.998 0 1 1 0-1.996.998.998 0 0 1 0 1.997Z" clipRule="evenodd" /></svg>
+                <span>{serverError}</span>
+              </div>
+            )}
+          </div>
           <AuthButton
             type="submit"
             disabled={!password || !passwordConfirmation || isLoading}
+            loading={isLoading}
           >
             {isLoading ? "Creating account..." : "Create Account"}
           </AuthButton>

@@ -3,7 +3,7 @@
 
 resources:
   - "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
-    name: authentication_cluster
+    name: auth_cluster
     connect_timeout: 1s
     typed_extension_protocol_options:
       envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
@@ -11,10 +11,56 @@ resources:
         explicit_http_config:
           http2_protocol_options: { }
     type: logical_dns
+    dns_lookup_family: V4_ONLY
     lb_policy: round_robin
     load_assignment:
-      cluster_name: authentication_cluster
+      cluster_name: auth_cluster
       endpoints:
       - lb_endpoints:
         - endpoint:
-            address: { socket_address: { address: authentication_app, port_value: 80 } }
+            address: { socket_address: { address: $AUTH_HOST, port_value: $AUTH_PORT } }
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+        sni: "localhost"
+        common_tls_context:
+          alpn_protocols: ["h2"]
+          validation_context:
+            trusted_ca:
+              filename: /etc/envoy/certs/ca.crt
+            match_typed_subject_alt_names:
+            - san_type: DNS
+              matcher:
+                exact: "localhost"
+  - "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
+    name: greeter_cluster
+    connect_timeout: 1s
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: { }
+    type: logical_dns
+    dns_lookup_family: V4_ONLY
+    lb_policy: round_robin
+    load_assignment:
+      cluster_name: greeter_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address: { socket_address: { address: $GREETER_HOST, port_value: $GREETER_PORT } }
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+        sni: "localhost"
+        common_tls_context:
+          alpn_protocols: ["h2"]
+          validation_context:
+            trusted_ca:
+              filename: /etc/envoy/certs/ca.crt
+            match_typed_subject_alt_names:
+            - san_type: DNS
+              matcher:
+                exact: "localhost"

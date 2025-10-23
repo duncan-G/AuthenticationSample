@@ -146,7 +146,7 @@ delete_oidc_provider() {
 # Function to cleanup OIDC infrastructure
 cleanup_oidc_infrastructure() {
     print_info "Cleaning up OIDC infrastructure (delegated script)..."
-    "$SCRIPT_DIR/remove-oidc-infrastructure.sh" \
+    "$SCRIPT_DIR/remove-oidc-infra.sh" \
         --aws-profile "$AWS_PROFILE" \
         --aws-account-id "$AWS_ACCOUNT_ID"
 }
@@ -189,13 +189,11 @@ display_final_summary() {
     # Certbot/EBS resources removed
     
     print_info "Additional cleanup steps:"
-    echo "1. Remove GitHub repository secrets:"
-    echo "   AWS_ACCOUNT_ID, TF_STATE_BUCKET, PROJECT_NAME, GITHUB_REPOSITORY, EDGE_SHARED_SECRET"
-    echo "2. Remove GitHub repository variables:"
-    echo "   AWS_REGION"
+    echo "1. Remove GitHub repository secrets"
+    echo "2. Remove GitHub repository variables"
     echo "3. Remove GitHub environments:"
-    echo "   terraform-stage, terraform-prod,"
-    echo "   stage, prod"
+    echo "   terraform-stage, terraform-prod, terraform-dev"
+    echo "   stage, prod, dev"
     
     print_warning "Note: This cleanup does NOT delete your terraform infrastructure."
     print_info "To delete infrastructure, run: terraform destroy"

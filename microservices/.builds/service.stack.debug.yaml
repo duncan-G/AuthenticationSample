@@ -4,17 +4,23 @@ services:
   app:
     image: $IMAGE_NAME
     environment:
-      ASPNETCORE_URLS: http://+:80
+      ASPNETCORE_URLS: https://+:443
       ASPNETCORE_ENVIRONMENT: Development
-      AWS_REGION: us-west-1
-      AWS_PROFILE: developer
-      Authentication_Secrets__UseDevOverrides: 'true'
+      AWS_REGION: $AWS_REGION
+      AWS_PROFILE: $AWS_PROFILE
+      Shared_Secrets__UseDevOverrides: 'true'
+      Shared_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
+      COGNITO_CONFIRMED_USERS_COUNT: ${COGNITO_CONFIRMED_USERS_COUNT}
     volumes:
+      # Bind AWS credentials directory
       - type: bind
         source: $HOME/.aws
         target: /home/app/.aws
     networks:
       - net
+    secrets:
+      - source: aspnetapp.pfx
+        target: /https/aspnetapp.pfx
     deploy:
       mode: global
       restart_policy:

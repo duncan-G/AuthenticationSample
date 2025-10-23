@@ -13,15 +13,79 @@ resources:
           allow_origin_string_match:
 $PROCESSED_ORIGINS
           allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
-          allow_headers: "keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,authorization,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout"
-          expose_headers: "grpc-status,grpc-message"
+          allow_headers: "keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,authorization,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout,traceparent,tracestate,b3,baggage"
+          expose_headers: "grpc-status,grpc-message,grpc-messages,error-code,error-codes,retry-after-seconds"
           max_age: "1728000"
+          allow_credentials: true
+      response_headers_to_add:
+        - header:
+            key: "alt-svc"
+            value: 'h3=":443"; ma=86400'
       routes:
         - match:
-            prefix: "/auth/" 
+            prefix: "/auth/auth.SignUpService/"
           route:
-            cluster: authentication_cluster
+            cluster: auth_cluster
+            prefix_rewrite: "/auth.SignUpService/"
+            timeout: 0s
+            max_stream_duration:
+              grpc_timeout_header_max: 0s
+          typed_per_filter_config:
+            envoy.filters.http.local_ratelimit:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+              stat_prefix: http_local_rate_limiter
+              token_bucket:
+                max_tokens: 50
+                tokens_per_fill: 50
+                fill_interval: 1s
+              filter_enabled:
+                default_value:
+                  numerator: 100
+                  denominator: HUNDRED
+              filter_enforced:
+                default_value:
+                  numerator: 100
+                  denominator: HUNDRED
+            envoy.filters.http.ext_authz:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+              disabled: true
+        - match:
+            prefix: "/auth/"
+          route:
+            cluster: auth_cluster
             prefix_rewrite: "/"
             timeout: 0s
             max_stream_duration:
               grpc_timeout_header_max: 0s
+          typed_per_filter_config:
+            envoy.filters.http.ext_authz:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+              disabled: true
+        - match:
+            prefix: "/greet/"
+          route:
+            cluster: greeter_cluster
+            prefix_rewrite: "/"
+            timeout: 0s
+            max_stream_duration:
+              grpc_timeout_header_max: 0s
+        - match:
+            prefix: "/otlp/v1/"
+          route:
+            cluster: otel_collector_http_cluster
+            prefix_rewrite: "/v1/"
+            timeout: 0s
+          typed_per_filter_config:
+            envoy.filters.http.ext_authz:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+              disabled: true
+          tracing:
+            client_sampling:
+              numerator: 0
+              denominator: HUNDRED
+            random_sampling:
+              numerator: 0
+              denominator: HUNDRED
+            overall_sampling:
+              numerator: 0
+              denominator: HUNDRED
