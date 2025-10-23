@@ -95,6 +95,12 @@ validate_environment() {
   check_github_cli
 }
 
+get_tf_state_bucket() {
+  local profile="$1"
+  local bucket_suffix=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
+  echo "terraform-state-${bucket_suffix}"
+}
+
 ########################################
 # Terraform
 ########################################
@@ -113,7 +119,6 @@ export_tf_vars() {
 terraform_init() {
   print_info "Initializing Terraform backend"
   terraform init \
-    -reconfigure \
     -backend-config="bucket=$TF_STATE_BUCKET" \
     -backend-config="region=$AWS_REGION" \
     -backend-config="workspace_key_prefix=${PROJECT_NAME}"
@@ -174,6 +179,9 @@ main() {
 
   get_user_input
   validate_environment
+
+  AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
+  TF_STATE_BUCKET=$(get_tf_state_bucket "$AWS_PROFILE")
 
   if [[ "$ACTION" = "deploy" ]]; then
     run_terraform_pipeline
