@@ -1,10 +1,10 @@
-name: 'Infrastructure Debug (Dev)'
+name: 'Infrastructure Debug'
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Infrastructure Action'
+        description: 'Dev Infrastructure Action'
         required: true
         default: 'plan'
         type: choice
@@ -17,11 +17,13 @@ on:
     branches: [ main ]
     paths:
       - 'infrastructure/terraform/dev/**'
+      - 'infrastructure/terraform/modules-single-az/auth/**'
 
   push:
     branches: [ main ]
     paths:
       - 'infrastructure/terraform/dev/**'
+      - 'infrastructure/terraform/modules-single-az/auth/**'
 
 env:
   TERRAFORM_VERSION: "1.13.0"

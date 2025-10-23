@@ -27,6 +27,7 @@ AWS_ACCOUNT_ID=""
 PROJECT_NAME=""
 GITHUB_REPO_FULL=""
 TF_STATE_BUCKET=""
+DEV_WORKSPACE=""
 STAGE_WORKSPACE=""
 PROD_WORKSPACE=""
 BUCKET_SUFFIX=""
@@ -57,6 +58,7 @@ while [[ $# -gt 0 ]]; do
         --project-name) PROJECT_NAME="$2"; shift 2 ;;
         --github-repo) GITHUB_REPO_FULL="$2"; shift 2 ;;
         --tf-state-bucket) TF_STATE_BUCKET="$2"; shift 2 ;;
+        --dev-workspace) DEV_WORKSPACE="$2"; shift 2 ;;
         --stage-workspace) STAGE_WORKSPACE="$2"; shift 2 ;;
         --prod-workspace) PROD_WORKSPACE="$2"; shift 2 ;;
         --bucket-suffix) BUCKET_SUFFIX="$2"; shift 2 ;;
@@ -92,6 +94,7 @@ prompt_for_missing() {
         AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
     fi
 
+    if [ -z "$DEV_WORKSPACE" ]; then DEV_WORKSPACE="terraform-dev"; fi
     if [ -z "$STAGE_WORKSPACE" ]; then STAGE_WORKSPACE="terraform-stage"; fi
     if [ -z "$PROD_WORKSPACE" ]; then PROD_WORKSPACE="terraform-prod"; fi
 
@@ -186,6 +189,7 @@ process_policy_files() {
     sed \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
+        -e "s|\${DEV_ENVIRONMENT}|$DEV_WORKSPACE|g" \
         -e "s|\${STAGING_ENVIRONMENT}|$STAGE_WORKSPACE|g" \
         -e "s|\${PRODUCTION_ENVIRONMENT}|$PROD_WORKSPACE|g" \
         "$ORIGINAL_TRUST_POLICY_FILE_PATH" > "$PROCESSED_TRUST_POLICY_FILE_PATH"

@@ -36,17 +36,14 @@ A modern, production-ready authentication system built with microservices archit
 - Create an AWS SSO user group and profile with permissions listed in [setup-github-actions-oidc-policy.json](infrastructure/terraform/setup-github-actions-oidc-policy.json)
     - Configure sso profile `aws sso configure infra-setup`
     - This profile is used to provision dev resources in AWS
-- Setup Permissions to run github actions that will deploy AWS resources
+- Setup permissions required for run github actions to deploy AWS resources
     ```bash
     ./scripts/deployment/setup-infra-workflow.sh
     ```
+- Go to github actions and run [infrastructure dev pipeline](.github/workflows/infrastructure-dev.yml) to setup cloud environment for dev
 - Create an AWS SSO user group profile with permissions listed in [developer-policy.json](infrastructure/terraform/developer-policy.json)
     - Configure sso profile `aws sso configure developer`
     - This profile is used by applications to access AWS
-- Setup cloud dev resources the application needs
-    ```bash
-    ./scripts/development/privision-dev-aws-resources.sh
-    ```
 - Setup dev secrets
     ```bash
     ./scripts/deployment/setup-secrets.sh

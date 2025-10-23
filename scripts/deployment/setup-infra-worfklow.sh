@@ -34,8 +34,10 @@ get_user_input() {
     prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
     prompt_user "Enter Terraform stage workspace name" "STAGE_WORKSPACE" "terraform-stage"
     prompt_user "Enter Terraform prod workspace name" "PROD_WORKSPACE" "terraform-prod"
+    prompt_user "Enter Terraform dev workspace name" "DEV_WORKSPACE" "terraform-dev"
     prompt_user "Enter runtime stage environment label" "RUNTIME_STAGE_ENV" "stage"
     prompt_user "Enter runtime prod environment label" "RUNTIME_PROD_ENV" "prod"
+    prompt_user "Enter runtime dev environment label" "RUNTIME_DEV_ENV" "dev"
     
     prompt_user "Enter backend domain name (e.g., example.com)" "DOMAIN_NAME"
     
@@ -156,16 +158,20 @@ setup_github_workflow() {
         "DOMAIN_NAME:$DOMAIN_NAME" \
         "TF_STAGE_WORKSPACE:$STAGE_WORKSPACE" \
         "TF_PROD_WORKSPACE:$PROD_WORKSPACE" \
+        "TF_DEV_WORKSPACE:$DEV_WORKSPACE" \
         "RUNTIME_STAGE_ENV:$RUNTIME_STAGE_ENV" \
         "RUNTIME_PROD_ENV:$RUNTIME_PROD_ENV" \
+        "RUNTIME_DEV_ENV:$RUNTIME_DEV_ENV"
 
     create_github_environments "$GITHUB_REPO_FULL" \
         "$STAGE_WORKSPACE" \
-        "$PROD_WORKSPACE"
-    
+        "$PROD_WORKSPACE" \
+        "$DEV_WORKSPACE"
+
     create_github_environments "$GITHUB_REPO_FULL" \
         "$RUNTIME_STAGE_ENV" \
-        "$RUNTIME_PROD_ENV"
+        "$RUNTIME_PROD_ENV" \
+        "$RUNTIME_DEV_ENV"
 }
 
 # Function to display final instructions
@@ -190,15 +196,14 @@ display_final_instructions() {
     echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
     
     print_info "You can now use the GitHub Actions workflows!"
-    echo "   • Terraform: Actions → 'Infrastructure Release' → Run workflow"
+    echo "   • Terraform: Actions → 'Infrastructure (Release|Debug)' → Run workflow"
     echo "   • CodeDeploy: Actions → 'Authentication Service Deployment' → Run workflow"
     echo "   • Automatic: Pull requests will show terraform plans"
     
     print_info "Next steps:"
     echo "   1. Set up application secrets using setup-secrets.sh"
-    echo "   2. Deploy infrastructure using Terraform workflow"
+    echo "   2. Deploy infrastructure using Terraform (Release|Debug) workflow"
     echo "   3. Use CodeDeploy workflows for application deployments"
-    echo "   4. Certificate renewal will use the ECR certbot image"
 }
 
 # Function to show usage
