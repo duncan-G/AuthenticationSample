@@ -44,6 +44,7 @@ A modern, production-ready authentication system built with microservices archit
 - Create an AWS SSO user group profile with permissions listed in [developer-policy.json](infrastructure/terraform/developer-policy.json)
     - Configure sso profile `aws sso configure developer`
     - This profile is used by applications to access AWS
+    - *NOTE: There are variables in the JSON that need to be substituted with the real value*
 - Setup dev secrets
     ```bash
     ./scripts/deployment/setup-secrets.sh
@@ -51,6 +52,11 @@ A modern, production-ready authentication system built with microservices archit
 
 ### 2. Local Setup & Start
 ```bash
+# Setup dev secrets
+# (If secrets are already setup in AWS Secret Manager by someone else, 
+# still run this. It will store client secrets in .env.local)
+./scripts/deployment/setup-secrets.sh
+
 # Pull needed containers and run npm install
 ./setup.sh
 

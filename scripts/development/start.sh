@@ -284,31 +284,9 @@ fi
 
 # If microservices are running locally, wait here and stop on Ctrl-C
 if [ "$microservices" = true ] && [ "$containerize_microservices" = false ]; then
-    PID_DIR="$working_dir/pids"
     trap '"$SCRIPT_DIR/stop.sh"; exit 0' INT TERM
     echo -e "\n>> Services are up. Press Ctrl-C to stop.\n"
     while true; do
         sleep 1
-        for pidfile in "$PID_DIR"/*.pid; do
-            [[ -e $pidfile ]] || continue
-            # Skip client.pid; it's managed separately
-            if [[ $(basename "$pidfile") == "client.pid" || $(basename "$pidfile") == "client_terminal.pid" ]]; then
-                continue
-            fi
-            name=$(basename "$pidfile" .pid)
-            pid=$(<"$pidfile")
-            restart_marker="$PID_DIR/$name.restart"
-
-            if [[ -f "$restart_marker" ]]; then
-                rm -f "$restart_marker"
-                "$SCRIPT_DIR/restart_microservice.sh" "$name" || true
-                continue
-            fi
-
-            if ! kill -0 "$pid" 2>/dev/null && ! kill -0 "-$pid" 2>/dev/null; then
-                echo "$name stopped unexpectedly. Restarting..."
-                "$SCRIPT_DIR/restart_microservice.sh" "$name" || true
-            fi
-        done
     done
 fi

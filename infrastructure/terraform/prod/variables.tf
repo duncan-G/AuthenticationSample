@@ -1,8 +1,3 @@
-# ---------------------------------------------------------------------------
-# Shared Variables
-# ---------------------------------------------------------------------------
-# Variables used across the stack.
-
 variable "region" {
   description = "AWS region for all resources (set via TF_VAR_region)"
   type        = string
@@ -124,4 +119,14 @@ variable "microservices_with_logs" {
   description = "Subset of microservices with logs"
   type        = list(string)
   default     = ["auth", "greeter"]
+}
+
+variable "route53_hosted_zone_id" {
+  description = "Route53 hosted-zone ID"
+  type        = string
+}
+
+# Route53 hosted zone for DNS records
+data "aws_route53_zone" "hosted_zone" {
+  zone_id = var.route53_hosted_zone_id
 }

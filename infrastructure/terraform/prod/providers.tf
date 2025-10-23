@@ -59,13 +59,3 @@ data "aws_ami" "amazon_linux" {
 }
 
 data "aws_caller_identity" "current" {}
-
-variable "route53_hosted_zone_id" {
-  description = "Route53 hosted-zone ID"
-  type        = string
-}
-
-# Route53 hosted zone for DNS records
-data "aws_route53_zone" "hosted_zone" {
-  zone_id = var.route53_hosted_zone_id
-}

@@ -46,6 +46,11 @@ resource "vercel_project" "frontend" {
       target = ["production", "preview"]
     },
     {
+      key    = "NEXT_PUBLIC_OTLP_HTTP_ENDPOINT"
+      value  = "https://api.${var.domain_name}/otlp/v1"
+      target = ["production", "preview"]
+    },
+    {
       key    = "NODE_ENV"
       value  = "production"
       target = ["production"]

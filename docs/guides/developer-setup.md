@@ -75,27 +75,28 @@ cd AuthenticationSample
 
 The first time setting up this application, configure GitHub and AWS, then bootstrap the local environment.
 
-#### 2.1 AWS Setup (new repository)
-- Create an AWS SSO user with permissions listed in [infrastructure/terraform/setup-github-actions-oidc-policy.json](../../infrastructure/terraform/setup-github-actions-oidc-policy.json)
-- Configure your SSO profile:
+#### 2.1 AWS Setup (New AWS Account setup)
+- Create an AWS SSO user group and profile with permissions listed in [setup-github-actions-oidc-policy.json](../../infrastructure/terraform/setup-github-actions-oidc-policy.json)
+  - Configure SSO profile `aws sso configure infra-setup`
+  - This profile is used to provision dev resources in AWS
+- Set up OIDC access for GitHub Actions to deploy AWS resources:
   ```bash
-  aws sso configure --profile infra-setup
-  ```
-- Set up OIDC access for GitHub Actions to provision AWS resources:
-  ```bash
-  # Provides GitHub Actions ability to provision AWS resources via Terraform
   ./scripts/deployment/setup-infra-workflow.sh
 
-  # You can remove most resources by running the following
-  # (read or run the script to see what needs to be deleted manually)
+  # Optional: remove most of the provisioned resources
   ./scripts/deployment/remove-infra-workflow.sh
   ```
+- In GitHub, run the Infrastructure Dev workflow to provision cloud resources for development
+  - Workflow file: [infrastructure-dev.yml](../../.github/workflows/infrastructure-dev.yml)
+- Create an AWS SSO user group and profile with permissions listed in [developer-policy.json](../../infrastructure/terraform/developer-policy.json)
+  - Configure SSO profile `aws sso configure developer`
+  - This profile is used by applications to access AWS
+  - NOTE: There are variables in the JSON that need to be substituted with real values
 
 #### 2.2 Set up secrets
-The system uses environment template files that need to be configured for your local development environment. For running the secrets setup, see section "2.2 Set up secrets" above.
-Use the `setup-secrets.sh` script to configure secrets. This will create client `.env.local` files and store backend secrets in AWS Secrets Manager.
+Use the `setup-secrets.sh` script to configure secrets. This creates client `.env.local` files and stores backend secrets in AWS Secrets Manager.
 
-For development and initial production deployment:
+For development and production:
 ```bash
 # Development secrets (stored in AWS Secrets Manager)
 ./scripts/deployment/setup-secrets.sh -a your-project-name -p your-aws-profile <optional -f>
@@ -111,7 +112,7 @@ The script will:
 4. Create local `.env` files for frontend applications
 5. When re-run, only prompt for new secrets; use `-f` to overwrite all values
 
-NOTE: It is recommended to manage production secrets in AWS Console.
+NOTE: It is recommended to manage production secrets in the AWS Console.
 
 #### 2.3 Bootstrap local environment
 The setup script pulls required Docker images and installs dependencies:
@@ -141,6 +142,7 @@ Environment template files (`.env.template`) serve as blueprints for creating ac
 │   ├── .env.template.dev                  # Development-specific overrides
 │   └── <service-name>/**/
 │       └── .env.template                  # Optional per-service settings
+│       └── .env.template.dev              # Optional per-service Devlopment-specific settings
 ├── clients/
 │   └── <client-name>/
 │       └── .env.local.template            # Optional per-client settings
