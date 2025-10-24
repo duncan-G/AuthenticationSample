@@ -19,7 +19,7 @@
             }
         },
         {
-            "Sid": "LocalSSO",
+            "Sid": "LocalTestingSSO",
             "Effect": "Allow",
             "Principal": {
                 "AWS": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/aws-reserved/sso.amazonaws.com/${AWS_REGION}/AWSReservedSSO_${AWS_SSO_PERMISSION_SET_NAME}_${AWS_SSO_PERMISSION_SET_GUID}"

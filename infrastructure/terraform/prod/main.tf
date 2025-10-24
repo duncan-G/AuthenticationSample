@@ -105,7 +105,7 @@ module "auth_delivery" {
   source = "../modules-single-az/auth-delivery"
 
   domain_name            = var.domain_name
-  route53_hosted_zone_id = module.dns.hosted_zone_id
+  route53_hosted_zone_id = var.route53_hosted_zone_id
 }
 
 # Auth (Cognito)
@@ -116,7 +116,6 @@ module "auth" {
   project_name           = var.project_name
   env                    = var.env
   domain_name            = var.domain_name
-  route53_hosted_zone_id = module.dns.hosted_zone_id
 
   idps          = var.idps
   auth_callback = var.auth_callback

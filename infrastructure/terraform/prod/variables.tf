@@ -126,7 +126,3 @@ variable "route53_hosted_zone_id" {
   type        = string
 }
 
-# Route53 hosted zone for DNS records
-data "aws_route53_zone" "hosted_zone" {
-  zone_id = var.route53_hosted_zone_id
-}

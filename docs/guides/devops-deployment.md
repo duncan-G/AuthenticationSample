@@ -92,3 +92,7 @@ Now the `github-terraform` profile can be used to deploy directly to AWS.
 # Expects profile to be called github-terraform
 ./scripts/deployment/prod-infra.sh -a <deploy|destroy> -e <prod|stage>
 ```
+
+**Clean Up**
+- Remove `AssumeRole` permissions from your SSO rofile
+- Remove github-terraform profile
