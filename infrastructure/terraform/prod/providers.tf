@@ -8,11 +8,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.18.0"
     }
     vercel = {
       source  = "vercel/vercel"
-      version = "~> 2.0"
+      version = "~> 4.0"
     }
   }
 }
@@ -20,12 +20,6 @@ terraform {
 # ---------------------------------------------------------------------------
 # Providers
 # ---------------------------------------------------------------------------
-
-variable "vercel_api_token" {
-  description = "Vercel API token"
-  type        = string
-  sensitive   = true
-}
 
 provider "aws" {
   region = var.region
