@@ -74,7 +74,7 @@ resource "aws_iam_policy" "refresh_tokens_rw" {
 
 # Attach to worker instance role so microservices hosted there can access the table
 resource "aws_iam_role_policy_attachment" "worker_refresh_tokens_rw" {
-  role       = aws_iam_role.worker.name
+  role       = var.worker_role_name
   policy_arn = aws_iam_policy.refresh_tokens_rw.arn
 }
 

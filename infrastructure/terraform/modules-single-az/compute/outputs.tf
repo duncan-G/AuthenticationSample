@@ -1,8 +1,3 @@
-output "public_acm_certificate_arn" {
-  description = "ARN of the issued ACM certificate for api/auth subdomains"
-  value       = aws_acm_certificate.public.arn
-}
-
 output "worker_target_group_arn" {
   description = "ARN of the worker target group"
   value       = aws_lb_target_group.workers.arn
@@ -28,3 +23,12 @@ output "manager_iam_instance_profile_name" {
   value       = aws_iam_instance_profile.manager.name
 }
 
+output "manager_role_name" {
+  description = "Name of the IAM role for manager nodes"
+  value       = aws_iam_role.manager.name
+}
+
+output "worker_role_name" {
+  description = "Name of the IAM role for worker nodes"
+  value       = aws_iam_role.worker.name
+}

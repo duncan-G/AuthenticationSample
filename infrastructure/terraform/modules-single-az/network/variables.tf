@@ -17,3 +17,8 @@ variable "env" {
     error_message = "Environment must be one of: dev, stage, prod"
   }
 }
+
+variable "availability_zone" {
+  description = "Availability zone for the subnets"
+  type        = string
+}

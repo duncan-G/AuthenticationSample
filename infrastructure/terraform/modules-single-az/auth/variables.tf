@@ -68,3 +68,9 @@ variable "authenticated_policy_arn" {
   type        = string
   default     = ""
 }
+
+variable "ses_domain_identity_arn" {
+  description = "SES domain identity ARN used by Cognito email configuration in prod"
+  type        = string
+  default     = ""
+}

@@ -11,7 +11,9 @@ type OidcProviderProps = {
 
 export default function OidcProvider({ children }: OidcProviderProps) {
   const { authority, clientId, redirectUri, scope, responseType } = config
-
+  if (!authority || !clientId || !redirectUri || !scope || !responseType) {
+    throw new Error('Missing OIDC configuration')
+  }
   const cognitoAuthConfig: UserManagerSettings = {
     authority,
     client_id: clientId,

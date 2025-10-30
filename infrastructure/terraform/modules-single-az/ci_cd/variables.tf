@@ -63,3 +63,13 @@ variable "production_environment_name" {
   type        = string
   default     = "prod"
 }
+
+variable "account_id" {
+  description = "AWS account ID for constructing ARNs"
+  type        = string
+}
+
+variable "manager_role_name" {
+  description = "Name of the IAM role for manager instances"
+  type        = string
+}

@@ -1,6 +1,3 @@
-#!/usr/bin/env bash
-# shellcheck shell=bash
-
 # ----------------------------------------------------------------------------
 # worker.sh — EC2 user data bootstrap for Docker Swarm worker
 #
@@ -127,7 +124,16 @@ EOF
 # ----------------------------------------------
 # Swarm helpers
 # ----------------------------------------------
-already_in_swarm(){ local state; state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "inactive"); [[ "$state" == "active" || "$state" == "pending" ]]; }
+already_in_swarm() {
+  local state
+  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null)
+  if [[ "$state" == "error" ]]; then
+    docker swarm leave --force
+    return 1
+  fi
+
+  [[ "$state" == "active" || "$state" == "pending" ]]
+}
 
 get_ssm_param(){ local name=$1; aws --region "$AWS_REGION" ssm get-parameter --name "$SSM_PREFIX/$name" --query 'Parameter.Value' --output text 2>/dev/null || true; }
 
@@ -160,13 +166,6 @@ join_swarm(){
   fi
 }
 
-label_node_with_az(){
-  local az node_id
-  az=$(get_az || true)
-  node_id=$(docker info -f '{{.Swarm.NodeID}}' || true)
-  if [[ -n "$az" && -n "$node_id" ]]; then docker node update --label-add "az=${az}" "$node_id" || true; fi
-}
-
 # ----------------------------------------------
 # Main
 # ----------------------------------------------
@@ -181,6 +180,5 @@ log "Using AWS region: $AWS_REGION"
 
 wait_for_docker || exit 1
 join_swarm
-label_node_with_az
 
 log "Worker setup complete — node enrolled in swarm"

@@ -1,65 +1,4 @@
 # =============================================================================
-# ACM Certificate for Public TLS (API and Auth subdomains)
-# =============================================================================
-// Issues a single certificate with SANs for api.<domain> and auth.<domain>
-// and validates it via Route53 DNS records.
-# =============================================================================
-
-#region TLS Certificate
-
-# Route53 hosted zone lookup for certificate DNS validation
-data "aws_route53_zone" "hosted_zone" {
-  zone_id = var.route53_hosted_zone_id
-}
-
-locals {
-  hosted_zone_id = data.aws_route53_zone.hosted_zone.zone_id
-}
-
-resource "aws_acm_certificate" "public" {
-  domain_name = "${var.api_subdomain}.${var.domain_name}"
-  subject_alternative_names = [
-    "${var.auth_subdomain}.${var.domain_name}"
-  ]
-  validation_method = "DNS"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  tags = {
-    Name        = "${var.project_name}-public-cert-${var.env}"
-    Environment = var.env
-  }
-}
-
-# Create DNS validation records for each domain on the certificate
-resource "aws_route53_record" "acm_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.public.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
-
-  zone_id         = local.hosted_zone_id
-  name            = each.value.name
-  type            = each.value.type
-  ttl             = 60
-  records         = [each.value.record]
-  allow_overwrite = true
-}
-
-# Wait for DNS validation to complete and the certificate to be ISSUED
-resource "aws_acm_certificate_validation" "public" {
-  certificate_arn         = aws_acm_certificate.public.arn
-  validation_record_fqdns = [for record in aws_route53_record.acm_validation : record.fqdn]
-}
-
-#endregion
-
-# =============================================================================
 # EC2 Compute Infrastructure
 # =============================================================================
 # IAM roles/policies, instance profiles, launch templates and ASGs for
@@ -71,13 +10,14 @@ resource "aws_acm_certificate_validation" "public" {
 
 # Locals for IAM ARNs
 locals {
-  account_id = data.aws_caller_identity.current.account_id
   swarm_param_arns = [
-    "arn:aws:ssm:${var.region}:${local.account_id}:parameter/docker/swarm/*",
-    "arn:aws:ssm:${var.region}:${local.account_id}:parameter/swarm/*"
+    "arn:aws:ssm:${var.region}:${var.account_id}:parameter/docker/swarm/*",
+    "arn:aws:ssm:${var.region}:${var.account_id}:parameter/swarm/*"
   ]
-  secrets_prefix_arn = "arn:aws:secretsmanager:${var.region}:${local.account_id}:secret:${var.project_name}-secrets*"
+  secrets_prefix_arn = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.project_name}-secrets-${var.env}*"
 }
+
+
 
 # Worker role
 resource "aws_iam_role" "worker" {
@@ -173,6 +113,11 @@ resource "aws_iam_policy" "worker_core" {
           "ec2:CreateTags"
         ],
         Resource = "*"
+      },
+      {
+        Effect   = "Allow",
+        Action   = ["ec2-instance-connect:SendSSHPublicKey"],
+        Resource = "arn:aws:ec2:${var.region}:${var.account_id}:instance/*"
       }
     ]
   })
@@ -222,6 +167,20 @@ resource "aws_iam_policy" "manager_core" {
             "ec2:DescribeInstanceStatus"
           ],
           Resource = "*"
+        },
+        {
+          Effect   = "Allow",
+          Action   = ["ec2-instance-connect:SendSSHPublicKey"],
+          Resource = "arn:aws:ec2:${var.region}:${var.account_id}:instance/*"
+        },
+        {
+          Effect = "Allow",
+          Action = [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          Resource = "arn:aws:logs:*:*:*"
         }
       ]
     )
@@ -290,10 +249,10 @@ resource "aws_cloudwatch_log_group" "worker" {
 resource "aws_launch_template" "worker" {
   name_prefix   = "${var.project_name}-worker-${var.env}-"
   description   = "Launch template for worker nodes"
-  image_id      = data.aws_ami.amazon_linux.id
+  image_id      = var.ami_id
   instance_type = element(var.instance_types_workers, 0)
 
-  vpc_security_group_ids = [aws_security_group.instance.id]
+  vpc_security_group_ids = [var.instance_security_group_id]
 
   iam_instance_profile {
     name = aws_iam_instance_profile.worker.name
@@ -301,8 +260,10 @@ resource "aws_launch_template" "worker" {
 
   # Bootstrap using userdata script; prefix environment variables
   user_data = base64encode(join("\n", [
-    "PROJECT_NAME=\"${var.project_name}-${var.env}\"",
-    "AWS_REGION=\"${var.region}\"",
+    "#!/usr/bin/env bash",
+    "# shellcheck shell=bash",
+    "export PROJECT_NAME=\"${var.project_name}\"",
+    "export AWS_REGION=\"${var.region}\"",
     file("${path.module}/userdata/worker.sh")
   ]))
 
@@ -326,10 +287,10 @@ resource "aws_launch_template" "worker" {
 resource "aws_launch_template" "manager" {
   name_prefix   = "${var.project_name}-manager-${var.env}-"
   description   = "Launch template for manager nodes"
-  image_id      = data.aws_ami.amazon_linux.id
+  image_id      = var.ami_id
   instance_type = var.instance_type_managers
 
-  vpc_security_group_ids = [aws_security_group.instance.id]
+  vpc_security_group_ids = [var.instance_security_group_id]
 
   iam_instance_profile {
     name = aws_iam_instance_profile.manager.name
@@ -337,16 +298,17 @@ resource "aws_launch_template" "manager" {
 
   # Bootstrap using userdata script; prefix environment variables
   user_data = base64encode(join("\n", [
-    "PROJECT_NAME=\"${var.project_name}-${var.env}\"",
-    "AWS_REGION=\"${var.region}\"",
-    # Certificate manager configuration for manager nodes
+    "#!/usr/bin/env bash",
+    "# shellcheck shell=bash",
+    "export PROJECT_NAME=\"${var.project_name}\"",
+    "export AWS_REGION=\"${var.region}\"",
     # Secret name convention matches application configs (e.g., auth-sample-secrets-dev)
-    "AWS_SECRET_NAME=\"${var.project_name}-secrets-${var.env}\"",
+    "export AWS_SECRET_NAME=\"${var.project_name}-secrets-${var.env}\"",
     # Use primary domain from module inputs
-    "DOMAIN_NAME=\"${var.domain_name}\"",
+    "export DOMAIN_NAME=\"${var.domain_name}\"",
     # S3 location of certificate-manager.sh
-    "CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
-    "CERT_MANAGER_S3_KEY=\"${var.certificate_manager_s3_key}\"",
+    "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
+    "export CERT_MANAGER_S3_KEY=\"${var.certificate_manager_s3_key}\"",
     file("${path.module}/userdata/manager.sh")
   ]))
 
@@ -370,7 +332,7 @@ resource "aws_launch_template" "manager" {
 # Auto Scaling Group for Workers
 resource "aws_autoscaling_group" "workers" {
   name                      = "${var.project_name}-workers-asg-${var.env}"
-  vpc_zone_identifier       = [aws_subnet.private.id]
+  vpc_zone_identifier       = [var.private_subnet_id]
   target_group_arns         = [aws_lb_target_group.workers.arn]
   health_check_type         = "ELB"
   health_check_grace_period = 300
@@ -415,7 +377,7 @@ resource "aws_autoscaling_group" "workers" {
 # Auto Scaling Group for Managers
 resource "aws_autoscaling_group" "managers" {
   name                      = "${var.project_name}-managers-asg-${var.env}"
-  vpc_zone_identifier       = [aws_subnet.private.id]
+  vpc_zone_identifier       = [var.private_subnet_id]
   health_check_type         = "EC2"
   health_check_grace_period = 600
 
@@ -458,14 +420,14 @@ resource "aws_autoscaling_group" "managers" {
 # Target Group for Workers (for Load Balancer)
 resource "aws_lb_target_group" "workers" {
   name     = "${var.project_name}-worker-tg-${var.env}"
-  port     = 80
+  port     = 443
   protocol = "TCP"
-  vpc_id   = aws_vpc.main.id
+  vpc_id   = var.vpc_id
 
   health_check {
     enabled             = true
     interval            = 30
-    port                = 80
+    port                = 443
     protocol            = "TCP"
     healthy_threshold   = 3
     unhealthy_threshold = 3

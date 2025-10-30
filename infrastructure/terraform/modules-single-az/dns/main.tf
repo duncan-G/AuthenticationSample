@@ -5,21 +5,11 @@
 # and an SPF TXT record at the zone apex.
 # =============================================================================
 
-#region Configuration
-
-# Local values to reference the hosted zone (data source defined in providers.tf)
-locals {
-  hosted_zone_id   = data.aws_route53_zone.hosted_zone.zone_id
-  hosted_zone_name = data.aws_route53_zone.hosted_zone.name
-}
-
-#endregion
-
 #region Resources
 
 # API subdomain → Public Load Balancer
 resource "aws_route53_record" "api_a" {
-  zone_id = local.hosted_zone_id
+  zone_id = var.route53_hosted_zone_id
   name    = "${var.api_subdomain}.${var.domain_name}"
   type    = "A"
 
@@ -31,7 +21,7 @@ resource "aws_route53_record" "api_a" {
 }
 
 resource "aws_route53_record" "api_aaaa" {
-  zone_id = local.hosted_zone_id
+  zone_id = var.route53_hosted_zone_id
   name    = "${var.api_subdomain}.${var.domain_name}"
   type    = "AAAA"
 
@@ -44,7 +34,7 @@ resource "aws_route53_record" "api_aaaa" {
 
 # Auth subdomain → Public Load Balancer
 resource "aws_route53_record" "auth_a" {
-  zone_id = local.hosted_zone_id
+  zone_id = var.route53_hosted_zone_id
   name    = "${var.auth_subdomain}.${var.domain_name}"
   type    = "A"
 
@@ -56,7 +46,7 @@ resource "aws_route53_record" "auth_a" {
 }
 
 resource "aws_route53_record" "auth_aaaa" {
-  zone_id = local.hosted_zone_id
+  zone_id = var.route53_hosted_zone_id
   name    = "${var.auth_subdomain}.${var.domain_name}"
   type    = "AAAA"
 
@@ -69,7 +59,7 @@ resource "aws_route53_record" "auth_aaaa" {
 
 # SPF record for email authentication
 resource "aws_route53_record" "spf" {
-  zone_id = local.hosted_zone_id
+  zone_id = var.route53_hosted_zone_id
   name    = var.domain_name
   type    = "TXT"
   ttl     = "300"
