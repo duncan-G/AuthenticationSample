@@ -53,7 +53,7 @@ resource "aws_ecr_lifecycle_policy" "microservices" {
 # AWS CodeDeploy Infrastructure
 # =============================================================================
 # This file manages all infrastructure components required for AWS CodeDeploy:
-# 
+#
 # • CodeDeploy applications and deployment groups for microservices
 # • S3 bucket reference for deployment artifacts
 # • IAM role and policy for Github Actions to deploy via CodeDeploy
@@ -165,7 +165,7 @@ resource "aws_iam_role" "github_actions_codedeploy" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Effect = "Allow"
         Principal = {
-          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+          Federated = "arn:aws:iam::${var.account_id}:oidc-provider/token.actions.githubusercontent.com"
         }
         Condition = {
           StringEquals = {
@@ -345,14 +345,8 @@ resource "aws_iam_role_policy_attachment" "ec2_codedeploy_policy_attachment" {
 }
 
 resource "aws_iam_role_policy_attachment" "manager_codedeploy_policy_attachment" {
-  role       = aws_iam_role.manager.name
+  role       = var.manager_role_name
   policy_arn = aws_iam_policy.ec2_codedeploy_policy.arn
-}
-
-# EC2 CodeDeploy Instance Profile
-resource "aws_iam_instance_profile" "ec2_codedeploy_profile" {
-  name = "${var.project_name}-ec2-codedeploy-profile-${var.env}"
-  role = aws_iam_role.ec2_codedeploy_role.name
 }
 
 #endregion

@@ -54,8 +54,9 @@ resource "aws_instance" "cache_worker" {
 
   # Bootstrap using userdata script; prefix environment variables
   user_data = base64encode(join("\n", [
-    "PROJECT_NAME=\"${var.project_name}-${var.env}\"",
-    "AWS_REGION=\"${var.region}\"",
+    "#!/usr/bin/env bash",
+    "export PROJECT_NAME=\"${var.project_name}-${var.env}\"",
+    "export AWS_REGION=\"${var.region}\"",
     file("${path.module}/userdata/worker.sh")
   ]))
 

@@ -2,7 +2,7 @@
 # AWS Cognito OIDC Provider Infrastructure
 # =============================================================================
 # Manages Cognito components for authentication:
-# 
+#
 # • Cognito User Pools
 # • Social Identity Providers (Google, Apple)
 # • User Pool Clients (web and backend)
@@ -45,7 +45,7 @@ resource "aws_cognito_user_pool" "this" {
     content {
       email_sending_account = "DEVELOPER"
       from_email_address    = "no-reply@${var.domain_name}"
-      source_arn            = module.auth_delivery.ses_domain_identity_arn
+      source_arn            = var.ses_domain_identity_arn
     }
   }
 
@@ -183,7 +183,7 @@ resource "aws_cognito_identity_pool" "this" {
 # AWS Cognito IAM Infrastructure
 # =============================================================================
 # This file manages all IAM components required for AWS Cognito users:
-# 
+#
 # • IAM roles for authenticated Cognito users
 # • IAM policies for user permissions
 # • Role attachments and policy assignments

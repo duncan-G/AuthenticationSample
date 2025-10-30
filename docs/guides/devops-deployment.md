@@ -92,3 +92,13 @@ Now the `github-terraform` profile can be used to deploy directly to AWS.
 # Expects profile to be called github-terraform
 ./scripts/deployment/prod-infra.sh -a <deploy|destroy> -e <prod|stage>
 ```
+
+**Clean Up**
+- Remove `AssumeRole` permissions from your SSO rofile
+- Remove github-terraform profile
+
+
+**Notes**
+- Cognito is configured to send emails through AWS SES using domain name
+  - Domain Name verification happens in auth-delivery module.
+  - Auth module will error due to AWS SES domain verification not being complete, but this will not prevent terraform finishing the rest of the deployment.

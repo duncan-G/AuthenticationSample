@@ -1,6 +1,3 @@
-#!/usr/bin/env bash
-# shellcheck shell=bash
-
 # ----------------------------------------------------------------------------
 # manager.sh — EC2 user data bootstrap for Docker Swarm manager
 #
@@ -182,6 +179,18 @@ put_param(){
     --value "$value" --overwrite >/dev/null
 }
 
+get_param(){
+  local name=$1
+  aws --region "$AWS_REGION" ssm get-parameter \
+    --name "$SSM_PREFIX/$name" \
+    --query 'Parameter.Value' --output text 2>/dev/null || true
+}
+
+valid_param(){
+  local v=$1
+  [[ -n "$v" && "$v" != "None" && "$v" != "placeholder" ]]
+}
+
 install_codedeploy_agent(){
   if systemctl is-active --quiet codedeploy-agent; then
     log "CodeDeploy agent already running — skip"
@@ -249,6 +258,10 @@ WorkingDirectory=%S
 RuntimeDirectory=certificate-manager
 RuntimeDirectoryMode=0755
 
+# Dedicated logs directory under /var/log (owned by service user)
+LogsDirectory=certificate-manager
+LogsDirectoryMode=0755
+
 # Environment for certificate manager
 EnvironmentFile=/etc/certificate-manager.env
 
@@ -258,8 +271,11 @@ Restart=always
 RestartSec=10
 
 SyslogIdentifier=certificate-manager
-StandardOutput=append:/var/log/certificate-manager/certificate-manager.log
-StandardError=append:/var/log/certificate-manager/certificate-manager.log
+StandardOutput=journal
+StandardError=journal
+
+# Explicitly grant write access to required paths under strict protection
+ReadWritePaths=/var/log/certificate-manager /var/lib/certificate-manager
 
 LockPersonality=yes
 NoNewPrivileges=true
@@ -304,18 +320,45 @@ manager_ip=$(get_local_ip)
 if already_in_swarm; then
   log "Swarm already initialised"
 else
-  docker swarm init --advertise-addr "$manager_ip" >/dev/null
-  log "Swarm initialised with advertise-addr $manager_ip"
+  # Single-shot check: if SSM has manager details, try to join; otherwise init
+  existing_manager_token=$(get_param manager-token)
+  existing_manager_addr=$(get_param manager-ip)
+  if valid_param "$existing_manager_token" && valid_param "$existing_manager_addr"; then
+    log "Attempting to join existing swarm manager at $existing_manager_addr"
+    if docker swarm join --token "$existing_manager_token" "$existing_manager_addr"; then
+      log "Joined existing swarm as manager"
+    else
+      log "Join failed — initializing a new swarm here"
+      docker swarm init --advertise-addr "$manager_ip" >/dev/null
+      log "Swarm initialised with advertise-addr $manager_ip"
+
+      manager_addr="${manager_ip}:2377"
+      worker_token=$(docker swarm join-token -q worker)
+      manager_token=$(docker swarm join-token -q manager)
+
+      log "Persisting initial cluster configuration to SSM"
+      put_param "worker-token" "$worker_token"
+      put_param "manager-token" "$manager_token"
+      put_param "manager-ip" "$manager_addr"
+      put_param "network-name" "$NETWORK_NAME"
+    fi
+  else
+    docker swarm init --advertise-addr "$manager_ip" >/dev/null
+    log "Swarm initialised with advertise-addr $manager_ip"
+
+    manager_addr="${manager_ip}:2377"
+    worker_token=$(docker swarm join-token -q worker)
+    manager_token=$(docker swarm join-token -q manager)
+
+    log "Persisting initial cluster configuration to SSM"
+    put_param "worker-token" "$worker_token"
+    put_param "manager-token" "$manager_token"
+    put_param "manager-ip" "$manager_addr"
+    put_param "network-name" "$NETWORK_NAME"
+  fi
 fi
 
-manager_addr="${manager_ip}:2377"
-worker_token=$(docker swarm join-token -q worker)
-
-log "Persisting configuration to SSM"
-put_param "worker-token" "$worker_token"
-put_param "manager-ip" "$manager_addr"
-put_param "network-name" "$NETWORK_NAME"
-
+# Ensure overlay network exists (cluster-wide idempotent)
 create_overlay_network
 install_codedeploy_agent
 label_node_with_az

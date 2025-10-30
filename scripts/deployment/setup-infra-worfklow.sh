@@ -22,9 +22,9 @@ print_header "🚀 Terraform Github Actions Workflow Setup Script"
 # Function to get user input
 get_user_input() {
     print_info "Please provide the following information:"
-    
+
     prompt_user "Enter AWS SSO profile name" "AWS_PROFILE" "infra-setup"
-        
+
     AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
     if [ $? -ne 0 ]; then
         exit 1
@@ -38,22 +38,22 @@ get_user_input() {
     prompt_user "Enter runtime stage environment label" "RUNTIME_STAGE_ENV" "stage"
     prompt_user "Enter runtime prod environment label" "RUNTIME_PROD_ENV" "prod"
     prompt_user "Enter runtime dev environment label" "RUNTIME_DEV_ENV" "dev"
-    
+
     prompt_user "Enter backend domain name (e.g., example.com)" "DOMAIN_NAME"
-    
+
     # Prompt for Vercel API key for frontend deployments (optional)
     prompt_user_optional "Enter Vercel API key (for frontend deployments, blank to leave unchanged)" "VERCEL_API_KEY"
-    
+
     # Get Route53 hosted zone ID automatically
     if ! ROUTE53_HOSTED_ZONE_ID=$(get_route53_hosted_zone_id "$DOMAIN_NAME" "$AWS_PROFILE"); then
         exit 1
     fi
-    
+
     # Calculate bucket suffix using the same logic as elsewhere
     BUCKET_SUFFIX=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
 
     print_info "Calculated bucket suffix: $BUCKET_SUFFIX"
-    
+
     print_info "Configuration Summary:"
     echo "  AWS Profile: $AWS_PROFILE"
     echo "  GitHub Repository: $GITHUB_REPO_FULL"
@@ -70,7 +70,7 @@ get_user_input() {
     else
         echo "  Vercel API Key: (not provided)"
     fi
-    
+
     if ! prompt_confirmation "Do you want to proceed?" "y/N"; then
         print_info "Setup cancelled."
         exit 0
@@ -80,7 +80,7 @@ get_user_input() {
 # Function to create S3 bucket for Terraform state
 create_terraform_state_bucket() {
     local tf_state_bucket="$1"
-    
+
     print_info "Creating S3 bucket for Terraform state bucket: $tf_state_bucket"
 
     if ! aws s3api head-bucket --bucket "$tf_state_bucket" --profile "$AWS_PROFILE" 2>/dev/null; then
@@ -96,7 +96,7 @@ create_terraform_state_bucket() {
 # Function to create S3 bucket for CodeDeploy
 create_codedeploy_bucket() {
     DEPLOYMENT_BUCKET="${PROJECT_NAME}-codedeploy-${BUCKET_SUFFIX}"
-    
+
     # CodeDeploy bucket lifecycle configuration
     local codedeploy_lifecycle='{
       "Rules": [
@@ -113,7 +113,7 @@ create_codedeploy_bucket() {
         }
       ]
     }'
-    
+
     print_info "Creating CodeDeploy bucket..."
     create_s3_bucket_with_lifecycle "$DEPLOYMENT_BUCKET" "$AWS_REGION" "$AWS_PROFILE" "production" "${PROJECT_NAME}-codedeploy" "$codedeploy_lifecycle"
     print_success "CodeDeploy bucket created successfully."
@@ -142,7 +142,6 @@ setup_github_workflow() {
         "TF_STATE_BUCKET:$TF_STATE_BUCKET" \
         "ROUTE53_HOSTED_ZONE_ID:$ROUTE53_HOSTED_ZONE_ID" \
         "BUCKET_SUFFIX:$BUCKET_SUFFIX" \
-        "EDGE_SHARED_SECRET:$(openssl rand -hex 16)" \
         "DEPLOYMENT_BUCKET:$DEPLOYMENT_BUCKET"
 
     # Conditionally add Vercel secret only if provided
@@ -152,7 +151,7 @@ setup_github_workflow() {
     else
         print_info "Skipping VERCEL_API_KEY secret (not provided)"
     fi
-    
+
     add_github_variables "$GITHUB_REPO_FULL" \
         "AWS_REGION:$AWS_REGION" \
         "PROJECT_NAME:$PROJECT_NAME" \
@@ -178,13 +177,13 @@ setup_github_workflow() {
 # Function to display final instructions
 display_final_instructions() {
     print_success "🎉 Terraform and CodeDeploy workflow setup completed successfully!"
-    
+
     print_info "Your setup is complete and ready to use!"
-    
+
     # Calculate ECR repository information
     local ecr_repo_name="${PROJECT_NAME}/certbot"
     local ecr_repo_uri="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ecr_repo_name}"
-    
+
     echo "Your Terraform State Bucket:"
     echo -e "${GREEN}   $TF_STATE_BUCKET${NC}"
     echo "Your Terraform IAM Role ARN:"
@@ -195,12 +194,12 @@ display_final_instructions() {
     echo "Your Domain Configuration:"
     echo -e "${GREEN}   Domain: $DOMAIN_NAME${NC}"
     echo -e "${GREEN}   Route53 Zone ID: $ROUTE53_HOSTED_ZONE_ID${NC}"
-    
+
     print_info "You can now use the GitHub Actions workflows!"
     echo "   • Terraform: Actions → 'Infrastructure (Release|Debug)' → Run workflow"
     echo "   • CodeDeploy: Actions → 'Authentication Service Deployment' → Run workflow"
     echo "   • Automatic: Pull requests will show terraform plans"
-    
+
     print_info "Next steps:"
     echo "   1. Set up application secrets using setup-secrets.sh"
     echo "   2. Deploy infrastructure using Terraform workflow"
@@ -230,7 +229,7 @@ main() {
     if [ $# -ne 0 ]; then
         show_usage
     fi
-    
+
     check_aws_cli
     check_github_cli
 
@@ -244,21 +243,21 @@ main() {
     if ! check_aws_profile "$AWS_PROFILE"; then
         exit 1
     fi
-    
+
     if ! check_aws_authentication "$AWS_PROFILE"; then
         exit 1
     fi
 
     validate_aws_region "$AWS_REGION"
-    
+
     print_info "Setting up AWS permissions for Terraform and CodeDeploy deployments..."
-    
+
     TF_STATE_BUCKET="terraform-state-${BUCKET_SUFFIX}"
     create_terraform_state_bucket "$TF_STATE_BUCKET"
     create_codedeploy_bucket
     setup_oidc_infrastructure
     setup_github_workflow
-    
+
     display_final_instructions
 }
 

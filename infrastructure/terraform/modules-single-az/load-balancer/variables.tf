@@ -53,9 +53,37 @@ variable "public_subnet_id" {
   type        = string
 }
 
-variable "tls_certificate_arn" {
-  description = "ACM certificate ARN for TLS listener"
+# Certificate and DNS configuration (now managed within this module)
+variable "domain_name" {
+  description = "Root domain name (e.g. example.com)"
   type        = string
+
+  validation {
+    condition     = length(var.domain_name) > 0
+    error_message = "domain_name must not be empty"
+  }
+}
+
+variable "api_subdomain" {
+  description = "Subdomain for the API (left side of the root domain)"
+  type        = string
+  default     = "api"
+}
+
+variable "auth_subdomain" {
+  description = "Subdomain for the Auth service (left side of the root domain)"
+  type        = string
+  default     = "auth"
+}
+
+variable "route53_hosted_zone_id" {
+  description = "Hosted zone ID for Route53 DNS validation records"
+  type        = string
+
+  validation {
+    condition     = length(var.route53_hosted_zone_id) > 0
+    error_message = "route53_hosted_zone_id must not be empty"
+  }
 }
 
 variable "target_group_arn" {

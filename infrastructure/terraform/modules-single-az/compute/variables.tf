@@ -57,6 +57,11 @@ variable "auth_subdomain" {
   type        = string
 }
 
+variable "vpc_id" {
+  description = "VPC ID for the resources"
+  type        = string
+}
+
 # ---------------------------------------------------------------------------
 # Compute Module-specific Variables
 # ---------------------------------------------------------------------------
@@ -111,5 +116,27 @@ variable "manager_desired_capacity" {
 
 variable "route53_hosted_zone_id" {
   description = "Hosted zone ID for Route53 (used for ACM DNS validation records)"
+  type        = string
+}
+
+# AMI to use for EC2 instances in this module
+variable "ami_id" {
+  description = "AMI ID to use for manager/worker instances"
+  type        = string
+}
+
+# AWS account ID to build ARNs within this module
+variable "account_id" {
+  description = "AWS account ID for constructing ARNs"
+  type        = string
+}
+
+variable "instance_security_group_id" {
+  description = "ID of the instance security group"
+  type        = string
+}
+
+variable "private_subnet_id" {
+  description = "ID of the private subnet"
   type        = string
 }

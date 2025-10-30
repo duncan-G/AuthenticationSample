@@ -10,11 +10,7 @@
 
 #region SES Email Delivery (from auth-email-delivery.tf)
 
-# Data Sources
-data "aws_route53_zone" "this" {
-  zone_id = var.route53_hosted_zone_id
-}
-
+#
 # SES Domain Identity for Email Delivery
 resource "aws_ses_domain_identity" "this" {
   domain = var.domain_name
@@ -22,11 +18,14 @@ resource "aws_ses_domain_identity" "this" {
 
 # Route53 Record for SES Domain Verification
 resource "aws_route53_record" "ses_verification" {
-  zone_id = data.aws_route53_zone.this.zone_id
+  count   = 1
+  zone_id = var.route53_hosted_zone_id
   name    = "_amazonses.${aws_ses_domain_identity.this.domain}"
   type    = "TXT"
   ttl     = 600
   records = [aws_ses_domain_identity.this.verification_token]
+
+  allow_overwrite = true
 }
 
 # SES Domain Identity Verification
@@ -43,11 +42,13 @@ resource "aws_ses_domain_dkim" "this" {
 # Route53 DKIM Records
 resource "aws_route53_record" "dkim" {
   count   = 3
-  zone_id = data.aws_route53_zone.this.zone_id
-  name    = "${aws_ses_domain_dkim.this.dkim_tokens[count.index]}._domainkey.${var.domain_name}"
+  zone_id = var.route53_hosted_zone_id
+  name    = "${aws_ses_domain_dkim.this.dkim_tokens[count.index]}._domainkey.${aws_ses_domain_identity.this.domain}"
   type    = "CNAME"
   ttl     = 600
   records = ["${aws_ses_domain_dkim.this.dkim_tokens[count.index]}.dkim.amazonses.com"]
+
+  allow_overwrite = true
 }
 
 #endregion

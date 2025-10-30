@@ -126,7 +126,7 @@ detect_github_repo() {
 }
 
 get_user_input() {
-  prompt_user "Enter AWS profile" "AWS_PROFILE" "infra-setup"
+  prompt_user "Enter AWS profile" "AWS_PROFILE" "github-terraform"
   prompt_user "Enter project name" "PROJECT_NAME"
   prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
 
@@ -146,8 +146,7 @@ get_user_input() {
   fi
 
   prompt_user "Enter domain name (e.g. example.com)" "DOMAIN_NAME"
-  prompt_user_optional "Enter Vercel API token" "VERCEL_API_KEY"
-  prompt_user_optional "Enter Edge shared secret" "EDGE_SHARED_SECRET"
+  prompt_user "Enter Vercel API token" "VERCEL_API_KEY"
 }
 
 bucket_exists() {
@@ -191,6 +190,7 @@ export_tf_vars() {
   export TF_VAR_env="$ENVIRONMENT"
   export TF_VAR_github_repository="$GITHUB_REPO_FULL"
   export TF_VAR_codedeploy_bucket_name="$DEPLOYMENT_BUCKET"
+  export TF_VAR_certificate_manager_s3_key="${CERT_MANAGER_S3_KEY:-infrastructure/certificate-manager.sh}"
   export TF_VAR_domain_name="$DOMAIN_NAME"
   export TF_VAR_route53_hosted_zone_id="$ROUTE53_HOSTED_ZONE_ID"
   export TF_VAR_bucket_suffix="${BUCKET_SUFFIX:-}"
@@ -198,7 +198,6 @@ export_tf_vars() {
   export TF_VAR_vercel_root_directory="clients/auth-sample"
   export TF_VAR_microservices='["auth", "envoy", "otel-collector"]'
   export TF_VAR_microservices_with_logs='["auth", "envoy"]'
-  export TF_VAR_edge_shared_secret="${EDGE_SHARED_SECRET:-}"
   export TF_VAR_api_subdomain='api'
   export TF_VAR_auth_subdomain='auth'
   export TF_VAR_auth_callback="[\"https://auth.${DOMAIN_NAME}/auth/callback\"]"
@@ -208,6 +207,28 @@ export_tf_vars() {
   # Ensure Terraform (including the S3 backend) can load the selected profile
   export AWS_PROFILE="github-terraform"
   export AWS_SDK_LOAD_CONFIG=1
+}
+
+upload_certificate_manager_to_codedeploy() {
+  local src_file
+  src_file="$PROJECT_ROOT/infrastructure/terraform/modules-single-az/compute/userdata/certificate-manager.sh"
+  local s3_key
+  s3_key="${CERT_MANAGER_S3_KEY:-infrastructure/certificate-manager.sh}"
+
+  if [[ ! -f "$src_file" ]]; then
+    print_warning "certificate-manager.sh not found at $src_file; skipping upload"
+    return 0
+  fi
+
+  print_info "Uploading certificate-manager.sh to s3://${DEPLOYMENT_BUCKET}/${s3_key}"
+  if aws s3 cp "$src_file" "s3://${DEPLOYMENT_BUCKET}/${s3_key}" \
+       --profile "$AWS_PROFILE" \
+       --region "$AWS_REGION" \
+       --only-show-errors; then
+    print_success "Uploaded certificate-manager.sh to CodeDeploy bucket"
+  else
+    print_warning "Failed to upload certificate-manager.sh to s3://${DEPLOYMENT_BUCKET}/${s3_key}"
+  fi
 }
 
 terraform_init() {
@@ -299,7 +320,7 @@ main() {
 
   # Resolve supporting values using the selected AWS profile
   AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
-  ROUTE53_HOSTED_ZONE_ID=$(get_route53_hosted_zone_id "$DOMAIN_NAME" "$AWS_PROFILE") || true
+  ROUTE53_HOSTED_ZONE_ID=$(get_route53_hosted_zone_id "$DOMAIN_NAME" "$AWS_PROFILE")
   TF_STATE_BUCKET=$(get_tf_state_bucket "$AWS_ACCOUNT_ID" "$GITHUB_REPO_FULL")
 
   # Derive bucket suffix and deployment bucket (no prompts)
@@ -308,6 +329,7 @@ main() {
 
   case "$ACTION" in
     plan|deploy)
+      upload_certificate_manager_to_codedeploy
       run_terraform_pipeline
       ;;
     destroy)

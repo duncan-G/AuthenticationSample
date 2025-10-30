@@ -7,6 +7,13 @@
 
 #region Resources
 
+# Current region and EC2 Instance Connect IP ranges
+data "aws_region" "current" {}
+
+data "aws_ec2_managed_prefix_list" "ec2_instance_connect_v6" {
+  name = "com.amazonaws.${data.aws_region.current.id}.ipv6.ec2-instance-connect"
+}
+
 # Main VPC with dual-stack IPv4/IPv6 support
 resource "aws_vpc" "main" {
   cidr_block                       = "10.0.0.0/16"
@@ -32,6 +39,30 @@ resource "aws_internet_gateway" "this" {
   }
 }
 
+# NAT Gateway for IPv4 egress from private subnet
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name        = "${var.project_name}-nat-eip-${var.env}"
+    Environment = var.env
+    Purpose     = "Elastic IP for NAT Gateway"
+  }
+}
+
+resource "aws_nat_gateway" "this" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public.id
+
+  tags = {
+    Name        = "${var.project_name}-nat-${var.env}"
+    Environment = var.env
+    Purpose     = "NAT Gateway for private subnet IPv4 egress"
+  }
+
+  depends_on = [aws_internet_gateway.this]
+}
+
 # Public subnet for external-facing resources
 resource "aws_subnet" "public" {
   vpc_id                          = aws_vpc.main.id
@@ -39,7 +70,7 @@ resource "aws_subnet" "public" {
   ipv6_cidr_block                 = cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, 1)
   map_public_ip_on_launch         = true
   assign_ipv6_address_on_creation = true
-  availability_zone               = data.aws_availability_zones.this.names[0]
+  availability_zone               = var.availability_zone
 
   tags = {
     Name        = "${var.project_name}-public-subnet-${var.env}"
@@ -55,7 +86,7 @@ resource "aws_subnet" "private" {
   cidr_block                      = "10.0.2.0/24"
   ipv6_cidr_block                 = cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, 2)
   assign_ipv6_address_on_creation = true
-  availability_zone               = data.aws_availability_zones.this.names[0]
+  availability_zone               = var.availability_zone
 
   tags = {
     Name        = "${var.project_name}-private-subnet-${var.env}"
@@ -89,14 +120,20 @@ resource "aws_route_table" "public" {
   }
 }
 
-# Private route table with IPv6 internet access (no NAT needed for IPv6)
+# Private route table with IPv6 internet access
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
-  # IPv6 egress via IGW (no NAT needed for IPv6)
+  # IPv6 egress via IGW
   route {
     ipv6_cidr_block = "::/0"
     gateway_id      = aws_internet_gateway.this.id
+  }
+
+  # IPv4 egress via NAT Gateway
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.this.id
   }
 
   tags = {
@@ -166,12 +203,23 @@ locals {
 resource "aws_security_group_rule" "http" {
   type              = "ingress"
   security_group_id = aws_security_group.instance.id
-  from_port         = 80
-  to_port           = 80
+  from_port         = 443
+  to_port           = 443
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
   ipv6_cidr_blocks  = ["::/0"]
-  description       = "HTTP"
+  description       = "HTTPS"
+}
+
+# SSH for EC2 Instance Connect (restricted to AWS managed prefix list)
+resource "aws_security_group_rule" "ssh_ec2_instance_connect" {
+  type              = "ingress"
+  security_group_id = aws_security_group.instance.id
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  description       = "SSH for EC2 Instance Connect"
+  prefix_list_ids   = [data.aws_ec2_managed_prefix_list.ec2_instance_connect_v6.id]
 }
 
 # Docker Swarm ingress (loop to avoid repetition)
@@ -183,6 +231,7 @@ resource "aws_security_group_rule" "docker_swarm" {
   from_port         = each.value.port
   to_port           = each.value.port
   protocol          = each.value.protocol
+  cidr_blocks       = [aws_vpc.main.cidr_block]
   ipv6_cidr_blocks  = [aws_vpc.main.ipv6_cidr_block]
   description       = "Docker Swarm ${each.value.name}"
 }

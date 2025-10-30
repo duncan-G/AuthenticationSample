@@ -32,11 +32,34 @@ variable "domain_name" {
   }
 }
 
-# ---------------------------------------------------------------------------
-# Module-specific Variables
-# ---------------------------------------------------------------------------
-
 variable "github_repository" {
   description = "GitHub repo in 'owner/repo' format"
   type        = string
+}
+
+variable "authority" {
+  description = "Cognito client authority URL"
+  type        = string
+  validation {
+    condition     = length(var.authority) > 0
+    error_message = "Authority must not be empty"
+  }
+}
+
+variable "client_id" {
+  description = "Cognito client ID"
+  type        = string
+  validation {
+    condition     = length(var.client_id) > 0
+    error_message = "Client ID must not be empty"
+  }
+}
+
+variable "redirect_uri" {
+  description = "Cognito client redirect URI"
+  type        = string
+  validation {
+    condition     = length(var.redirect_uri) > 0
+    error_message = "Redirect URI must not be empty"
+  }
 }

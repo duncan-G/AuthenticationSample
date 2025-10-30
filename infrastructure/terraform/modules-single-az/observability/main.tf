@@ -132,22 +132,22 @@ resource "aws_iam_role_policy_attachment" "otel_collector_xray_attachment" {
 
 # Attach OpenTelemetry permissions to existing compute roles
 resource "aws_iam_role_policy_attachment" "worker_otel_cloudwatch_attachment" {
-  role       = aws_iam_role.worker.name
+  role       = var.worker_role_name
   policy_arn = aws_iam_policy.otel_collector_cloudwatch_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "worker_otel_xray_attachment" {
-  role       = aws_iam_role.worker.name
+  role       = var.worker_role_name
   policy_arn = aws_iam_policy.otel_collector_xray_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "manager_otel_cloudwatch_attachment" {
-  role       = aws_iam_role.manager.name
+  role       = var.manager_role_name
   policy_arn = aws_iam_policy.otel_collector_cloudwatch_policy.arn
 }
 
 resource "aws_iam_role_policy_attachment" "manager_otel_xray_attachment" {
-  role       = aws_iam_role.manager.name
+  role       = var.manager_role_name
   policy_arn = aws_iam_policy.otel_collector_xray_policy.arn
 }
 

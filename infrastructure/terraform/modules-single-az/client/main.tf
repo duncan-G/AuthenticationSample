@@ -2,7 +2,7 @@
 # Vercel Frontend Deployment
 # =============================================================================
 # Manages a Vercel project for the Next.js frontend and its configuration:
-# 
+#
 # • GitHub repo integration
 # • Environment variables (production and preview)
 # • Root directory and project settings
@@ -54,6 +54,21 @@ resource "vercel_project" "frontend" {
       key    = "NODE_ENV"
       value  = "production"
       target = ["production"]
+    },
+    {
+      key    = "NEXT_PUBLIC_OIDC_AUTHORITY"
+      value  = var.authority
+      target = ["production", "preview"]
+    },
+    {
+      key    = "NEXT_PUBLIC_OIDC_CLIENT_ID"
+      value  = var.client_id
+      target = ["production", "preview"]
+    },
+    {
+      key    = "NEXT_PUBLIC_OIDC_REDIRECT_URI"
+      value  = var.redirect_uri
+      target = ["production", "preview"]
     }
   ]
 }

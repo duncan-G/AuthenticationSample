@@ -13,31 +13,31 @@ source "$UTILS_SCRIPT_DIR/common.sh"
 # Function to check if AWS CLI is configured
 check_aws_cli() {
     print_info "Checking AWS CLI configuration..."
-    
+
     if ! command_exists aws; then
         print_error "AWS CLI not found. Please install AWS CLI first."
         exit 1
     fi
-    
+
     print_success "AWS CLI is available"
 }
 
 # Function to check if AWS profile exists
 check_aws_profile() {
     local profile="$1"
-    
+
     if [ -z "$profile" ]; then
         print_error "AWS profile is required"
         return 1
     fi
-    
+
     if ! aws configure list-profiles | grep -q "^${profile}$"; then
         print_error "AWS profile '$profile' not found"
         print_info "Available profiles:"
         aws configure list-profiles
         return 1
     fi
-    
+
     print_success "AWS profile '$profile' found"
     return 0
 }
@@ -45,19 +45,19 @@ check_aws_profile() {
 # Function to check if AWS SSO session is authenticated
 check_aws_authentication() {
     local profile="$1"
-    
+
     if [ -z "$profile" ]; then
         print_error "AWS profile is required for authentication check"
         return 1
     fi
-    
+
     print_info "Checking AWS authentication for profile: $profile..."
-    
+
     # Test authentication by getting caller identity
     local result
     result=$(aws sts get-caller-identity --profile "$profile" 2>&1)
     local exit_code=$?
-    
+
     if [ $exit_code -eq 0 ]; then
         local account_id
         account_id=$(echo "$result" | jq -r '.Account' 2>/dev/null || echo "$result" | grep -o '"Account": "[^"]*"' | cut -d'"' -f4)
@@ -137,12 +137,12 @@ get_aws_account_id() {
 # Function to validate AWS region
 validate_aws_region() {
     local region="$1"
-    
+
     if [ -z "$region" ]; then
         print_error "AWS region is required"
         return 1
     fi
-    
+
     # List of valid AWS regions (you can expand this list)
     local valid_regions=(
         "us-east-1" "us-east-2" "us-west-1" "us-west-2"
@@ -152,14 +152,14 @@ validate_aws_region() {
         "eu-north-1" "eu-south-1" "eu-south-2" "me-south-1" "me-central-1"
         "sa-east-1" "us-gov-east-1" "us-gov-west-1"
     )
-    
+
     for valid_region in "${valid_regions[@]}"; do
         if [ "$region" = "$valid_region" ]; then
             print_success "AWS region '$region' is valid"
             return 0
         fi
     done
-    
+
     print_warning "AWS region '$region' may not be valid"
     print_info "Common regions: us-east-1, us-west-2, eu-west-1, ap-southeast-1"
     return 0  # Don't fail, just warn
@@ -171,16 +171,16 @@ get_route53_hosted_zone_id() {
     local profile="${2:-$AWS_PROFILE}"
 
     if [ -z "$domain_name" ]; then
-        print_error "Domain name is required to lookup hosted zone"
+        print_error "Domain name is required to lookup hosted zone" >&2
         return 1
     fi
 
     if [ -z "$profile" ]; then
-        print_error "AWS profile is required to lookup hosted zone"
+        print_error "AWS profile is required to lookup hosted zone" >&2
         return 1
     fi
 
-    print_info "Looking up Route53 hosted zone for domain: $domain_name"
+    print_info "Looking up Route53 hosted zone for domain: $domain_name" >&2
 
     local hosted_zone_id
     hosted_zone_id=$(aws route53 list-hosted-zones \
@@ -189,14 +189,14 @@ get_route53_hosted_zone_id() {
         --output text 2>/dev/null)
 
     if [ -z "$hosted_zone_id" ] || [ "$hosted_zone_id" = "None" ]; then
-        print_error "Could not find Route53 hosted zone for domain: $domain_name"
+        print_error "Could not find Route53 hosted zone for domain: $domain_name" >&2
         return 1
     fi
 
     # Remove the /hostedzone/ prefix if present
     hosted_zone_id=$(echo "$hosted_zone_id" | sed 's|/hostedzone/||')
 
-    print_success "Found Route53 hosted zone ID: $hosted_zone_id"
+    print_success "Found Route53 hosted zone ID: $hosted_zone_id" >&2
     printf '%s\n' "$hosted_zone_id"
 }
 
@@ -207,7 +207,7 @@ create_s3_bucket_with_config() {
     local profile="$3"
     local environment="$4"
     local project_name="$5"
-    
+
     print_info "Creating S3 bucket: $bucket_name"
 
     local bucket_exists=false
@@ -221,10 +221,10 @@ create_s3_bucket_with_config() {
 
     # Configure bucket settings (idempotent operations)
     print_info "Configuring bucket settings..."
-    
+
     # Enable versioning (idempotent)
     aws s3api put-bucket-versioning --bucket "$bucket_name" --versioning-configuration Status=Enabled --profile "$profile"
-    
+
     # Configure encryption (idempotent)
     aws s3api put-bucket-encryption --bucket "$bucket_name" --profile "$profile" --server-side-encryption-configuration '{
       "Rules": [
@@ -235,14 +235,14 @@ create_s3_bucket_with_config() {
         }
       ]
     }'
-    
+
     # Configure public access block (idempotent)
     aws s3api put-public-access-block --bucket "$bucket_name" --profile "$profile" --public-access-block-configuration \
         BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-    
+
     # Add tags (idempotent)
     aws s3api put-bucket-tagging --bucket "$bucket_name" --profile "$profile" --tagging "TagSet=[{Key=Name,Value=${project_name}-bucket},{Key=Environment,Value=${environment}}]"
-    
+
     if [ "$bucket_exists" = true ]; then
         print_success "Bucket $bucket_name configuration verified."
     else
@@ -258,10 +258,10 @@ create_s3_bucket_with_lifecycle() {
     local environment="$4"
     local project_name="$5"
     local lifecycle_config="$6"
-    
+
     # Create bucket with standard config
     create_s3_bucket_with_config "$bucket_name" "$region" "$profile" "$environment" "$project_name"
-    
+
     # Configure custom lifecycle policy (idempotent)
     if [ -n "$lifecycle_config" ]; then
         print_info "Configuring custom lifecycle policy..."
@@ -280,7 +280,7 @@ get_secret() {
     if [[ -z $secret_name ]]; then
         print_error "Secret name is required"; return 1
     fi
-    
+
     check_jq
 
     # ---------- retrieve secret ----------
@@ -295,7 +295,7 @@ get_secret() {
     # ---------- extract value ----------
     local secret_value
     secret_value="$(jq -r '.SecretString' <<<"$secret_json")"
-    
+
     if [[ $secret_value == "null" || -z $secret_value ]]; then
         print_error "Secret has no usable value"; return 1
     fi
@@ -307,7 +307,7 @@ get_secret() {
             print_error "Secret value is not valid JSON: $secret_value"
             return 1
         fi
-        
+
         secret_value="$(jq -r --arg p "$prefix" '
             to_entries
             | map(select(.key | startswith($p)))
@@ -323,4 +323,4 @@ get_secret() {
 export -f check_aws_cli check_aws_profile check_aws_authentication
 export -f get_aws_account_id validate_aws_region check_jq
 export -f create_s3_bucket_with_config create_s3_bucket_with_lifecycle
-export -f get_secret get_route53_hosted_zone_id 
+export -f get_secret get_route53_hosted_zone_id

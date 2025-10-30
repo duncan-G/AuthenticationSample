@@ -54,3 +54,13 @@ variable "load_balancer_zone_id" {
   description = "Hosted zone ID of the public load balancer"
   type        = string
 }
+
+variable "route53_hosted_zone_id" {
+  description = "Hosted zone ID for Route53 DNS validation records"
+  type        = string
+
+  validation {
+    condition     = length(var.route53_hosted_zone_id) > 0
+    error_message = "route53_hosted_zone_id must not be empty"
+  }
+}
