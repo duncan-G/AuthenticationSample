@@ -1,13 +1,14 @@
 name: Test Auth Sample Client
 
 on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'clients/auth-sample/**'
-      - '.github/workflows/client-debug.yml'
   pull_request:
-    branches: [ main, develop ]
+    type:
+      - opened
+      - reopened
+      - edited
+    branches:
+      - 'main'
+      - 'integration/*'
     paths:
       - 'clients/auth-sample/**'
       - '.github/workflows/client-debug.yml'
