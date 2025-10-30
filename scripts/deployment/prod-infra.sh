@@ -241,6 +241,7 @@ terraform_init() {
   fi
 
   terraform init \
+    -reconfigure \
     -backend-config="bucket=$TF_STATE_BUCKET" \
     -backend-config="region=$AWS_REGION" \
     -backend-config="workspace_key_prefix=${PROJECT_NAME}/${az_prefix}"

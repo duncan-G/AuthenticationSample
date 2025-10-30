@@ -115,7 +115,7 @@ module "client" {
   vercel_root_directory = var.vercel_root_directory
   authority             = module.auth.cognito_user_pool_endpoint
   client_id             = module.auth.cognito_user_pool_web_client_id
-  redirect_uri          = var.auth_callback
+  redirect_uri          = var.auth_callback[0]
 }
 
 # Auth Delivery (SES)
@@ -123,7 +123,7 @@ module "auth_delivery" {
   source = "../modules-single-az/auth-delivery"
 
   domain_name            = var.domain_name
-  route53_hosted_zone_id = module.dns.hosted_zone_id
+  route53_hosted_zone_id = var.route53_hosted_zone_id
 }
 
 # Auth (Cognito)
@@ -135,7 +135,6 @@ module "auth" {
   env                     = var.env
   domain_name             = var.domain_name
   ses_domain_identity_arn = module.auth_delivery.ses_domain_identity_arn
-  route53_hosted_zone_id = module.dns.hosted_zone_id
 
   idps          = var.idps
   auth_callback = var.auth_callback

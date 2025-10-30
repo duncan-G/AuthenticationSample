@@ -258,3 +258,9 @@ tmp/
 .terraform/
 .terraform.lock.hcl
 tfplan*
+
+# IDE
+# Ignore all .idea folders anywhere in the repo'
+.idea/
+**/.idea/
+**/.idea.*/
