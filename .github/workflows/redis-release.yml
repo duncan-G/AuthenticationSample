@@ -1,4 +1,4 @@
-name: OpenTelemetry Collector Deployment
+name: Redis Deployment
 
 on:
   # ───── Manual trigger ─────
@@ -8,10 +8,10 @@ on:
         description: Target environment
         required: true
         type: choice
-        default: production
+        default: prod
         options: [stage, prod]
 
-  # ───── Auto-trigger when otel-collector config or workflow changes ─────
+  # ───── Auto-trigger when redis config or workflow changes ─────
   push:
     branches: [main]
     paths:
@@ -74,7 +74,7 @@ jobs:
       with:
         service_name: ${{ env.SERVICE_NAME }}
         environment:  ${{ steps.vars.outputs.environment }}
-        project_name:     ${{ vars.PROJECT_NAME }}
+        project_name: ${{ vars.PROJECT_NAME }}
         image_uri:    ""  # not used for redis
         version:      ${{ steps.vars.outputs.version }}
         aws_region:   ${{ vars.AWS_REGION }}

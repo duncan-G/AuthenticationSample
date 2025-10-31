@@ -8,8 +8,8 @@ on:
         description: Target environment
         required: true
         type: choice
-        default: production
-        options: [staging, production]
+        default: prod
+        options: [stage, prod]
 
   # ───── Auto-trigger when otel-collector config or workflow changes ─────
   push:
@@ -74,7 +74,7 @@ jobs:
       with:
         service_name: ${{ env.SERVICE_NAME }}
         environment:  ${{ steps.vars.outputs.environment }}
-        project_name:     ${{ vars.PROJECT_NAME }}
+        project_name: ${{ vars.PROJECT_NAME }}
         image_uri:    ""  # not used for otel-collector
         version:      ${{ steps.vars.outputs.version }}
         aws_region:   ${{ vars.AWS_REGION }}
