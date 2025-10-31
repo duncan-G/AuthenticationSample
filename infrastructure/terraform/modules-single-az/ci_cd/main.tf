@@ -82,7 +82,7 @@ resource "aws_codedeploy_app" "microservices" {
 
 # CodeDeploy Deployment Groups
 resource "aws_codedeploy_deployment_group" "microservices" {
-  for_each = toset(var.microservices_with_logs)
+  for_each = toset(var.microservices)
 
   app_name              = aws_codedeploy_app.microservices[each.key].name
   deployment_group_name = "${var.project_name}-${each.key}-${var.env}-deployment-group"
@@ -106,6 +106,15 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       key   = "Role"
       type  = "KEY_AND_VALUE"
       value = "manager"
+    }
+  }
+
+  # Tag group 3: restrict deployment to deployment-manager instances only
+  ec2_tag_set {
+    ec2_tag_filter {
+      key   = "DeploymentManager"
+      type  = "KEY_AND_VALUE"
+      value = "true"
     }
   }
 

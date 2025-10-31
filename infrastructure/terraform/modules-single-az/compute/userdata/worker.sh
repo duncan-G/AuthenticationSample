@@ -122,6 +122,75 @@ EOF
 }
 
 # ----------------------------------------------
+# Certificate Manager service for workers
+# ----------------------------------------------
+install_worker_certificate_manager(){
+  log "Configuring worker certificate manager service …"
+
+  # Ensure dependencies and target directories
+  install -d -m 0755 /usr/local/bin
+
+  # Optionally download certificate-manager.sh from S3 if variables are provided
+  if [[ -n ${CODEDEPLOY_BUCKET_NAME:-} && -n ${CERT_MANAGER_S3_KEY:-} ]]; then
+    log "Downloading s3://${CODEDEPLOY_BUCKET_NAME}/${CERT_MANAGER_S3_KEY} → /usr/local/bin/certificate-manager.sh"
+    aws s3 cp "s3://${CODEDEPLOY_BUCKET_NAME}/${CERT_MANAGER_S3_KEY}" \
+      /usr/local/bin/certificate-manager.sh \
+      --region "${AWS_REGION}" \
+      --only-show-errors || log "Warning: Failed to download certificate-manager.sh from S3"
+    chmod +x /usr/local/bin/certificate-manager.sh || true
+  else
+    log "Warning: CODEDEPLOY_BUCKET_NAME or CERT_MANAGER_S3_KEY not set; expecting certificate-manager.sh pre-baked at /usr/local/bin/certificate-manager.sh"
+  fi
+
+  # Install or update systemd unit (runs as root to write under /etc/docker)
+  cat >/etc/systemd/system/certificate-manager-worker.service <<'UNIT'
+[Unit]
+Description=Certificate Manager Daemon (Worker)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Environment for worker certificate manager
+Environment=MODE=worker
+Environment=OUTPUT_DIR=/etc/docker/certs
+Environment=AWS_REGION=${AWS_REGION}
+Environment=DOMAIN_NAME=${DOMAIN_NAME}
+
+# Dedicated logs directory under /var/log (owned by service user)
+LogsDirectory=certificate-manager
+LogsDirectoryMode=0755
+
+ExecStart=/usr/local/bin/certificate-manager.sh --daemon --mode ${MODE} --output-dir ${OUTPUT_DIR}
+
+Restart=always
+RestartSec=10
+
+SyslogIdentifier=certificate-manager-worker
+StandardOutput=journal
+StandardError=journal
+
+# Write access to certs directory and logs directory
+ReadWritePaths=/etc/docker/certs /var/log/certificate-manager
+
+LockPersonality=yes
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+  # Ensure systemd is aware of latest units and start the service
+  systemctl daemon-reload
+  systemctl enable --now certificate-manager-worker.service || true
+  log "Worker certificate manager service enabled"
+}
+
+# ----------------------------------------------
 # Swarm helpers
 # ----------------------------------------------
 already_in_swarm() {
@@ -167,6 +236,66 @@ join_swarm(){
 }
 
 # ----------------------------------------------
+# Post-join: request manager to set node label
+# ----------------------------------------------
+notify_manager_set_node_label(){
+  local label_key="worker_type"
+  local label_val="${WORKER_TYPE:-}"
+  if [[ -z "$label_val" ]]; then
+    log "WORKER_TYPE not set; skipping manager label request"
+    return 0
+  fi
+
+  # Resolve manager API host from SSM 'manager-ip' (stored as host:2377)
+  local mgr_param mgr_host mgr_api
+  mgr_param=$(get_ssm_param manager-ip)
+  mgr_host="${mgr_param%%:*}"
+  if [[ -z "$mgr_host" || "$mgr_host" == "None" || "$mgr_host" == "placeholder" ]]; then
+    log "Manager host unknown from SSM; skipping label request"
+    return 0
+  fi
+  mgr_api="${mgr_host}:2376"
+
+  # TLS client certs location
+  local tls_dir ca cert key
+  tls_dir="${DOCKER_CLIENT_TLS_DIR:-/etc/docker/certs}"
+  ca="$tls_dir/ca.pem"; cert="$tls_dir/cert.pem"; key="$tls_dir/key.pem"
+  if [[ ! -r "$ca" || ! -r "$cert" || ! -r "$key" ]]; then
+    log "TLS certs not found in $tls_dir; cannot call manager API — skipping"
+    return 0
+  fi
+
+  # Determine local NodeID
+  local node_id
+  node_id=$(docker info -f '{{.Swarm.NodeID}}' 2>/dev/null || true)
+  if [[ -z "$node_id" ]]; then
+    log "Unable to determine NodeID; skipping label request"
+    return 0
+  fi
+
+  # Wait until node is visible on manager, then apply label via Remote API
+  local attempt=1 max_attempts=10
+  local node_json ver updated
+  while (( attempt <= max_attempts )); do
+    if node_json=$(curl -fsS --connect-timeout 3 \
+        --cacert "$ca" --cert "$cert" --key "$key" \
+        "https://${mgr_api}/nodes/${node_id}"); then
+      ver=$(echo "$node_json" | jq -r '.Version.Index')
+      updated=$(echo "$node_json" | jq --arg k "$label_key" --arg v "$label_val" '.Spec.Labels[$k]=$v')
+      if curl -fsS -X POST --connect-timeout 3 \
+           --cacert "$ca" --cert "$cert" --key "$key" \
+           "https://${mgr_api}/nodes/${node_id}/update?version=${ver}" \
+           -H "Content-Type: application/json" -d "$updated" >/dev/null; then
+        log "Manager label request applied: ${label_key}=${label_val}"
+        return 0
+      fi
+    fi
+    sleep 3; attempt=$((attempt+1))
+  done
+  log "Warning: Failed to apply node label via manager API after ${max_attempts} attempts"
+}
+
+# ----------------------------------------------
 # Main
 # ----------------------------------------------
 log "Bootstrap initiated — Docker Swarm worker setup starting"
@@ -174,11 +303,18 @@ log "Bootstrap initiated — Docker Swarm worker setup starting"
 install_docker_stack
 install_cloudwatch_agent
 
+setup_docker_client_tls
+
 readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
 [[ -n "${AWS_REGION:-}" ]] || { log "AWS region unknown"; exit 1; }
 log "Using AWS region: $AWS_REGION"
 
+install_worker_certificate_manager || true
+
 wait_for_docker || exit 1
 join_swarm
+
+# After join, request manager to set node label if WORKER_TYPE is provided
+notify_manager_set_node_label || true
 
 log "Worker setup complete — node enrolled in swarm"

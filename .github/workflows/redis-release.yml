@@ -1,0 +1,84 @@
+name: OpenTelemetry Collector Deployment
+
+on:
+  # ───── Manual trigger ─────
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        default: production
+        options: [stage, prod]
+
+  # ───── Auto-trigger when otel-collector config or workflow changes ─────
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/redis/redis.stack.release.yaml'
+      - '.github/workflows/redis-release.yml'
+
+# ───── Global defaults ─────
+permissions:
+  contents: read            # checkout needs this
+  id-token: write           # OIDC for aws-actions/configure-aws-credentials
+
+env:
+  SERVICE_NAME: redis
+
+jobs:
+  deploy:
+    name: Deploy Redis
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+
+    steps:
+    # ───────────────────────────────
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # ───────────────────────────────
+    - name: Derive run-time variables
+      id: vars
+      run: |
+        ENVIRONMENT="${{ github.event.inputs.environment || 'prod' }}"
+        PROJECT_NAME="${{ vars.PROJECT_NAME }}"            # Org / repo variable
+        SHORT_SHA="${GITHUB_SHA::8}"
+        VERSION="${SHORT_SHA}"        # turn dots → dashes
+
+        # Single timestamp for this workflow run (avoids mismatch between upload & deployment)
+        TS="$(date +%Y%m%d-%H%M%S)"
+
+        {
+          echo "environment=$ENVIRONMENT"
+          echo "version=$VERSION"
+          echo "ts=$TS"
+        } >>"$GITHUB_OUTPUT"
+
+    # ───────────────────────────────
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-github-actions-role-codedeploy
+        role-session-name: gha-codedeploy-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION || env.AWS_REGION }}
+
+    # ───────────────────────────────
+    - name: Package & deploy via composite action
+      id: deploy
+      uses: ./.github/workflows/actions/package-and-deploy
+      with:
+        service_name: ${{ env.SERVICE_NAME }}
+        environment:  ${{ steps.vars.outputs.environment }}
+        project_name:     ${{ vars.PROJECT_NAME }}
+        image_uri:    ""  # not used for redis
+        version:      ${{ steps.vars.outputs.version }}
+        aws_region:   ${{ vars.AWS_REGION }}
+        s3_bucket:    ${{ secrets.DEPLOYMENT_BUCKET }}
+        stack_file:   redis.stack.release.yaml
+        stack_file_path: infrastructure/redis/redis.stack.release.yaml
+        configs_dir:  infrastructure/redis
