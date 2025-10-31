@@ -27,9 +27,11 @@ AWS_ACCOUNT_ID=""
 PROJECT_NAME=""
 GITHUB_REPO_FULL=""
 TF_STATE_BUCKET=""
-DEV_WORKSPACE=""
-STAGE_WORKSPACE=""
-PROD_WORKSPACE=""
+TERRAFORM_DEV_ENV=""
+TERRAFORM_STAGE_ENV=""
+TERRAFORM_PROD_ENV=""
+RUNTIME_STAGE_ENV=""
+RUNTIME_PROD_ENV=""
 BUCKET_SUFFIX=""
 
 usage() {
@@ -58,9 +60,11 @@ while [[ $# -gt 0 ]]; do
         --project-name) PROJECT_NAME="$2"; shift 2 ;;
         --github-repo) GITHUB_REPO_FULL="$2"; shift 2 ;;
         --tf-state-bucket) TF_STATE_BUCKET="$2"; shift 2 ;;
-        --dev-workspace) DEV_WORKSPACE="$2"; shift 2 ;;
-        --stage-workspace) STAGE_WORKSPACE="$2"; shift 2 ;;
-        --prod-workspace) PROD_WORKSPACE="$2"; shift 2 ;;
+        --terraform-dev-env) TERRAFORM_DEV_ENV="$2"; shift 2 ;;
+        --terraform-stage-env) TERRAFORM_STAGE_ENV="$2"; shift 2 ;;
+        --terraform-prod-env) TERRAFORM_PROD_ENV="$2"; shift 2 ;;
+        --runtime-stage-env) RUNTIME_STAGE_ENV="$2"; shift 2 ;;
+        --runtime-prod-env) RUNTIME_PROD_ENV="$2"; shift 2 ;;
         --bucket-suffix) BUCKET_SUFFIX="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) print_error "Unknown argument: $1"; usage ;;
@@ -94,9 +98,11 @@ prompt_for_missing() {
         AWS_ACCOUNT_ID=$(get_aws_account_id "$AWS_PROFILE")
     fi
 
-    if [ -z "$DEV_WORKSPACE" ]; then DEV_WORKSPACE="terraform-dev"; fi
-    if [ -z "$STAGE_WORKSPACE" ]; then STAGE_WORKSPACE="terraform-stage"; fi
-    if [ -z "$PROD_WORKSPACE" ]; then PROD_WORKSPACE="terraform-prod"; fi
+    if [ -z "$TERRAFORM_DEV_ENV" ]; then TERRAFORM_DEV_ENV="terraform-dev"; fi
+    if [ -z "$TERRAFORM_STAGE_ENV" ]; then TERRAFORM_STAGE_ENV="terraform-stage"; fi
+    if [ -z "$TERRAFORM_PROD_ENV" ]; then TERRAFORM_PROD_ENV="terraform-prod"; fi
+    if [ -z "$RUNTIME_STAGE_ENV" ]; then RUNTIME_STAGE_ENV="stage"; fi
+    if [ -z "$RUNTIME_PROD_ENV" ]; then RUNTIME_PROD_ENV="prod"; fi
 
     if [ -z "$BUCKET_SUFFIX" ]; then
         BUCKET_SUFFIX=$(echo "${AWS_ACCOUNT_ID}-${GITHUB_REPO_FULL}" | md5sum | cut -c1-8)
@@ -189,9 +195,11 @@ process_policy_files() {
     sed \
         -e "s|\${AWS_ACCOUNT_ID}|$AWS_ACCOUNT_ID|g" \
         -e "s|\${GITHUB_REPO_FULL}|$GITHUB_REPO_FULL|g" \
-        -e "s|\${DEV_ENVIRONMENT}|$DEV_WORKSPACE|g" \
-        -e "s|\${STAGING_ENVIRONMENT}|$STAGE_WORKSPACE|g" \
-        -e "s|\${PRODUCTION_ENVIRONMENT}|$PROD_WORKSPACE|g" \
+        -e "s|\${TERRAFORM_DEV_ENV}|$TERRAFORM_DEV_ENV|g" \
+        -e "s|\${TERRAFORM_STAGE_ENV}|$TERRAFORM_STAGE_ENV|g" \
+        -e "s|\${TERRAFORM_PROD_ENV}|$TERRAFORM_PROD_ENV|g" \
+        -e "s|\${RUNTIME_STAGE_ENV}|$RUNTIME_STAGE_ENV|g" \
+        -e "s|\${RUNTIME_PROD_ENV}|$RUNTIME_PROD_ENV|g" \
         "$ORIGINAL_TRUST_POLICY_FILE_PATH" > "$PROCESSED_TRUST_POLICY_FILE_PATH"
 }
 

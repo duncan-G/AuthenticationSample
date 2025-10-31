@@ -11,9 +11,11 @@
                 "StringEquals": {
                     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
                     "token.actions.githubusercontent.com:sub": [
-                        "repo:${GITHUB_REPO_FULL}:environment:${DEV_ENVIRONMENT}",
-                        "repo:${GITHUB_REPO_FULL}:environment:${STAGING_ENVIRONMENT}",
-                        "repo:${GITHUB_REPO_FULL}:environment:${PRODUCTION_ENVIRONMENT}"
+                        "repo:${GITHUB_REPO_FULL}:environment:${RUNTIME_STAGE_ENV}",
+                        "repo:${GITHUB_REPO_FULL}:environment:${RUNTIME_PROD_ENV}",
+                        "repo:${GITHUB_REPO_FULL}:environment:${TERRAFORM_DEV_ENV}",
+                        "repo:${GITHUB_REPO_FULL}:environment:${TERRAFORM_STAGE_ENV}",
+                        "repo:${GITHUB_REPO_FULL}:environment:${TERRAFORM_PROD_ENV}"
                     ]
                 }
             }

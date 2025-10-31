@@ -32,9 +32,9 @@ get_user_input() {
 
     prompt_user "Enter project name (used for Terraform resource naming)" "PROJECT_NAME"
     prompt_user "Enter AWS region" "AWS_REGION" "us-west-1"
-    prompt_user "Enter Terraform stage workspace name" "STAGE_WORKSPACE" "terraform-stage"
-    prompt_user "Enter Terraform prod workspace name" "PROD_WORKSPACE" "terraform-prod"
-    prompt_user "Enter Terraform dev workspace name" "DEV_WORKSPACE" "terraform-dev"
+    prompt_user "Enter Terraform stage workspace name" "TERRAFORM_STAGE_ENV" "terraform-stage"
+    prompt_user "Enter Terraform prod workspace name" "TERRAFORM_PROD_ENV" "terraform-prod"
+    prompt_user "Enter Terraform dev workspace name" "TERRAFORM_DEV_ENV" "terraform-dev"
     prompt_user "Enter runtime stage environment label" "RUNTIME_STAGE_ENV" "stage"
     prompt_user "Enter runtime prod environment label" "RUNTIME_PROD_ENV" "prod"
     prompt_user "Enter runtime dev environment label" "RUNTIME_DEV_ENV" "dev"
@@ -59,8 +59,8 @@ get_user_input() {
     echo "  GitHub Repository: $GITHUB_REPO_FULL"
     echo "  Terraform Project Name: $PROJECT_NAME"
     echo "  AWS Region: $AWS_REGION"
-    echo "  Terraform Stage Workspace: $STAGE_WORKSPACE"
-    echo "  Terraform Prod Workspace: $PROD_WORKSPACE"
+    echo "  Terraform Stage Workspace: $TERRAFORM_STAGE_ENV"
+    echo "  Terraform Prod Workspace: $TERRAFORM_PROD_ENV"
     echo "  Runtime Stage Env: $RUNTIME_STAGE_ENV"
     echo "  Runtime Prod Env: $RUNTIME_PROD_ENV"
     echo "  Domain Name: $DOMAIN_NAME"
@@ -126,9 +126,11 @@ setup_oidc_infrastructure() {
         --project-name "$PROJECT_NAME" \
         --github-repo "$GITHUB_REPO_FULL" \
         --tf-state-bucket "$TF_STATE_BUCKET" \
-        --stage-workspace "$STAGE_WORKSPACE" \
-        --prod-workspace "$PROD_WORKSPACE" \
-        --dev-workspace "$DEV_WORKSPACE" \
+        --terraform-stage-env "$TERRAFORM_STAGE_ENV" \
+        --terraform-prod-env "$TERRAFORM_PROD_ENV" \
+        --terraform-dev-env "$TERRAFORM_DEV_ENV" \
+        --runtime-stage-env "$RUNTIME_STAGE_ENV" \
+        --runtime-prod-env "$RUNTIME_PROD_ENV" \
         --bucket-suffix "$BUCKET_SUFFIX"
 }
 
@@ -156,17 +158,17 @@ setup_github_workflow() {
         "AWS_REGION:$AWS_REGION" \
         "PROJECT_NAME:$PROJECT_NAME" \
         "DOMAIN_NAME:$DOMAIN_NAME" \
-        "TF_STAGE_WORKSPACE:$STAGE_WORKSPACE" \
-        "TF_PROD_WORKSPACE:$PROD_WORKSPACE" \
-        "TF_DEV_WORKSPACE:$DEV_WORKSPACE" \
+        "TERRAFORM_STAGE_ENV:$TERRAFORM_STAGE_ENV" \
+        "TERRAFORM_PROD_ENV:$TERRAFORM_PROD_ENV" \
+        "TERRAFORM_DEV_ENV:$TERRAFORM_DEV_ENV" \
         "RUNTIME_STAGE_ENV:$RUNTIME_STAGE_ENV" \
         "RUNTIME_PROD_ENV:$RUNTIME_PROD_ENV" \
         "RUNTIME_DEV_ENV:$RUNTIME_DEV_ENV"
 
     create_github_environments "$GITHUB_REPO_FULL" \
-        "$STAGE_WORKSPACE" \
-        "$PROD_WORKSPACE" \
-        "$DEV_WORKSPACE"
+        "$TERRAFORM_STAGE_ENV" \
+        "$TERRAFORM_PROD_ENV" \
+        "$TERRAFORM_DEV_ENV"
 
     create_github_environments "$GITHUB_REPO_FULL" \
         "$RUNTIME_STAGE_ENV" \
