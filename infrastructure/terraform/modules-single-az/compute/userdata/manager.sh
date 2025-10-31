@@ -81,6 +81,7 @@ imds_get(){
 get_aws_region(){ imds_get "/latest/dynamic/instance-identity/document" | jq -r '.region' 2>/dev/null || true; }
 get_local_ip(){  imds_get "/latest/meta-data/local-ipv4"; }
 get_az(){        imds_get "/latest/meta-data/placement/availability-zone"; }
+get_instance_id(){ imds_get "/latest/meta-data/instance-id"; }
 
 # ----------------------------------------------
 # Docker & ECR creds
@@ -217,6 +218,49 @@ label_node_with_az(){
 }
 
 # ----------------------------------------------
+# DeploymentManager tag (ensure uniqueness)
+# ----------------------------------------------
+ensure_deployment_manager_tag(){
+  local instance_id other_ids current_value
+  instance_id=$(get_instance_id || true)
+  if [[ -z "$instance_id" ]]; then
+    log "Unable to determine instance-id; skipping DeploymentManager tag"
+    return 0
+  fi
+
+  # Check for any other instance already tagged as DeploymentManager
+  other_ids=$(aws --region "$AWS_REGION" ec2 describe-instances \
+    --filters "Name=tag-key,Values=DeploymentManager" \
+             "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+    --query "Reservations[].Instances[?InstanceId!='${instance_id}'].InstanceId" \
+    --output text 2>/dev/null || true)
+
+  if [[ -n "$other_ids" ]]; then
+    log "Another DeploymentManager exists (${other_ids}); skipping tag on ${instance_id}"
+    return 0
+  fi
+
+  # If this instance already has the tag, do nothing
+  current_value=$(aws --region "$AWS_REGION" ec2 describe-tags \
+    --filters "Name=resource-id,Values=${instance_id}" "Name=key,Values=DeploymentManager" \
+    --query 'Tags[].Value' --output text 2>/dev/null || true)
+
+  if [[ -n "$current_value" ]]; then
+    log "Instance ${instance_id} already tagged DeploymentManager=${current_value}"
+    return 0
+  fi
+
+  # Apply the tag to this instance
+  aws --region "$AWS_REGION" ec2 create-tags \
+    --resources "$instance_id" \
+    --tags "Key=DeploymentManager,Value=true" >/dev/null 2>&1 || {
+      log "Warning: failed to create DeploymentManager tag on ${instance_id}"
+      return 0
+    }
+  log "Tagged instance ${instance_id} as DeploymentManager"
+}
+
+# ----------------------------------------------
 # Certificate Manager service configuration
 # ----------------------------------------------
 install_certificate_manager(){
@@ -311,6 +355,9 @@ install_cloudwatch_agent
 readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
 [[ -n "${AWS_REGION:-}" ]] || { log "AWS region unknown"; exit 1; }
 log "Using AWS region: $AWS_REGION"
+
+# Tag this instance as the DeploymentManager if none exists yet (best-effort)
+ensure_deployment_manager_tag || true
 
 wait_for_docker || exit 1
 

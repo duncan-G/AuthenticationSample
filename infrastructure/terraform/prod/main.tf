@@ -68,14 +68,14 @@ module "database" {
   worker_role_name = module.compute.worker_role_name
 }
 
-# # Cache (single EC2 + EBS) — optional; shares compute IAM and network
-# module "cache" {
-#   source = "../modules-single-az/cache"
+# Cache (single EC2 + EBS) — optional; shares compute IAM and network
+module "cache" {
+  source = "../modules-single-az/cache"
 
-#   region       = var.region
-#   project_name = var.project_name
-#   env          = var.env
-# }
+  region       = var.region
+  project_name = var.project_name
+  env          = var.env
+}
 
 # CI/CD (ECR, CodeDeploy, IAM)
 module "ci_cd" {

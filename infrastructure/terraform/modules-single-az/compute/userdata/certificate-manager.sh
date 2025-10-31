@@ -22,12 +22,12 @@ shopt -s inherit_errexit nullglob
 # Constants
 ###############################################################################
 readonly SCRIPT_NAME=${0##*/}
-readonly CERT_DIR="/var/lib/certificate-manager/certs"
+CERT_DIR="${CERT_DIR:-/var/lib/certificate-manager/certs}"
 readonly LOG_DIR="/var/log/certificate-manager"
 readonly LOG_FILE="$LOG_DIR/certificate-manager.log"
 readonly STATUS_FILE="$LOG_DIR/certificate-manager.status"
 readonly RENEWAL_THRESHOLD_DAYS=30
-readonly CERT_VALIDITY_DAYS=365
+readonly CERT_VALIDITY_DAYS=45
 
 # Certificate files
 readonly CERT_FILES=("aspnetapp.pfx" "ca.crt" "cert.key" "cert.pem")
@@ -45,32 +45,41 @@ status(){ printf '%s: %s at %s\n' "$1" "$2" "$(_ts)" >"$STATUS_FILE"; log "STATU
 fatal()   { log "ERROR: $*"; exit 1; }
 
 trap 'status FAILED "line $LINENO exited with code $?"; exit 1' ERR
-mkdir -p "$LOG_DIR" "$CERT_DIR"
+mkdir -p "$LOG_DIR"
 
 ###############################################################################
 # CLI
 ###############################################################################
 usage() {
   cat <<EOF
-Usage: $SCRIPT_NAME [--daemon] [--force]
+Usage: $SCRIPT_NAME [--daemon] [--force] [--mode manager|worker] [--output-dir PATH]
 
 Options:
-  --daemon   Run in daemon mode (continuous monitoring)
-  --force    Force certificate regeneration even if valid
-  -h, --help Show this help.
+  --daemon       Run in daemon mode (continuous monitoring)
+  --force        Force certificate regeneration even if valid
+  --mode         Run mode: 'manager' (default) or 'worker'
+  --output-dir   Where to place certificates
+                 manager default: /var/lib/certificate-manager/certs
+                 worker  default: /etc/docker/certs
+  -h, --help     Show this help.
 
 Environment Variables:
-  AWS_SECRET_NAME    - Required: AWS Secrets Manager secret name
-  AWS_REGION         - Optional: AWS region (default: us-east-1)
+  AWS_SECRET_NAME    - Required in manager mode: AWS Secrets Manager secret name
+  AWS_REGION         - Required: AWS region (no default)
   DOMAIN_NAME        - Optional: Domain name for certificate (default: localhost)
+  CERT_DIR           - Optional: override manager default output directory
 EOF
 }
 
 DAEMON=false FORCE=false
+MODE="manager"
+OUTPUT_DIR=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --daemon)   DAEMON=true   ;;
     --force)    FORCE=true    ;;
+    --mode)     shift; MODE=${1:-manager} ;;
+    --output-dir) shift; OUTPUT_DIR=${1:-} ;;
     -h|--help)  usage; exit 0 ;;
     *)          usage; exit 1 ;;
   esac
@@ -81,16 +90,25 @@ done
 # Dependency checks
 ###############################################################################
 need_cmd() { command -v "$1" &>/dev/null || { log "Missing dependency: $1"; exit 2; }; }
-for c in aws openssl docker jq; do need_cmd "$c"; done
+if [[ "$MODE" == "manager" ]]; then
+  for c in aws openssl docker jq; do need_cmd "$c"; done
+else
+  for c in openssl jq; do need_cmd "$c"; done
+fi
 
 ###############################################################################
 # Environment validation
 ###############################################################################
-[[ -n ${AWS_SECRET_NAME:-} ]] || fatal "AWS_SECRET_NAME environment variable is required"
-AWS_REGION=${AWS_REGION:-us-east-1}
-DOMAIN_NAME=${DOMAIN_NAME:-localhost}
-
-log "Configuration: AWS_SECRET_NAME=$AWS_SECRET_NAME, AWS_REGION=$AWS_REGION, DOMAIN_NAME=$DOMAIN_NAME"
+if [[ "$MODE" == "manager" ]]; then
+  [[ -n ${AWS_SECRET_NAME:-} ]] || fatal "AWS_SECRET_NAME environment variable is required"
+  [[ -n ${AWS_REGION:-} ]] || fatal "AWS_REGION environment variable is required"
+  DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+  log "Configuration (manager): AWS_SECRET_NAME=$AWS_SECRET_NAME, AWS_REGION=$AWS_REGION, DOMAIN_NAME=$DOMAIN_NAME, CERT_DIR=$CERT_DIR"
+else
+  [[ -n ${AWS_REGION:-} ]] || fatal "AWS_REGION environment variable is required"
+  DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+  log "Configuration (worker): OUTPUT_DIR=${OUTPUT_DIR:-/etc/docker/certs}, AWS_REGION=$AWS_REGION, DOMAIN_NAME=$DOMAIN_NAME"
+fi
 
 ###############################################################################
 # Docker Swarm validation
@@ -171,8 +189,12 @@ is_cert_expiring() {
 needs_certificate_renewal() {
     [[ $FORCE == true ]] && return 0
 
+    local base_dir="$CERT_DIR"
+    if [[ -n "$OUTPUT_DIR" ]]; then base_dir="$OUTPUT_DIR"; fi
+    if [[ "$MODE" == "worker" && -z "$OUTPUT_DIR" ]]; then base_dir="/etc/docker/certs"; fi
+
     for cert_file in "${CERT_FILES[@]}"; do
-        local full_path="$CERT_DIR/$cert_file"
+        local full_path="$base_dir/$cert_file"
         if ! is_cert_expiring "$full_path" "$RENEWAL_THRESHOLD_DAYS"; then
             log "Certificate $cert_file is valid"
         else
@@ -191,33 +213,44 @@ generate_certificates() {
 
     log "Generating self-signed certificates for domain: $domain"
 
+    local out_dir
+    out_dir="$CERT_DIR"
+    if [[ -n "$OUTPUT_DIR" ]]; then out_dir="$OUTPUT_DIR"; fi
+    if [[ "$MODE" == "worker" && -z "$OUTPUT_DIR" ]]; then out_dir="/etc/docker/certs"; fi
+    mkdir -p "$out_dir"
+
     # Clean up existing certificates
-    rm -rf "$CERT_DIR"/*
+    rm -rf "$out_dir"/*
 
     # Generate private key
-    openssl genrsa -out "$CERT_DIR/cert.key" 2048
+    openssl genrsa -out "$out_dir/cert.key" 2048
 
     # Generate certificate signing request
-    openssl req -new -key "$CERT_DIR/cert.key" -out "$CERT_DIR/cert.csr" \
+    openssl req -new -key "$out_dir/cert.key" -out "$out_dir/cert.csr" \
         -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=$domain"
 
     # Generate self-signed certificate
-    openssl x509 -req -in "$CERT_DIR/cert.csr" -signkey "$CERT_DIR/cert.key" \
-        -out "$CERT_DIR/cert.pem" -days "$CERT_VALIDITY_DAYS"
+    openssl x509 -req -in "$out_dir/cert.csr" -signkey "$out_dir/cert.key" \
+        -out "$out_dir/cert.pem" -days "$CERT_VALIDITY_DAYS"
 
     # Create CA certificate (copy of cert.pem for this self-signed setup)
-    cp "$CERT_DIR/cert.pem" "$CERT_DIR/ca.crt"
+    cp "$out_dir/cert.pem" "$out_dir/ca.crt"
+    # For Docker client TLS compatibility
+    cp "$out_dir/ca.crt" "$out_dir/ca.pem"
 
     # Generate PFX file with password
-    openssl pkcs12 -export -out "$CERT_DIR/aspnetapp.pfx" \
-        -inkey "$CERT_DIR/cert.key" -in "$CERT_DIR/cert.pem" \
+    openssl pkcs12 -export -out "$out_dir/aspnetapp.pfx" \
+        -inkey "$out_dir/cert.key" -in "$out_dir/cert.pem" \
         -passout "pass:$cert_password"
 
     # Clean up CSR file
-    rm -f "$CERT_DIR/cert.csr"
+    rm -f "$out_dir/cert.csr"
 
     # Set proper permissions
-    chmod 600 "$CERT_DIR"/*
+    chmod 600 "$out_dir"/* || true
+    # Docker client TLS: key must be 600; certs can be 644
+    chmod 600 "$out_dir/key.pem" 2>/dev/null || true
+    chmod 644 "$out_dir/ca.crt" "$out_dir/ca.pem" "$out_dir/cert.pem" 2>/dev/null || true
 
     log "Self-signed certificates generated successfully"
 }
@@ -325,14 +358,18 @@ manage_certificates() {
     # Generate certificates
     generate_certificates "$cert_password" "$DOMAIN_NAME"
 
-    # Update AWS Secrets Manager
-    update_aws_secret "$cert_password"
+    if [[ "$MODE" == "manager" ]]; then
+      # Update AWS Secrets Manager
+      update_aws_secret "$cert_password"
 
-    # Update Docker secrets
-    update_docker_secrets
+      # Update Docker secrets
+      update_docker_secrets
 
-    # Restart affected services
-    restart_services
+      # Restart affected services
+      restart_services
+    else
+      log "Worker mode: skipping AWS secret update, Docker secrets, and service restarts"
+    fi
 
     status SUCCESS "certificates renewed"
     log "Certificate management completed successfully"
@@ -355,8 +392,10 @@ run_daemon() {
 main() {
     log "Starting certificate manager"
 
-    # Ensure we're running on the lead Docker Swarm manager
-    check_swarm_manager
+    if [[ "$MODE" == "manager" ]]; then
+      # Ensure we're running on the lead Docker Swarm manager
+      check_swarm_manager
+    fi
 
     if [[ $DAEMON == true ]]; then
         run_daemon

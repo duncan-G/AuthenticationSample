@@ -38,7 +38,7 @@ services:
         max_failure_ratio: 0.3
       placement:
         constraints:
-          - node.role == worker
+          - node.role == cache-worker
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
       interval: 10s
