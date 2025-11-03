@@ -64,16 +64,26 @@ fi
 sleep 5
 
 ###########################
-# Substitute network name
+# Substitute network name (from DynamoDB lock)
 ###########################
-log "Retrieving overlay network name from SSM..."
-NETWORK_NAME=$(aws ssm get-parameter \
-                  --name "/docker/swarm/network-name" \
-                  --query 'Parameter.Value' \
-                  --output text) || err "Could not retrieve network name from SSM"
+LEADER_ENV="/etc/leader-manager.env"
+if [[ -f "$LEADER_ENV" ]]; then
+  # shellcheck source=/dev/null
+  source "$LEADER_ENV"
+fi
 
-[[ -n $NETWORK_NAME ]] || err "Network name from SSM is empty"
-log "✓ Retrieved network name: $NETWORK_NAME"
+: "${AWS_REGION:?Missing AWS_REGION (expected in /etc/leader-manager.env)}"
+: "${SWARM_LOCK_TABLE:?Missing SWARM_LOCK_TABLE (expected in /etc/leader-manager.env)}"
+CLUSTER_NAME="auth-sample-cluster"
+
+log "Retrieving overlay network name from DynamoDB..."
+lock_json=$(aws --region "$AWS_REGION" dynamodb get-item \
+  --table-name "$SWARM_LOCK_TABLE" \
+  --key '{"cluster_name":{"S":"'"$CLUSTER_NAME"'"}}') || err "Could not read lock item from DynamoDB"
+
+NETWORK_NAME=$(jq -r '.Item.swarm_overlay_network_name.S // empty' <<<"$lock_json") || true
+[[ -n $NETWORK_NAME ]] || err "Network name not found in DynamoDB lock table"
+log "✓ Retrieved network name from DynamoDB: $NETWORK_NAME"
 
 sed -i \
   -e "s|\${NETWORK_NAME}|${NETWORK_NAME}|g" \
