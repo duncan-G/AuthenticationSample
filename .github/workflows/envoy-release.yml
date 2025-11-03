@@ -69,7 +69,7 @@ jobs:
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-github-actions-role-codedeploy
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-github-actions-codedeploy-${{ vars.ENVIRONMENT }}
         role-session-name: gha-codedeploy-${{ github.run_id }}
         aws-region: ${{ vars.AWS_REGION || env.AWS_REGION }}
 

@@ -165,7 +165,7 @@ resource "aws_iam_role" "codedeploy_service_role" {
 
 # GitHub Actions CodeDeploy Role (OIDC)
 resource "aws_iam_role" "github_actions_codedeploy" {
-  name = "${var.project_name}-github-actions-role-codedeploy-${var.env}"
+  name = "${var.project_name}-github-actions-codedeploy-${var.env}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
