@@ -182,11 +182,6 @@ locals {
       protocol = "tcp"
     },
     {
-      name     = "docker-client"
-      port     = 2376
-      protocol = "tcp"
-    },
-    {
       name     = "swarm-tcp"
       port     = 7946
       protocol = "tcp"

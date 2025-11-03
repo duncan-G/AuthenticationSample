@@ -59,7 +59,6 @@ fi
 # Docker helpers
 # ---------------------------------------------------------------------------
 docker_state() { docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "inactive"; }
-is_manager()   { docker info --format '{{.Swarm.ControlAvailable}}' 2>/dev/null | grep -qi true; }
 is_leader()    { docker node inspect self --format '{{ .ManagerStatus.Leader }}' 2>/dev/null | grep -qi true; }
 
 # ---------------------------------------------------------------------------
@@ -190,13 +189,8 @@ main() {
   lj=$(get_lock_raw)
   read -r lease inst ip mt wt <<<"$(read_lock "$lj")"
 
-  local is_leader=false
-  if is_leader; then
-    is_leader=true
-  fi
-
   # A) Already the Swarm leader → just renew + publish tokens
-  if [[ "$is_leader" == true ]]; then
+  if is_leader; then
     log "This node is current Swarm leader; renewing lease"
     update_lock_with_condition "$lease" true || log "Lease renewal failed (race?)"
     return 0

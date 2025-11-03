@@ -299,7 +299,6 @@ log "Using AWS region: $AWS_REGION"
 
 ensure_deployment_manager_tag || true
 wait_for_docker || exit 1
-configure_docker_daemon || exit 1
 
 log "Swarm join/init will be handled by leader-manager service"
 

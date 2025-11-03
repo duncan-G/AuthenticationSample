@@ -79,7 +79,6 @@ join_swarm() {
     if [[ -n "$target_ip" && -n "$token" ]]; then
       log "Attempting docker swarm join to ${target_ip}:2377"
       if docker swarm join --token "$token" "${target_ip}:2377" >/dev/null 2>&1; then
-        log "Joined swarm as worker"
         echo "$target_ip"
         return 0
       fi

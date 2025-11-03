@@ -13,7 +13,7 @@ shopt -s inherit_errexit nullglob
 ###############################################################################
 # Defaults / constants
 ###############################################################################
-readonly SCRIPT_NAME=${0##*/}#
+readonly SCRIPT_NAME=${0##*/}
 readonly LOG_DIR="/var/log/certificate-manager"
 readonly STATUS_FILE="$LOG_DIR/certificate-manager.status"
 readonly RENEWAL_THRESHOLD_DAYS=30         # renew when cert expires in <= 30 days
