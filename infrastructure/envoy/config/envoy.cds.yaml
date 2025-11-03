@@ -64,3 +64,4 @@ resources:
             - san_type: DNS
               matcher:
                 exact: "localhost"
+

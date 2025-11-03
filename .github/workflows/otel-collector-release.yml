@@ -15,7 +15,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'Infrastructure/otel-collector/**'
+      - 'infrastructure/otel-collector/config/**'
+      - 'infrastructure/otel-collector/otel-collector.stack.release.yaml'
       - '.github/workflows/otel-collector-release.yml'
 
 # ───── Global defaults ─────
@@ -81,4 +82,4 @@ jobs:
         s3_bucket:    ${{ secrets.DEPLOYMENT_BUCKET }}
         stack_file:   otel-collector.stack.release.yaml
         stack_file_path: infrastructure/otel-collector/otel-collector.stack.release.yaml
-        configs_dir:  infrastructure/otel-collector
+        configs_dir:  infrastructure/otel-collector/config
