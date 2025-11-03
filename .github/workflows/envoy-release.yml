@@ -8,14 +8,15 @@ on:
         description: Target environment
         required: true
         type: choice
-        default: production
-        options: [staging, production]
+        default: prod
+        options: [stage, prod]
 
   # ───── Auto-trigger when Envoy config or workflow changes ─────
   push:
     branches: [main]
     paths:
-      - 'Infrastructure/envoy/**'
+      - 'infrastructure/envoy/envoy.stack.release.yaml'
+      - 'infrastructure/envoy/config/**'
       - '.github/workflows/envoy-release.yml'
 
 # ───── Global defaults ─────
@@ -103,8 +104,9 @@ jobs:
         mkdir -p staging/configs
         cp infrastructure/codedeploy/appspec.yml        staging/
         cp -r infrastructure/codedeploy/scripts/*       staging/scripts/
-        # Copy envoy configs excluding debug files
-        find infrastructure/envoy -name '*.yaml' | grep -v debug | xargs -I {} cp {} staging/configs/
+        # Copy Envoy stack and config YAMLs
+        cp infrastructure/envoy/$STACK_FILE staging/configs/
+        find infrastructure/envoy/config -name '*.yaml' | xargs -I {} cp {} staging/configs/
 
         # Render env.sh (envsubst keeps it POSIX-portable)
         export SERVICE_NAME ENVIRONMENT VERSION PROJECT_NAME CERT_PREFIX \

@@ -58,10 +58,10 @@ TEMP_DIR="$REPO_ROOT/tmp/envoy"
 mkdir -p "$TEMP_DIR"
 
 # Only envoy.rds.yaml needs environment variable substitution
-envsubst < infrastructure/envoy/envoy.rds.yaml > "$TEMP_DIR/envoy.rds.yaml"
-envsubst < infrastructure/envoy/envoy.cds.yaml > "$TEMP_DIR/envoy.cds.yaml"
-envsubst < infrastructure/envoy/envoy.yaml > "$TEMP_DIR/envoy.yaml"
-envsubst < infrastructure/envoy/envoy.sds.yaml > "$TEMP_DIR/envoy.sds.yaml"
+envsubst < infrastructure/envoy/config/envoy.rds.yaml > "$TEMP_DIR/envoy.rds.yaml"
+envsubst < infrastructure/envoy/config/envoy.cds.yaml > "$TEMP_DIR/envoy.cds.yaml"
+envsubst < infrastructure/envoy/config/envoy.yaml > "$TEMP_DIR/envoy.yaml"
+envsubst < infrastructure/envoy/config/envoy.sds.yaml > "$TEMP_DIR/envoy.sds.yaml"
 
 # Create docker configs using processed files
 docker config create envoy_config_$VERSION "$TEMP_DIR/envoy.yaml"

@@ -8,3 +8,4 @@ resources:
         filename: /etc/envoy/certs/fullchain.pem
       private_key:
         filename: /etc/envoy/certs/cert.key
+
