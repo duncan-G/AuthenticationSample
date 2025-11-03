@@ -74,7 +74,7 @@ fi
 
 : "${AWS_REGION:?Missing AWS_REGION (expected in /etc/leader-manager.env)}"
 : "${SWARM_LOCK_TABLE:?Missing SWARM_LOCK_TABLE (expected in /etc/leader-manager.env)}"
-CLUSTER_NAME="${CLUSTER_NAME:-auth-sample-cluster}"
+CLUSTER_NAME="auth-sample-cluster"
 
 log "Retrieving overlay network name from DynamoDB..."
 lock_json=$(aws --region "$AWS_REGION" dynamodb get-item \

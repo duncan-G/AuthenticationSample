@@ -40,9 +40,12 @@ if [[ -f "$LEADER_ENV" ]]; then
   source "$LEADER_ENV"
 fi
 
-: "${AWS_REGION:?Missing AWS_REGION (expected in /etc/leader-manager.env)}"
-: "${SWARM_LOCK_TABLE:?Missing SWARM_LOCK_TABLE (expected in /etc/leader-manager.env)}"
-CLUSTER_NAME="${CLUSTER_NAME:-auth-sample-cluster}"
+if [[ -z "$AWS_REGION" || -z "$SWARM_LOCK_TABLE" ]]; then
+  log "Missing required env: AWS_REGION/SWARM_LOCK_TABLE"
+  exit 1
+fi
+
+CLUSTER_NAME="auth-sample-cluster"
 
 log "Retrieving overlay network name from DynamoDB..."
 lock_json=$(aws --region "$AWS_REGION" dynamodb get-item \

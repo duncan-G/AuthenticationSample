@@ -117,7 +117,7 @@ update_lock_with_condition() {
   local expr_vals='{":iid":{"S":"'"$my_instance_id"'"},":ip":{"S":"'"$my_private_ip"'"},":lease":{"S":"'"$lease_until_iso"'"}}'
 
   # Persist overlay network name if configured
-  if [[ -n "${SWARM_OVERLAY_NETWORK_NAME:-}" ]]; then
+  if [[ -n "$SWARM_OVERLAY_NETWORK_NAME" ]]; then
     set_expr+=' , swarm_overlay_network_name = :net'
     expr_vals=$(jq -c --arg net "$SWARM_OVERLAY_NETWORK_NAME" '. + {":net":{"S":$net}}' <<<"$expr_vals")
   fi
