@@ -105,13 +105,13 @@ variable "vercel_root_directory" {
 variable "microservices" {
   description = "List of microservices to deploy/build"
   type        = list(string)
-  default     = ["auth", "greeter"]
+  default     = []
 }
 
 variable "microservices_with_logs" {
   description = "Subset of microservices with logs"
   type        = list(string)
-  default     = ["auth", "greeter"]
+  default     = []
 }
 
 variable "route53_hosted_zone_id" {

@@ -24,6 +24,7 @@ AWS_REGION="${AWS_REGION:-}"
 SWARM_LOCK_TABLE="${SWARM_LOCK_TABLE:-}"
 JOIN_TIMEOUT_SECONDS="${JOIN_TIMEOUT_SECONDS:-300}"
 LEASE_SECONDS="${LEASE_SECONDS:-300}"
+SWARM_OVERLAY_NETWORK_NAME="${SWARM_OVERLAY_NETWORK_NAME:-app-network}"
 
 # ---------------------------------------------------------------------------
 # EC2 metadata (IMDSv2)
@@ -61,6 +62,24 @@ fi
 docker_state() { docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "inactive"; }
 is_leader()    { docker node inspect self --format '{{ .ManagerStatus.Leader }}' 2>/dev/null | grep -qi true; }
 
+# Ensure the overlay network exists on the leader
+create_overlay_network_if_missing() {
+  local name="$SWARM_OVERLAY_NETWORK_NAME"
+  [[ -n "$name" ]] || return 0
+
+  if docker network inspect "$name" >/dev/null 2>&1; then
+    log "Overlay network '$name' already exists"
+    return 0
+  fi
+
+  log "Creating overlay network '$name'"
+  if docker network create --driver overlay --attachable "$name" >/dev/null 2>&1; then
+    log "Overlay network '$name' created"
+  else
+    log "WARNING: failed to create overlay network '$name'"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # DynamoDB helpers
 # ---------------------------------------------------------------------------
@@ -96,6 +115,12 @@ update_lock_with_condition() {
 
   local set_expr='SET manager_instance_id = :iid, manager_private_ip = :ip, lease_expires_at = :lease'
   local expr_vals='{":iid":{"S":"'"$my_instance_id"'"},":ip":{"S":"'"$my_private_ip"'"},":lease":{"S":"'"$lease_until_iso"'"}}'
+
+  # Persist overlay network name if configured
+  if [[ -n "${SWARM_OVERLAY_NETWORK_NAME:-}" ]]; then
+    set_expr+=' , swarm_overlay_network_name = :net'
+    expr_vals=$(jq -c --arg net "$SWARM_OVERLAY_NETWORK_NAME" '. + {":net":{"S":$net}}' <<<"$expr_vals")
+  fi
 
   if [[ "$publish_tokens" == "true" ]]; then
     local wt mt
@@ -134,6 +159,8 @@ update_lock_with_condition() {
 init_swarm_and_publish() {
   log "Initializing new swarm on $my_private_ip"
   if docker swarm init --advertise-addr "$my_private_ip" >/dev/null 2>&1; then
+    # Ensure overlay network exists on fresh cluster
+    create_overlay_network_if_missing || true
     # publish tokens, don't care if this exact write wins
     # Read current lease first (item may already exist from prior lock acquisition)
     local lj lease
@@ -192,6 +219,7 @@ main() {
   # A) Already the Swarm leader → just renew + publish tokens
   if is_leader; then
     log "This node is current Swarm leader; renewing lease"
+    create_overlay_network_if_missing || true
     update_lock_with_condition "$lease" true || log "Lease renewal failed (race?)"
     return 0
   fi

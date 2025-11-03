@@ -195,8 +195,8 @@ export_tf_vars() {
   export TF_VAR_bucket_suffix="${BUCKET_SUFFIX:-}"
   export TF_VAR_vercel_api_token="${VERCEL_API_KEY:-}"
   export TF_VAR_vercel_root_directory="clients/auth-sample"
-  export TF_VAR_microservices='["auth", "envoy", "otel-collector"]'
-  export TF_VAR_microservices_with_logs='["auth", "envoy"]'
+  export TF_VAR_microservices='["auth", "envoy", "otel-collector", "redis"]'
+  export TF_VAR_microservices_with_logs='[]'
   export TF_VAR_api_subdomain='api'
   export TF_VAR_auth_subdomain='auth'
   export TF_VAR_auth_callback="[\"https://auth.${DOMAIN_NAME}/auth/callback\"]"
