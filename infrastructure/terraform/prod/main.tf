@@ -80,6 +80,7 @@ module "cache" {
   private_subnet_id                = module.network.private_subnet_id
   instance_security_group_id       = module.network.instance_security_group_id
   worker_iam_instance_profile_name = module.compute.worker_iam_instance_profile_name
+  swarm_lock_table                 = module.database.swarm_cluster_lock_table_name
 }
 
 # CI/CD (ECR, CodeDeploy, IAM)
