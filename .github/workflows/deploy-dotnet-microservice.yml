@@ -62,7 +62,7 @@ jobs:
             exit 1
           fi
 
-          AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}"
+          AWS_REGION="${{ vars.AWS_REGION }}"
           if [ -z "$AWS_REGION" ]; then
             echo "::error ::AWS_REGION variable is not set"
             exit 1
@@ -80,6 +80,7 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.PROJECT_NAME }}-github-actions-codedeploy-${{ vars.ENVIRONMENT }}
           role-session-name: gha-codedeploy-${{ github.run_id }}
           aws-region: ${{ steps.vars.outputs.aws_region }}
+          output-env-credentials: true
 
       - name: Build & push image
         uses: ./.github/actions/build-and-push-dotnet
