@@ -190,7 +190,6 @@ export_tf_vars() {
   export TF_VAR_env="$ENVIRONMENT"
   export TF_VAR_github_repository="$GITHUB_REPO_FULL"
   export TF_VAR_codedeploy_bucket_name="$DEPLOYMENT_BUCKET"
-  export TF_VAR_certificate_manager_s3_key="${CERT_MANAGER_S3_KEY:-infrastructure/certificate-manager.sh}"
   export TF_VAR_domain_name="$DOMAIN_NAME"
   export TF_VAR_route53_hosted_zone_id="$ROUTE53_HOSTED_ZONE_ID"
   export TF_VAR_bucket_suffix="${BUCKET_SUFFIX:-}"
@@ -209,26 +208,60 @@ export_tf_vars() {
   export AWS_SDK_LOAD_CONFIG=1
 }
 
-upload_certificate_manager_to_codedeploy() {
-  local src_file
-  src_file="$PROJECT_ROOT/infrastructure/terraform/modules-single-az/compute/userdata/certificate-manager.sh"
-  local s3_key
-  s3_key="${CERT_MANAGER_S3_KEY:-infrastructure/certificate-manager.sh}"
+upload_managers_to_codedeploy() {
+  local base_dir
+  base_dir="$PROJECT_ROOT/infrastructure/terraform/modules-single-az/compute/userdata"
 
-  if [[ ! -f "$src_file" ]]; then
-    print_warning "certificate-manager.sh not found at $src_file; skipping upload"
-    return 0
-  fi
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
 
-  print_info "Uploading certificate-manager.sh to s3://${DEPLOYMENT_BUCKET}/${s3_key}"
-  if aws s3 cp "$src_file" "s3://${DEPLOYMENT_BUCKET}/${s3_key}" \
-       --profile "$AWS_PROFILE" \
-       --region "$AWS_REGION" \
-       --only-show-errors; then
-    print_success "Uploaded certificate-manager.sh to CodeDeploy bucket"
-  else
-    print_warning "Failed to upload certificate-manager.sh to s3://${DEPLOYMENT_BUCKET}/${s3_key}"
-  fi
+  local components=("certificate-manager" "worker-manager" "leader-manager")
+
+  for comp in "${components[@]}"; do
+    local src_dir
+    src_dir="$base_dir/$comp"
+
+    if [[ ! -d "$src_dir" ]]; then
+      print_warning "$comp directory not found at $src_dir; skipping"
+      continue
+    fi
+
+    local zip_path
+    zip_path="$tmp_dir/${comp}.zip"
+
+    print_info "Packaging $comp → $zip_path"
+    if ( cd "$src_dir" && zip -qr "$zip_path" . ); then
+      :
+    else
+      print_warning "Failed to package $comp; skipping upload"
+      continue
+    fi
+
+    local s3_key
+    case "$comp" in
+      certificate-manager)
+        s3_key="${CERT_MANAGER_PACKAGE_S3_KEY:-infrastructure/certificate-manager.zip}"
+        ;;
+      worker-manager)
+        s3_key="${WORKER_MANAGER_PACKAGE_S3_KEY:-infrastructure/worker-manager.zip}"
+        ;;
+      leader-manager)
+        s3_key="${LEADER_MANAGER_PACKAGE_S3_KEY:-infrastructure/leader-manager.zip}"
+        ;;
+    esac
+
+    print_info "Uploading ${comp}.zip to s3://${DEPLOYMENT_BUCKET}/${s3_key}"
+    if aws s3 cp "$zip_path" "s3://${DEPLOYMENT_BUCKET}/${s3_key}" \
+         --profile "$AWS_PROFILE" \
+         --region "$AWS_REGION" \
+         --only-show-errors; then
+      print_success "Uploaded ${comp}.zip to CodeDeploy bucket"
+    else
+      print_warning "Failed to upload ${comp}.zip to s3://${DEPLOYMENT_BUCKET}/${s3_key}"
+    fi
+  done
+
+  rm -rf "$tmp_dir" || true
 }
 
 terraform_init() {
@@ -329,7 +362,7 @@ main() {
 
   case "$ACTION" in
     plan|deploy)
-      upload_certificate_manager_to_codedeploy
+      upload_managers_to_codedeploy
       run_terraform_pipeline
       ;;
     destroy)

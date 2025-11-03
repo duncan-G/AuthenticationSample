@@ -19,7 +19,8 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.role == manager
+          - node.role == worker
+          - engine.labels.worker_type == compute
       restart_policy:
         condition: on-failure
         delay: 15s
@@ -38,56 +39,6 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-
-  sidecar:
-    image: envoyproxy/envoy:v1.34-latest
-    networks:
-      - net
-    ports:
-      - "80:80"       # HTTP Application Service
-      - "80:80/udp"   # HTTP/3 Application Service
-    configs:
-      - source: envoy_config
-        target: /etc/envoy/envoy.yaml
-      - source: envoy_clusters
-        target: /etc/envoy/discovery/envoy.cds.yaml
-      - source: envoy_routes
-        target: /etc/envoy/discovery/envoy.rds.yaml
-    deploy:
-      labels:
-        version: ${VERSION}
-        service: ${SERVICE_NAME}-envoy
-        environment: ${ENVIRONMENT}
-      mode: replicated
-      replicas: 1
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
-      restart_policy:
-        condition: on-failure
-        delay: 15s
-        max_attempts: 3
-        window: 120s
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
-        monitor: 30s
-        order: stop-first
-        max_failure_ratio: 0.3
-      placement:
-        constraints:
-          - node.role == manager
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
 networks:
   net:
     name: ${NETWORK_NAME}

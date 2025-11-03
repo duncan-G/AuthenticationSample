@@ -41,3 +41,39 @@ variable "cache_instance_volume_type" {
   type        = string
   default     = "gp3"
 }
+
+# Instance networking and image
+variable "ami_id" {
+  description = "AMI ID for the cache EC2 instance"
+  type        = string
+}
+
+variable "private_subnet_id" {
+  description = "Private subnet ID where the cache instance will be launched"
+  type        = string
+}
+
+variable "instance_security_group_id" {
+  description = "Security group ID to attach to the cache instance"
+  type        = string
+}
+
+# IAM instance profile to reuse worker permissions from compute module
+variable "worker_iam_instance_profile_name" {
+  description = "IAM instance profile name providing worker permissions"
+  type        = string
+}
+
+# Optional: domain used by certificate manager and TLS materials
+variable "domain_name" {
+  description = "Primary domain name used for certificates"
+  type        = string
+  default     = ""
+}
+
+# Optional: S3 bucket and key for certificate-manager.sh distribution
+variable "codedeploy_bucket_name" {
+  description = "S3 bucket name hosting certificate-manager.sh"
+  type        = string
+  default     = ""
+}

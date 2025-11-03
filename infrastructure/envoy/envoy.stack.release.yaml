@@ -43,6 +43,7 @@ services:
       placement:
         constraints:
           - node.role == worker
+          - engine.labels.worker_type == compute
     logging:
       driver: "json-file"
       options:

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Swarm Leader Lease Maintainer every 5 minutes
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+AccuracySec=1m
+Persistent=true
+Unit=leader-manager.service
+
+[Install]
+WantedBy=timers.target

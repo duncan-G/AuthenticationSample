@@ -1,0 +1,33 @@
+[Unit]
+Description=Swarm Worker Membership Maintainer
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/worker-manager.env
+
+# Runtime directory for lock file
+RuntimeDirectory=worker-manager
+RuntimeDirectoryMode=0755
+
+# Log directory (systemd-managed, accessible even with ProtectSystem=strict)
+LogsDirectory=worker-manager
+LogsDirectoryMode=0755
+
+ExecStart=/usr/local/bin/worker-manager.sh
+
+# Script logs to stdout/stderr; systemd captures to logfile
+StandardOutput=append:/var/log/worker-manager/worker-manager.log
+StandardError=append:/var/log/worker-manager/worker-manager.log
+SyslogIdentifier=worker-manager
+
+LockPersonality=yes
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+# Explicitly allow writes to log directory (required with ProtectSystem=strict)
+ReadWritePaths=/var/log/worker-manager
+
+
