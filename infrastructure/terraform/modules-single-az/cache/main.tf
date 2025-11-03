@@ -39,6 +39,7 @@ resource "aws_instance" "cache_worker" {
     "export DOMAIN_NAME=\"${var.domain_name}\"",
     "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
     "export WORKER_TYPE=\"cache\"",
+    "export SWARM_LOCK_TABLE=\"${var.swarm_lock_table}\"",
     file("${path.module}/../compute/userdata/worker.sh")
   ]))
 

@@ -77,3 +77,8 @@ variable "codedeploy_bucket_name" {
   type        = string
   default     = ""
 }
+
+variable "swarm_lock_table" {
+  description = "Name of the DynamoDB table used for swarm lock"
+  type        = string
+}
