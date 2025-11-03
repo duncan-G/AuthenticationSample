@@ -1,0 +1,14 @@
+[Unit]
+Description=Run Certificate Manager daily
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=24h
+AccuracySec=1h
+Persistent=true
+Unit=certificate-manager.service
+
+[Install]
+WantedBy=timers.target
+
+

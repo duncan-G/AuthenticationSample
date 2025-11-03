@@ -22,13 +22,13 @@ module "compute" {
   api_subdomain              = var.api_subdomain
   auth_subdomain             = var.auth_subdomain
   codedeploy_bucket_name     = var.codedeploy_bucket_name
-  certificate_manager_s3_key = var.certificate_manager_s3_key
   route53_hosted_zone_id     = var.route53_hosted_zone_id
   vpc_id                     = module.network.vpc_id
   ami_id                     = data.aws_ami.amazon_linux.id
   account_id                 = data.aws_caller_identity.current.account_id
   instance_security_group_id = module.network.instance_security_group_id
   private_subnet_id          = module.network.private_subnet_id
+  swarm_lock_table           = module.database.swarm_cluster_lock_table_name
 }
 
 # Load Balancer (NLB + TLS)
@@ -63,18 +63,23 @@ module "dns" {
 module "database" {
   source = "../modules-single-az/database"
 
-  project_name     = var.project_name
-  env              = var.env
-  worker_role_name = module.compute.worker_role_name
+  project_name      = var.project_name
+  env               = var.env
+  worker_role_name  = module.compute.worker_role_name
+  manager_role_name = module.compute.manager_role_name
 }
 
 # Cache (single EC2 + EBS) — optional; shares compute IAM and network
 module "cache" {
   source = "../modules-single-az/cache"
 
-  region       = var.region
-  project_name = var.project_name
-  env          = var.env
+  region                           = var.region
+  project_name                     = var.project_name
+  env                              = var.env
+  ami_id                           = data.aws_ami.amazon_linux.id
+  private_subnet_id                = module.network.private_subnet_id
+  instance_security_group_id       = module.network.instance_security_group_id
+  worker_iam_instance_profile_name = module.compute.worker_iam_instance_profile_name
 }
 
 # CI/CD (ECR, CodeDeploy, IAM)

@@ -7,17 +7,21 @@
 # What this script does
 # - Installs Docker, jq, awscli, and the Amazon ECR credential helper; configures
 #   Docker to use the credential store for root and (optionally) `SETUP_USER`.
-# - Installs and configures the CloudWatch agent to ship this script's log file.
-# - Initializes (or ensures) Docker Swarm in manager mode and creates an overlay
-#   network (`NETWORK_NAME`, `NETWORK_SUBNET`).
-# - Publishes join and network info to AWS Systems Manager Parameter Store under
-#   `SSM_PREFIX`: `worker-token`, `manager-ip`, `network-name`.
-# - Installs the AWS CodeDeploy agent and labels the node with its AZ for
-#   placement constraints.
+# - Installs and configures the CloudWatch agent to ship logs from:
+#   - This script's log file
+#   - leader-manager service logs
+#   - certificate-manager service logs
+# - Installs the AWS CodeDeploy agent.
+# - Tags the instance as DeploymentManager if it's the first running instance
+#   with that tag.
+# - Installs certificate-manager service from S3 (manages SSL certificates).
+# - Installs leader-manager service from S3, which handles Docker Swarm
+#   initialization and join operations using DynamoDB for leader election.
+#   The cluster_name is set to the EC2 instance ID.
 #
 # Inputs/overrides via environment variables
-# - `AWS_REGION` (auto-detected if unset), `LOG_FILE`, `SSM_PREFIX`,
-#   `NETWORK_NAME`, `NETWORK_SUBNET`, `PROJECT_NAME`, `SETUP_USER`.
+# - `AWS_REGION` (auto-detected if unset), `LOG_FILE`, `PROJECT_NAME`, `SETUP_USER`,
+#   `CODEDEPLOY_BUCKET_NAME`, `AWS_SECRET_NAME`, `DOMAIN_NAME`, `SWARM_LOCK_TABLE`.
 #
 # Usage
 # - Invoked as EC2 user data by Terraform for instances tagged `Role=manager`,
@@ -32,10 +36,8 @@ shopt -s inherit_errexit || true
 # Globals (override with env vars if needed)
 # ----------------------------------------------
 readonly LOG_FILE="${LOG_FILE:-/var/log/docker-manager-setup.log}"
-readonly SSM_PREFIX="${SSM_PREFIX:-/docker/swarm}"
-readonly NETWORK_NAME="${NETWORK_NAME:-app-network}"
-readonly NETWORK_SUBNET="${NETWORK_SUBNET:-10.20.0.0/16}"
 readonly PROJECT_NAME="${PROJECT_NAME:-docker-manager}"
+readonly ENV="${ENV:-}"
 readonly SETUP_USER="${SETUP_USER:-ec2-user}"
 
 # ----------------------------------------------
@@ -54,14 +56,13 @@ trap 'on_error $LINENO' ERR
 # ----------------------------------------------
 # Package manager helpers
 # ----------------------------------------------
-pm_cmd(){
-  if command -v dnf >/dev/null 2>&1; then echo dnf; elif command -v yum >/dev/null 2>&1; then echo yum; else return 1; fi
-}
 pm(){
-  local pm; pm=$(pm_cmd)
+  local pm_cmd
+  pm_cmd=$(command -v dnf || command -v yum || echo "")
+  [[ -z "$pm_cmd" ]] && return 1
   case "$1" in
-    update)   sudo "$pm" -y -q update || true ;;
-    install)  shift; sudo "$pm" -y -q install "$@" ;;
+    update)   sudo "$pm_cmd" -y -q update || true ;;
+    install)  shift; sudo "$pm_cmd" -y -q install "$@" ;;
     enable)   systemctl enable --now "$2" ;;
   esac
 }
@@ -69,14 +70,12 @@ pm(){
 # ----------------------------------------------
 # IMDS (EC2 metadata) helpers
 # ----------------------------------------------
-imds_token(){
-  curl -X PUT -s --connect-timeout 2 "http://169.254.169.254/latest/api/token" \
-       -H "X-aws-ec2-metadata-token-ttl-seconds: 60" || true
-}
 imds_get(){
-  local path=$1 token; token=$(imds_token)
+  local path=$1 token
+  token=$(curl -X PUT -s --connect-timeout 2 "http://169.254.169.254/latest/api/token" \
+    -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null || echo "")
   [[ -n "$token" ]] || { log "ERROR: IMDSv2 token unavailable"; return 1; }
-  curl -s --connect-timeout 5 -H "X-aws-ec2-metadata-token: $token" "http://169.254.169.254${path}" || true
+  curl -s --connect-timeout 5 -H "X-aws-ec2-metadata-token: $token" "http://169.254.169.254${path}" 2>/dev/null || true
 }
 get_aws_region(){ imds_get "/latest/dynamic/instance-identity/document" | jq -r '.region' 2>/dev/null || true; }
 get_local_ip(){  imds_get "/latest/meta-data/local-ipv4"; }
@@ -90,38 +89,41 @@ install_docker_stack(){
   pm update
   pm install docker jq awscli openssl || true
   systemctl enable --now docker
-  if id "$SETUP_USER" >/dev/null 2>&1; then usermod -aG docker "$SETUP_USER" || true; fi
+  id "$SETUP_USER" >/dev/null 2>&1 && usermod -aG docker "$SETUP_USER" || true
 
-  # ECR credential helper
-  if ! command -v docker-credential-ecr-login >/dev/null 2>&1; then
-    pm install amazon-ecr-credential-helper || true
-  fi
+  command -v docker-credential-ecr-login >/dev/null 2>&1 || pm install amazon-ecr-credential-helper || true
 
-  # Configure Docker to use ECR creds for root and (optional) SETUP_USER
+  # Configure Docker ECR creds
   mkdir -p /root/.docker /etc/docker
-  cat >/root/.docker/config.json <<'JSON'
-{"credsStore":"ecr-login"}
-JSON
+  echo '{"credsStore":"ecr-login"}' > /root/.docker/config.json
+  echo '{"credsStore":"ecr-login"}' > /etc/docker/config.json
 
   if id "$SETUP_USER" >/dev/null 2>&1; then
     mkdir -p ~"$SETUP_USER"/.docker
-    cat >~"$SETUP_USER"/.docker/config.json <<'JSON'
-{"credsStore":"ecr-login"}
-JSON
+    echo '{"credsStore":"ecr-login"}' > ~"$SETUP_USER"/.docker/config.json
     chown -R "$SETUP_USER:$SETUP_USER" ~"$SETUP_USER"/.docker
   fi
-
-  cat >/etc/docker/config.json <<'JSON'
-{"credsStore":"ecr-login"}
-JSON
 }
 
 wait_for_docker(){
   local attempts=0
   until docker info >/dev/null 2>&1; do
-    sleep 2; attempts=$((attempts+1))
-    [[ $attempts -le 30 ]] || { log "Docker not ready after ${attempts} attempts"; return 1; }
+    sleep 2
+    ((attempts++))
+    ((attempts >= 30)) && { log "Docker not ready after $attempts attempts"; return 1; }
   done
+}
+
+wait_for_swarm(){
+  local attempts=0
+  log "Waiting for node to join swarm..."
+  until docker info 2>/dev/null | grep -q "Swarm: active"; do
+    sleep 5
+    ((attempts++))
+    ((attempts >= 60)) && { log "Node not in swarm after $((attempts * 5)) seconds"; return 1; }
+    log "Swarm not active yet (attempt $attempts/60)..."
+  done
+  log "Node is now in swarm"
 }
 
 # ----------------------------------------------
@@ -140,7 +142,19 @@ install_cloudwatch_agent(){
         "collect_list": [
           {
             "file_path": "$LOG_FILE",
-            "log_group_name": "/aws/ec2/${PROJECT_NAME}-docker-manager",
+            "log_group_name": "/aws/ec2/${PROJECT_NAME}${ENV:+-${ENV}}-docker-manager",
+            "log_stream_name": "{instance_id}",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/leader-manager/leader-manager.log",
+            "log_group_name": "/aws/ec2/${PROJECT_NAME}${ENV:+-${ENV}}-leader-manager",
+            "log_stream_name": "{instance_id}",
+            "timestamp_format": "%Y-%m-%d %H:%M:%S"
+          },
+          {
+            "file_path": "/var/log/certificate-manager/certificate-manager.log",
+            "log_group_name": "/aws/ec2/${PROJECT_NAME}${ENV:+-${ENV}}-certificate-manager",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           }
@@ -155,66 +169,16 @@ EOF
     -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json || true
 }
 
-# ----------------------------------------------
-# Swarm helpers
-# ----------------------------------------------
-already_in_swarm(){
-  local state
-  state=$(docker info --format '{{.Swarm.LocalNodeState}}' 2>/dev/null || echo "inactive")
-  [[ "$state" == "active" || "$state" == "pending" ]]
-}
-
-create_overlay_network(){
-  if docker network inspect "$NETWORK_NAME" &>/dev/null; then
-    log "Overlay network '$NETWORK_NAME' already exists — skipping"
-    return 0
-  fi
-  docker network create --driver overlay --attachable --subnet "$NETWORK_SUBNET" "$NETWORK_NAME"
-  log "Overlay network '$NETWORK_NAME' created"
-}
-
-put_param(){
-  local name=$1 value=$2
-  aws --region "$AWS_REGION" ssm put-parameter \
-    --name "$SSM_PREFIX/$name" --type String \
-    --value "$value" --overwrite >/dev/null
-}
-
-get_param(){
-  local name=$1
-  aws --region "$AWS_REGION" ssm get-parameter \
-    --name "$SSM_PREFIX/$name" \
-    --query 'Parameter.Value' --output text 2>/dev/null || true
-}
-
-valid_param(){
-  local v=$1
-  [[ -n "$v" && "$v" != "None" && "$v" != "placeholder" ]]
-}
 
 install_codedeploy_agent(){
-  if systemctl is-active --quiet codedeploy-agent; then
-    log "CodeDeploy agent already running — skip"
-    return 0
-  fi
-  log "Installing CodeDeploy agent …"
+  systemctl is-active --quiet codedeploy-agent && { log "CodeDeploy agent already running"; return 0; }
+  log "Installing CodeDeploy agent"
   pm update
   pm install ruby wget || true
-
   local url="https://aws-codedeploy-${AWS_REGION}.s3.${AWS_REGION}.amazonaws.com/latest/install"
   install -d -m 0755 /tmp/codedeploy
-  ( cd /tmp/codedeploy && curl -fsSL "$url" -o install_codedeploy && chmod +x install_codedeploy && ./install_codedeploy auto ) || true
+  (cd /tmp/codedeploy && curl -fsSL "$url" -o install_codedeploy && chmod +x install_codedeploy && ./install_codedeploy auto) || true
   systemctl start codedeploy-agent || true
-  log "CodeDeploy agent installed"
-}
-
-label_node_with_az(){
-  local az node_id
-  az=$(get_az || true)
-  node_id=$(docker info -f '{{.Swarm.NodeID}}' || true)
-  if [[ -n "$az" && -n "$node_id" ]]; then
-    docker node update --label-add "az=${az}" "$node_id" || true
-  fi
 }
 
 # ----------------------------------------------
@@ -223,125 +187,102 @@ label_node_with_az(){
 ensure_deployment_manager_tag(){
   local instance_id other_ids current_value
   instance_id=$(get_instance_id || true)
-  if [[ -z "$instance_id" ]]; then
-    log "Unable to determine instance-id; skipping DeploymentManager tag"
-    return 0
-  fi
+  [[ -z "$instance_id" ]] && { log "Unable to determine instance-id; skipping DeploymentManager tag"; return 0; }
 
-  # Check for any other instance already tagged as DeploymentManager
   other_ids=$(aws --region "$AWS_REGION" ec2 describe-instances \
     --filters "Name=tag-key,Values=DeploymentManager" \
              "Name=instance-state-name,Values=pending,running,stopping,stopped" \
     --query "Reservations[].Instances[?InstanceId!='${instance_id}'].InstanceId" \
     --output text 2>/dev/null || true)
 
-  if [[ -n "$other_ids" ]]; then
-    log "Another DeploymentManager exists (${other_ids}); skipping tag on ${instance_id}"
-    return 0
-  fi
+  [[ -n "$other_ids" ]] && { log "Another DeploymentManager exists (${other_ids}); skipping"; return 0; }
 
-  # If this instance already has the tag, do nothing
   current_value=$(aws --region "$AWS_REGION" ec2 describe-tags \
     --filters "Name=resource-id,Values=${instance_id}" "Name=key,Values=DeploymentManager" \
     --query 'Tags[].Value' --output text 2>/dev/null || true)
 
-  if [[ -n "$current_value" ]]; then
-    log "Instance ${instance_id} already tagged DeploymentManager=${current_value}"
-    return 0
-  fi
+  [[ -n "$current_value" ]] && { log "Instance ${instance_id} already tagged DeploymentManager=${current_value}"; return 0; }
 
-  # Apply the tag to this instance
   aws --region "$AWS_REGION" ec2 create-tags \
     --resources "$instance_id" \
-    --tags "Key=DeploymentManager,Value=true" >/dev/null 2>&1 || {
-      log "Warning: failed to create DeploymentManager tag on ${instance_id}"
-      return 0
-    }
-  log "Tagged instance ${instance_id} as DeploymentManager"
+    --tags "Key=DeploymentManager,Value=true" >/dev/null 2>&1 && \
+    log "Tagged instance ${instance_id} as DeploymentManager" || \
+    log "Warning: failed to create DeploymentManager tag"
 }
 
 # ----------------------------------------------
-# Certificate Manager service configuration
+# Service installation helper
 # ----------------------------------------------
-install_certificate_manager(){
-  log "Configuring certificate manager service …"
+install_service_from_s3() {
+  local service_name=$1 env_content=$2
 
-  # Ensure dependencies and target directories
+  [[ -z "${CODEDEPLOY_BUCKET_NAME:-}" || -z "${service_name}" ]] && \
+    { log "ERROR: CODEDEPLOY_BUCKET_NAME or ${service_name} S3 key not set; skipping"; return 0; }
+
   install -d -m 0755 /usr/local/bin
-  if ! command -v flock >/dev/null 2>&1; then pm install util-linux || true; fi
+  command -v unzip >/dev/null 2>&1 || pm install unzip || true
+  [[ "$service_name" == "certificate-manager" ]] && \
+    command -v flock >/dev/null 2>&1 || pm install util-linux || true
 
-  # Fetch certificate-manager.sh from CodeDeploy S3 bucket when variables are provided
-  if [[ -n ${CODEDEPLOY_BUCKET_NAME:-} && -n ${CERT_MANAGER_S3_KEY:-} ]]; then
-    log "Downloading s3://${CODEDEPLOY_BUCKET_NAME}/${CERT_MANAGER_S3_KEY} → /usr/local/bin/certificate-manager.sh"
-    aws s3 cp "s3://${CODEDEPLOY_BUCKET_NAME}/${CERT_MANAGER_S3_KEY}" \
-      /usr/local/bin/certificate-manager.sh \
-      --region "${AWS_REGION}" \
-      --only-show-errors || log "Warning: Failed to download certificate-manager.sh from S3"
-    chmod +x /usr/local/bin/certificate-manager.sh || true
-  else
-    log "Warning: CODEDEPLOY_BUCKET_NAME or CERT_MANAGER_S3_KEY not set; skipping download"
-  fi
+  local tmp_dir="$(mktemp -d /tmp/${service_name}.XXXX)"
+  local package_zip="$tmp_dir/${service_name}.zip"
+  local extract_dir="$tmp_dir/extract"
 
-  # Install or update systemd unit
-  cat >/etc/systemd/system/certificate-manager.service <<'UNIT'
-[Unit]
-Description=Certificate Manager Daemon
-After=network-online.target docker.service
-Wants=network-online.target
+  log "Downloading s3://${CODEDEPLOY_BUCKET_NAME}/infrastructure/${service_name}.zip"
+  aws s3 cp "s3://${CODEDEPLOY_BUCKET_NAME}/infrastructure/${service_name}.zip" "$package_zip" \
+    --region "$AWS_REGION" --only-show-errors || \
+    { log "ERROR: download failed"; rm -rf "$tmp_dir"; return 1; }
 
-[Service]
-Type=simple
-User=ec2-user
-Group=ec2-user
+  mkdir -p "$extract_dir"
+  unzip -o -q "$package_zip" -d "$extract_dir" || \
+    { log "ERROR: unzip failed"; rm -rf "$tmp_dir"; return 1; }
 
-# Writable state directory under /var/lib
-StateDirectory=certificate-manager
-WorkingDirectory=%S
+  local src_script src_service src_timer
+  src_script=$(find "$extract_dir" -maxdepth 2 -type f -name "${service_name}.sh" | head -n1 || true)
+  src_service=$(find "$extract_dir" -maxdepth 2 -type f -name "${service_name}.service" | head -n1 || true)
+  src_timer=$(find "$extract_dir" -maxdepth 2 -type f -name "${service_name}.timer" | head -n1 || true)
 
-# Runtime directory for lock file
-RuntimeDirectory=certificate-manager
-RuntimeDirectoryMode=0755
+  [[ -z "$src_script" || -z "$src_service" || -z "$src_timer" ]] && \
+    { log "ERROR: package missing ${service_name}.sh or .service"; rm -rf "$tmp_dir"; return 1; }
 
-# Dedicated logs directory under /var/log (owned by service user)
-LogsDirectory=certificate-manager
-LogsDirectoryMode=0755
+  log "Installing ${service_name} script and service"
+  install -m 0755 "$src_script" "/usr/local/bin/${service_name}.sh"
+  install -m 0644 "$src_service" "/etc/systemd/system/${service_name}.service"
+  install -m 0644 "$src_timer" "/etc/systemd/system/${service_name}.timer"
 
-# Environment for certificate manager
-EnvironmentFile=/etc/certificate-manager.env
+  [[ -n "$env_content" ]] && echo "$env_content" > "/etc/${service_name}.env"
 
-ExecStart=/usr/bin/flock -n %t/certificate-manager/instance.lock /usr/local/bin/certificate-manager.sh --daemon
-
-Restart=always
-RestartSec=10
-
-SyslogIdentifier=certificate-manager
-StandardOutput=journal
-StandardError=journal
-
-# Explicitly grant write access to required paths under strict protection
-ReadWritePaths=/var/log/certificate-manager /var/lib/certificate-manager
-
-LockPersonality=yes
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-  # Write environment file for the service
-  cat >/etc/certificate-manager.env <<ENV
-AWS_REGION=${AWS_REGION}
-AWS_SECRET_NAME=${AWS_SECRET_NAME}
-DOMAIN_NAME=${DOMAIN_NAME}
-ENV
-
-  # Ensure systemd is aware of latest units and start the service
   systemctl daemon-reload
-  systemctl enable --now certificate-manager.service || true
-  log "Certificate manager service enabled"
+  systemctl enable --now "${service_name}.timer" || true
+
+  rm -rf "$tmp_dir"
+}
+
+install_certificate_manager() {
+  log "Configuring certificate manager service"
+  local env_content="AWS_REGION=${AWS_REGION}
+AWS_SECRET_NAME=${AWS_SECRET_NAME}
+DOMAIN_NAME=${DOMAIN_NAME}"
+mkdir -p /var/log/certificate-manager
+chown -R ec2-user:ec2-user /var/log/certificate-manager
+  install_service_from_s3 "certificate-manager" "$env_content"
+}
+
+install_leader_manager() {
+  log "Configuring leader manager service"
+  local table_name="${SWARM_LOCK_TABLE:-}"
+  local iid
+
+  iid=$(get_instance_id || true)
+  [[ -z "$iid" ]] && { log "ERROR: Unable to determine instance-id"; return 1; }
+
+  [[ -z "$table_name" ]] && { log "ERROR: SWARM_LOCK_TABLE not set"; return 1; }
+
+  local env_content="AWS_REGION=${AWS_REGION}
+SWARM_LOCK_TABLE=${table_name}"
+  mkdir -p /var/log/leader-manager
+  chown -R ec2-user:ec2-user /var/log/leader-manager
+  install_service_from_s3 "leader-manager" "$env_content"
 }
 
 # ----------------------------------------------
@@ -356,61 +297,16 @@ readonly AWS_REGION="${AWS_REGION:-$(get_aws_region)}"
 [[ -n "${AWS_REGION:-}" ]] || { log "AWS region unknown"; exit 1; }
 log "Using AWS region: $AWS_REGION"
 
-# Tag this instance as the DeploymentManager if none exists yet (best-effort)
 ensure_deployment_manager_tag || true
-
 wait_for_docker || exit 1
+configure_docker_daemon || exit 1
 
-manager_ip=$(get_local_ip)
-[[ -n "$manager_ip" ]] || { log "ERROR: Could not retrieve local IP"; exit 1; }
+log "Swarm join/init will be handled by leader-manager service"
 
-if already_in_swarm; then
-  log "Swarm already initialised"
-else
-  # Single-shot check: if SSM has manager details, try to join; otherwise init
-  existing_manager_token=$(get_param manager-token)
-  existing_manager_addr=$(get_param manager-ip)
-  if valid_param "$existing_manager_token" && valid_param "$existing_manager_addr"; then
-    log "Attempting to join existing swarm manager at $existing_manager_addr"
-    if docker swarm join --token "$existing_manager_token" "$existing_manager_addr"; then
-      log "Joined existing swarm as manager"
-    else
-      log "Join failed — initializing a new swarm here"
-      docker swarm init --advertise-addr "$manager_ip" >/dev/null
-      log "Swarm initialised with advertise-addr $manager_ip"
-
-      manager_addr="${manager_ip}:2377"
-      worker_token=$(docker swarm join-token -q worker)
-      manager_token=$(docker swarm join-token -q manager)
-
-      log "Persisting initial cluster configuration to SSM"
-      put_param "worker-token" "$worker_token"
-      put_param "manager-token" "$manager_token"
-      put_param "manager-ip" "$manager_addr"
-      put_param "network-name" "$NETWORK_NAME"
-    fi
-  else
-    docker swarm init --advertise-addr "$manager_ip" >/dev/null
-    log "Swarm initialised with advertise-addr $manager_ip"
-
-    manager_addr="${manager_ip}:2377"
-    worker_token=$(docker swarm join-token -q worker)
-    manager_token=$(docker swarm join-token -q manager)
-
-    log "Persisting initial cluster configuration to SSM"
-    put_param "worker-token" "$worker_token"
-    put_param "manager-token" "$manager_token"
-    put_param "manager-ip" "$manager_addr"
-    put_param "network-name" "$NETWORK_NAME"
-  fi
-fi
-
-# Ensure overlay network exists (cluster-wide idempotent)
-create_overlay_network
 install_codedeploy_agent
-label_node_with_az
+install_leader_manager
 
-# Install and start certificate manager service
+wait_for_swarm || exit 1
 install_certificate_manager
 
-log "Manager initialised at $manager_addr — ready"
+log "Manager bootstrap complete — leader-manager service will handle swarm join"

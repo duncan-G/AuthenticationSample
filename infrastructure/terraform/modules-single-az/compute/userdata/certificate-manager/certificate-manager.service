@@ -4,7 +4,7 @@ After=network-online.target docker.service
 Wants=network-online.target
 
 [Service]
-Type=simple
+Type=oneshot
 User=ec2-user
 Group=ec2-user
 
@@ -16,15 +16,17 @@ WorkingDirectory=%S
 RuntimeDirectory=certificate-manager
 RuntimeDirectoryMode=0755
 
+# Log directory (systemd-managed, accessible even with ProtectSystem=strict)
+LogsDirectory=certificate-manager
+LogsDirectoryMode=0755
+
 # Environment for certificate manager
 EnvironmentFile=/etc/certificate-manager.env
 
-ExecStart=/usr/bin/flock -n %t/certificate-manager/instance.lock /usr/local/bin/certificate-manager.sh --daemon
-
-Restart=always
-RestartSec=10
+ExecStart=/usr/bin/flock -n %t/certificate-manager/instance.lock /usr/local/bin/certificate-manager.sh
 
 SyslogIdentifier=certificate-manager
+# Script logs to stdout/stderr; systemd captures to logfile
 StandardOutput=append:/var/log/certificate-manager/certificate-manager.log
 StandardError=append:/var/log/certificate-manager/certificate-manager.log
 
@@ -33,6 +35,8 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
+# Explicitly allow writes to log and certificate directories (required with ProtectSystem=strict)
+ReadWritePaths=/var/log/certificate-manager /var/lib/certificate-manager
 
 [Install]
 WantedBy=multi-user.target

@@ -14,10 +14,10 @@ locals {
     "arn:aws:ssm:${var.region}:${var.account_id}:parameter/docker/swarm/*",
     "arn:aws:ssm:${var.region}:${var.account_id}:parameter/swarm/*"
   ]
-  secrets_prefix_arn = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.project_name}-secrets-${var.env}*"
+  secrets_prefix_arn             = "arn:aws:secretsmanager:${var.region}:${var.account_id}:secret:${var.project_name}-secrets-${var.env}*"
+  certificate_manager_object_arn = "arn:aws:s3:::${var.codedeploy_bucket_name}/*/certificate-manager*"
+  worker_manager_object_arn = "arn:aws:s3:::${var.codedeploy_bucket_name}/*/worker-manager*"
 }
-
-
 
 # Worker role
 resource "aws_iam_role" "worker" {
@@ -118,6 +118,16 @@ resource "aws_iam_policy" "worker_core" {
         Effect   = "Allow",
         Action   = ["ec2-instance-connect:SendSSHPublicKey"],
         Resource = "arn:aws:ec2:${var.region}:${var.account_id}:instance/*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:GetObject"
+        ],
+        Resource = [
+          local.certificate_manager_object_arn,
+          local.worker_manager_object_arn
+        ]
       }
     ]
   })
@@ -245,6 +255,26 @@ resource "aws_cloudwatch_log_group" "worker" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "leader_manager" {
+  name              = "/aws/ec2/${var.project_name}-${var.env}-leader-manager"
+  retention_in_days = 30
+
+  tags = {
+    Environment = var.env
+    Purpose     = "Leader Manager Service Logs"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "certificate_manager" {
+  name              = "/aws/ec2/${var.project_name}-${var.env}-certificate-manager"
+  retention_in_days = 30
+
+  tags = {
+    Environment = var.env
+    Purpose     = "Certificate Manager Service Logs"
+  }
+}
+
 # Launch Template for Workers
 resource "aws_launch_template" "worker" {
   name_prefix   = "${var.project_name}-worker-${var.env}-"
@@ -264,6 +294,10 @@ resource "aws_launch_template" "worker" {
     "# shellcheck shell=bash",
     "export PROJECT_NAME=\"${var.project_name}\"",
     "export AWS_REGION=\"${var.region}\"",
+    "export DOMAIN_NAME=\"${var.domain_name}\"",
+    "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
+    "export SWARM_LOCK_TABLE=\"${var.swarm_lock_table}\"",
+    "export WORKER_TYPE=\"compute\"",
     file("${path.module}/userdata/worker.sh")
   ]))
 
@@ -301,14 +335,12 @@ resource "aws_launch_template" "manager" {
     "#!/usr/bin/env bash",
     "# shellcheck shell=bash",
     "export PROJECT_NAME=\"${var.project_name}\"",
+    "export ENV=\"${var.env}\"",
     "export AWS_REGION=\"${var.region}\"",
-    # Secret name convention matches application configs (e.g., auth-sample-secrets-dev)
     "export AWS_SECRET_NAME=\"${var.project_name}-secrets-${var.env}\"",
-    # Use primary domain from module inputs
     "export DOMAIN_NAME=\"${var.domain_name}\"",
-    # S3 location of certificate-manager.sh
     "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
-    "export CERT_MANAGER_S3_KEY=\"${var.certificate_manager_s3_key}\"",
+    "export SWARM_LOCK_TABLE=\"${var.swarm_lock_table}\"",
     file("${path.module}/userdata/manager.sh")
   ]))
 
@@ -334,7 +366,7 @@ resource "aws_autoscaling_group" "workers" {
   name                      = "${var.project_name}-workers-asg-${var.env}"
   vpc_zone_identifier       = [var.private_subnet_id]
   target_group_arns         = [aws_lb_target_group.workers.arn]
-  health_check_type         = "ELB"
+  health_check_type         = "EC2"
   health_check_grace_period = 300
 
   min_size         = var.min_workers

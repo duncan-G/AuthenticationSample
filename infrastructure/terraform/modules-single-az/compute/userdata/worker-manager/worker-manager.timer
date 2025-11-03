@@ -1,0 +1,14 @@
+[Unit]
+Description=Run Swarm Worker membership maintainer every 5 minutes
+
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=5m
+AccuracySec=1m
+Persistent=true
+Unit=worker-manager.service
+
+[Install]
+WantedBy=timers.target
+
+

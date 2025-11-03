@@ -9,7 +9,7 @@
 
 # EBS Volume for Cache Instance
 resource "aws_ebs_volume" "cache_instance" {
-  availability_zone = aws_subnet.private.availability_zone
+  availability_zone = aws_instance.cache_worker.availability_zone
   size              = var.cache_instance_volume_size
   type              = var.cache_instance_volume_type
   encrypted         = true
@@ -23,19 +23,23 @@ resource "aws_ebs_volume" "cache_instance" {
 
 # Cache EC2 Instance (not part of ASG)
 resource "aws_instance" "cache_worker" {
-  ami                    = data.aws_ami.amazon_linux.id
+  ami                    = var.ami_id
   instance_type          = var.cache_instance_type
-  subnet_id              = aws_subnet.private.id
-  vpc_security_group_ids = [aws_security_group.instance.id]
+  subnet_id              = var.private_subnet_id
+  vpc_security_group_ids = [var.instance_security_group_id]
 
-  iam_instance_profile = aws_iam_instance_profile.worker.name
+  iam_instance_profile = var.worker_iam_instance_profile_name
 
   # Bootstrap using userdata script; prefix environment variables
-  user_data = base64encode(join("\n", [
+  user_data_base64 = base64encode(join("\n", [
     "#!/usr/bin/env bash",
     "export PROJECT_NAME=\"${var.project_name}-${var.env}\"",
     "export AWS_REGION=\"${var.region}\"",
-    file("${path.module}/userdata/worker.sh")
+    # Domain and certificate manager settings for worker certificate service
+    "export DOMAIN_NAME=\"${var.domain_name}\"",
+    "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
+    "export WORKER_TYPE=\"cache\"",
+    file("${path.module}/../compute/userdata/worker.sh")
   ]))
 
   tags = {
@@ -45,11 +49,6 @@ resource "aws_instance" "cache_worker" {
     Type        = "private"
   }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.ssm_worker,
-    aws_iam_role_policy_attachment.cw_worker,
-    aws_iam_role_policy_attachment.worker_core
-  ]
 }
 
 # Attach EBS Volume to Cache Instance

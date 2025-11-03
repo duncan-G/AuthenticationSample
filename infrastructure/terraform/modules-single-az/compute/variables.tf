@@ -39,13 +39,6 @@ variable "codedeploy_bucket_name" {
   type        = string
 }
 
-# S3 key for certificate-manager.sh within the CodeDeploy bucket
-variable "certificate_manager_s3_key" {
-  description = "S3 key (path) to certificate-manager.sh in the CodeDeploy bucket"
-  type        = string
-  default     = "infrastructure/certificate-manager.sh"
-}
-
 # Subdomain labels
 variable "api_subdomain" {
   description = "API subdomain label (e.g., 'api')"
@@ -138,5 +131,10 @@ variable "instance_security_group_id" {
 
 variable "private_subnet_id" {
   description = "ID of the private subnet"
+  type        = string
+}
+
+variable "swarm_lock_table" {
+  description = "Name of the DynamoDB table for swarm lock"
   type        = string
 }
