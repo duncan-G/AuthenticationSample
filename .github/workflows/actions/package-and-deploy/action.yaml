@@ -33,8 +33,8 @@ runs:
         echo "ts=$TS" >> "$GITHUB_OUTPUT"
 
         mkdir -p staging/scripts
-        cp Infrastructure/codedeploy/appspec.yml  staging/
-        cp -r Infrastructure/codedeploy/scripts/* staging/scripts/
+        cp infrastructure/codedeploy/appspec.yml  staging/
+        cp -r infrastructure/codedeploy/scripts/* staging/scripts/
 
         # Determine stack file source and destination name
         if [[ -n "${{ inputs.stack_file_path }}" ]]; then

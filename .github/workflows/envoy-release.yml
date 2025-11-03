@@ -101,10 +101,10 @@ jobs:
         # ========= Create staging area =========
         mkdir -p staging/scripts
         mkdir -p staging/configs
-        cp Infrastructure/codedeploy/appspec.yml        staging/
-        cp -r Infrastructure/codedeploy/scripts/*       staging/scripts/
+        cp infrastructure/codedeploy/appspec.yml        staging/
+        cp -r infrastructure/codedeploy/scripts/*       staging/scripts/
         # Copy envoy configs excluding debug files
-        find Infrastructure/envoy -name '*.yaml' | grep -v debug | xargs -I {} cp {} staging/configs/
+        find infrastructure/envoy -name '*.yaml' | grep -v debug | xargs -I {} cp {} staging/configs/
 
         # Render env.sh (envsubst keeps it POSIX-portable)
         export SERVICE_NAME ENVIRONMENT VERSION PROJECT_NAME CERT_PREFIX \
