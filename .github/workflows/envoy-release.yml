@@ -99,7 +99,7 @@ jobs:
         for origin in "${ORIGINS[@]}"; do
             # Trim whitespace and add YAML entry
             origin=$(echo "$origin" | sed 's/^[ \t]*//;s/[ \t]*$//')
-            ORIGIN_YAML+="          - prefix: \"$origin\"\n"
+            ORIGIN_YAML+="          - exact: \"$origin\"\n"
         done
         PROCESSED_ORIGINS=$(echo -e "$ORIGIN_YAML" | sed '$d') # Remove last newline
 
