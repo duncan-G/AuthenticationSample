@@ -14,6 +14,8 @@ services:
         target: /etc/envoy/discovery/envoy.cds.yaml
       - source: envoy_routes
         target: /etc/envoy/discovery/envoy.rds.yaml
+      - source: envoy_secrets
+        target: /etc/envoy/secrets.yaml
     deploy:
       labels:
         version: ${VERSION}
@@ -61,6 +63,9 @@ configs:
     external: true
   envoy_clusters:
     name: envoy_cds_config_${VERSION}
+    external: true
+  envoy_secrets:
+    name: envoy_secrets_${VERSION}
     external: true
   envoy_routes:
     name: envoy_rds_config_${VERSION}
