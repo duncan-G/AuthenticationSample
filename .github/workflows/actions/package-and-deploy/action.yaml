@@ -82,8 +82,8 @@ runs:
             find staging/configs -type f \( -name '*.yml' -o -name '*.yaml' \) -exec sed -i \
               -e "s|\${AWS_REGION}|$AWS_REGION|g" \
               -e "s|\${VERSION}|$VERSION|g" \
-              -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" {} +
-              -e "s|\${PROJECT_NAME}|$PROJECT_NAME|g" \
+              -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
+              -e "s|\${PROJECT_NAME}|$PROJECT_NAME|g" {} +
           fi
         fi
 
