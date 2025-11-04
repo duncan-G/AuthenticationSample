@@ -87,13 +87,13 @@ install_cloudwatch_agent(){
         "collect_list": [
           {
             "file_path": "$LOG_FILE",
-            "log_group_name": "/aws/ec2/${PROJECT_NAME}-docker-worker",
+            "log_group_name": "/aws/ec2/${PROJECT_NAME}-docker-worker${ENV:+-${ENV}}",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
             "file_path": "/var/log/worker-manager/worker-manager.log",
-            "log_group_name": "/aws/ec2/${PROJECT_NAME}-worker-manager",
+            "log_group_name": "/aws/ec2/${PROJECT_NAME}-worker-manager${ENV:+-${ENV}}",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           }

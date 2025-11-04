@@ -86,6 +86,10 @@ jobs:
         DOMAIN='${{ vars.DOMAIN_NAME }}'
         ALLOWED_ORIGINS='${{ vars.ALLOWED_ORIGINS }}'
         ALLOWED_HOSTS='${{ vars.ALLOWED_HOSTS }}'
+        AUTH_HOST='auth_app'
+        AUTH_PORT='443'
+        GREETER_HOST='greeter_app'
+        GREETER_PORT='443'
 
         STACK_FILE='envoy.stack.release.yaml'
 
@@ -123,7 +127,11 @@ jobs:
           -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" \
           -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" \
           -e "s|\$PROCESSED_ORIGINS|${PROCESSED_ORIGINS}|g" \
-          -e "s|\$ALLOWED_HOSTS|${ALLOWED_HOSTS}|g" {} +
+          -e "s|\$ALLOWED_HOSTS|${ALLOWED_HOSTS}|g" \
+          -e "s|\$AUTH_HOST|${AUTH_HOST}|g" \
+          -e "s|\$AUTH_PORT|${AUTH_PORT}|g" \
+          -e "s|\$GREETER_HOST|${GREETER_HOST}|g" \
+          -e "s|\$GREETER_PORT|${GREETER_PORT}|g" {} +
 
         mv staging/configs/$STACK_FILE staging/
 
