@@ -32,7 +32,7 @@ exporters:
     
   awsemf:
     region: ${AWS_REGION}
-    namespace: AuthenticationSample/OpenTelemetry
+    namespace: auth-sample/open-telemetry
     dimension_rollup_option: NoDimensionRollup
     metric_declarations:
       - dimensions: [[service.name], [service.name, service.version]]
@@ -41,7 +41,7 @@ exporters:
   awscloudwatchlogs:
     region: ${AWS_REGION}
     num_workers: 2
-    log_group_name: /aws/otel/application-logs
+    log_group_name: /aws/otel/auth-sample/application-logs
     log_stream_name: otel-collector
     sending_queue:
       enabled: true
