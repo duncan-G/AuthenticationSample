@@ -44,6 +44,31 @@ resource "aws_iam_instance_profile" "otel_collector_instance_profile" {
 
 #endregion
 
+#region CloudWatch Logs
+
+# Log group for OpenTelemetry Collector output
+resource "aws_cloudwatch_log_group" "otel_collector" {
+  name              = "/logs/${var.project_name}/app"
+  retention_in_days = var.log_retention_in_days
+
+  tags = {
+    Environment = var.env
+    Purpose     = "OpenTelemetry Collector Logs"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "otel_collector_app" {
+  name              = "/metrics/${var.project_name}/app"
+  retention_in_days = var.log_retention_in_days
+
+  tags = {
+    Environment = var.env
+    Purpose     = "OpenTelemetry Collector App Metrics"
+  }
+}
+
+#endregion
+
 #region IAM Policies
 
 # IAM Policy for OpenTelemetry Collector CloudWatch Access
@@ -57,15 +82,14 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
       {
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:DescribeLogGroups",
           "logs:DescribeLogStreams"
         ]
         Resource = [
-          "arn:aws:logs:*:*:log-group:logs/*${var.project_name}*",
-          "arn:aws:logs:*:*:log-group:logs/*${var.project_name}*:*"
+          aws_cloudwatch_log_group.otel_collector.arn,
+          "${aws_cloudwatch_log_group.otel_collector.arn}:*"
         ]
       },
       {
