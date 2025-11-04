@@ -65,7 +65,7 @@ configs:
     name: envoy_cds_config_${VERSION}
     external: true
   envoy_secrets:
-    name: envoy_secrets_${VERSION}
+    name: envoy_sds_config_${VERSION}
     external: true
   envoy_routes:
     name: envoy_rds_config_${VERSION}
