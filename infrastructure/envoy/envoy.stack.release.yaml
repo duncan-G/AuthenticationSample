@@ -15,7 +15,7 @@ services:
       - source: envoy_routes
         target: /etc/envoy/discovery/envoy.rds.yaml
       - source: envoy_secrets
-        target: /etc/envoy/secrets.yaml
+        target: /etc/envoy/discovery/envoy.sds.yaml
     deploy:
       labels:
         version: ${VERSION}
