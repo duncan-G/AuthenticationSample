@@ -236,7 +236,7 @@ resource "aws_iam_role_policy_attachment" "manager_core" {
 
 # CloudWatch Log Groups for EC2 instances
 resource "aws_cloudwatch_log_group" "manager" {
-  name              = "/aws/ec2/${var.project_name}-${var.env}-docker-manager"
+  name              = "/aws/ec2/${var.project_name}-docker-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -246,7 +246,7 @@ resource "aws_cloudwatch_log_group" "manager" {
 }
 
 resource "aws_cloudwatch_log_group" "worker" {
-  name              = "/aws/ec2/${var.project_name}-${var.env}-docker-worker"
+  name              = "/aws/ec2/${var.project_name}-docker-worker-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -256,7 +256,7 @@ resource "aws_cloudwatch_log_group" "worker" {
 }
 
 resource "aws_cloudwatch_log_group" "leader_manager" {
-  name              = "/aws/ec2/${var.project_name}-${var.env}-leader-manager"
+  name              = "/aws/ec2/${var.project_name}-leader-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -266,12 +266,23 @@ resource "aws_cloudwatch_log_group" "leader_manager" {
 }
 
 resource "aws_cloudwatch_log_group" "certificate_manager" {
-  name              = "/aws/ec2/${var.project_name}-${var.env}-certificate-manager"
+  name              = "/aws/ec2/${var.project_name}-certificate-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
     Environment = var.env
     Purpose     = "Certificate Manager Service Logs"
+  }
+}
+
+# CloudWatch Log Group for worker-manager service (env-suffixed, used by worker.sh)
+resource "aws_cloudwatch_log_group" "worker_manager" {
+  name              = "/aws/ec2/${var.project_name}-worker-manager-${var.env}"
+  retention_in_days = 30
+
+  tags = {
+    Environment = var.env
+    Purpose     = "Worker Manager Service Logs"
   }
 }
 
@@ -293,6 +304,7 @@ resource "aws_launch_template" "worker" {
     "#!/usr/bin/env bash",
     "# shellcheck shell=bash",
     "export PROJECT_NAME=\"${var.project_name}\"",
+    "export ENV=\"${var.env}\"",
     "export AWS_REGION=\"${var.region}\"",
     "export DOMAIN_NAME=\"${var.domain_name}\"",
     "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",

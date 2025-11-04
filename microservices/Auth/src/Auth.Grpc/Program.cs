@@ -1,5 +1,4 @@
 using Amazon.CognitoIdentityProvider;
-using Amazon.Extensions.NETCore.Setup;
 using AuthSample.Api.Exceptions;
 using AuthSample.Api.RateLimiting;
 using AuthSample.Api.Secrets;
@@ -14,8 +13,6 @@ using AuthSample.Logging;
 using AuthSample.Api.Validation;
 using AuthSample.Auth.Infrastructure.DynamoDb;
 using FluentValidation;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
-using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
