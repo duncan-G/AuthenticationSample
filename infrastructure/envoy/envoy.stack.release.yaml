@@ -16,6 +16,13 @@ services:
         target: /etc/envoy/discovery/envoy.rds.yaml
       - source: envoy_secrets
         target: /etc/envoy/discovery/envoy.sds.yaml
+    secrets:
+      - source: cert.pem
+        target: /etc/envoy/certs/fullchain.pem
+      - source: cert.key
+        target: /etc/envoy/certs/cert.key
+      - source: ca.crt
+        target: /etc/envoy/certs/ca.crt
     deploy:
       labels:
         version: ${VERSION}
@@ -69,4 +76,12 @@ configs:
     external: true
   envoy_routes:
     name: envoy_rds_config_${VERSION}
+    external: true
+
+secrets:
+  cert.pem:
+    external: true
+  cert.key:
+    external: true
+  ca.crt:
     external: true
