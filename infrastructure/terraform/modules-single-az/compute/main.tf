@@ -236,7 +236,7 @@ resource "aws_iam_role_policy_attachment" "manager_core" {
 
 # CloudWatch Log Groups for EC2 instances
 resource "aws_cloudwatch_log_group" "manager" {
-  name              = "/aws/ec2/${var.project_name}-docker-manager-${var.env}"
+  name              = "logs/${var.project_name}/swarm-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -246,7 +246,7 @@ resource "aws_cloudwatch_log_group" "manager" {
 }
 
 resource "aws_cloudwatch_log_group" "worker" {
-  name              = "/aws/ec2/${var.project_name}-docker-worker-${var.env}"
+  name              = "logs/${var.project_name}/swarm-worker-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -256,7 +256,7 @@ resource "aws_cloudwatch_log_group" "worker" {
 }
 
 resource "aws_cloudwatch_log_group" "leader_manager" {
-  name              = "/aws/ec2/${var.project_name}-leader-manager-${var.env}"
+  name              = "logs/${var.project_name}/leader-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -266,7 +266,7 @@ resource "aws_cloudwatch_log_group" "leader_manager" {
 }
 
 resource "aws_cloudwatch_log_group" "certificate_manager" {
-  name              = "/aws/ec2/${var.project_name}-certificate-manager-${var.env}"
+  name              = "logs/${var.project_name}/certificate-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -277,7 +277,7 @@ resource "aws_cloudwatch_log_group" "certificate_manager" {
 
 # CloudWatch Log Group for worker-manager service (env-suffixed, used by worker.sh)
 resource "aws_cloudwatch_log_group" "worker_manager" {
-  name              = "/aws/ec2/${var.project_name}-worker-manager-${var.env}"
+  name              = "logs/${var.project_name}/worker-manager-${var.env}"
   retention_in_days = 30
 
   tags = {

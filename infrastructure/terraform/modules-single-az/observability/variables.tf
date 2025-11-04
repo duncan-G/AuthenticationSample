@@ -32,3 +32,14 @@ variable "manager_role_name" {
   description = "Name of the IAM role for manager nodes"
   type        = string
 }
+
+variable "log_retention_in_days" {
+  description = "CloudWatch Logs retention in days for OTEL log group"
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.log_retention_in_days >= 1 && var.log_retention_in_days <= 3653
+    error_message = "Retention must be between 1 and 3653 days."
+  }
+}
