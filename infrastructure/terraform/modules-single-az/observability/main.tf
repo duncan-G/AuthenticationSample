@@ -64,8 +64,8 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
           "logs:DescribeLogStreams"
         ]
         Resource = [
-          "arn:aws:logs:*:*:log-group:/aws/otel/*",
-          "arn:aws:logs:*:*:log-group:/aws/otel/*:*"
+          "arn:aws:logs:*:*:log-group:logs/*${var.project_name}*",
+          "arn:aws:logs:*:*:log-group:logs/*${var.project_name}*:*"
         ]
       },
       {
@@ -76,7 +76,7 @@ resource "aws_iam_policy" "otel_collector_cloudwatch_policy" {
         Resource = "*"
         Condition = {
           StringEquals = {
-            "cloudwatch:namespace" = "${var.project_name}/OpenTelemetry"
+            "cloudwatch:namespace" = "${var.project_name}/app"
           }
         }
       }

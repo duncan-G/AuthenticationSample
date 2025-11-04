@@ -18,7 +18,7 @@ cat >/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
     "logs_collected": {
       "files": {
         "collect_list": [
-          {"file_path": "/var/log/docker-worker-setup.log", "log_group_name": "/aws/ec2/${project_name}-docker-worker", "log_stream_name": "{instance_id}", "timestamp_format": "%Y-%m-%d %H:%M:%S"}
+          {"file_path": "/var/log/docker-worker-setup.log", "log_group_name": "logs/${project_name}/docker-worker", "log_stream_name": "{instance_id}", "timestamp_format": "%Y-%m-%d %H:%M:%S"}
         ]
       }
     }
