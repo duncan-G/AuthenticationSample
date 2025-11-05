@@ -4,10 +4,10 @@ services:
   app:
     image: $IMAGE_URI
     environment:
-      ASPNETCORE_URLS: http://+:443
+      ASPNETCORE_URLS: https://+:443
       ASPNETCORE_ENVIRONMENT: Production
       AWS_REGION: ${AWS_REGION}
-      COGNITO_CONFIRMED_USERS_COUNT: ${COGNITO_CONFIRMED_USERS_COUNT}
+      COGNITO_CONFIRMED_USERS_COUNT: 10
     networks:
       - net
     deploy:

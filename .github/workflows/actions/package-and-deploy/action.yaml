@@ -50,15 +50,6 @@ runs:
         export VERSION="${{ inputs.version }}"
         export AWS_REGION="${{ inputs.aws_region }}"
         export STACK_FILE="${{ inputs.stack_file }}"
-        echo "--------------------------------"
-        echo "SERVICE_NAME=$SERVICE_NAME"
-        echo "ENVIRONMENT=$ENVIRONMENT"
-        echo "IMAGE_URI=$IMAGE_URI"
-        echo "PROJECT_NAME=$PROJECT_NAME"
-        echo "VERSION=$VERSION"
-        echo "AWS_REGION=$AWS_REGION"
-        echo "STACK_FILE=$STACK_FILE"
-        echo "--------------------------------"
 
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
@@ -73,6 +64,7 @@ runs:
         sed_args+=( -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" )
         sed_args+=( -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" )
         sed_args+=( -e "s|\${AWS_REGION}|$AWS_REGION|g" )
+        echo "sed_args=${sed_args[@]}"
         sed -i "${sed_args[@]}" "staging/${{ inputs.stack_file }}"
 
         # Optionally include and template a configs directory (excluding the stack file itself)
