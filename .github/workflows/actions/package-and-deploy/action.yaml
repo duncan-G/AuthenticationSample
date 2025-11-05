@@ -64,7 +64,7 @@ runs:
         sed_args+=( -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" )
         sed_args+=( -e "s|\${ENVIRONMENT}|$ENVIRONMENT|g" )
         sed_args+=( -e "s|\${AWS_REGION}|$AWS_REGION|g" )
-        echo "sed_args=${sed_args[@]}"
+
         sed -i "${sed_args[@]}" "staging/${{ inputs.stack_file }}"
 
         # Optionally include and template a configs directory (excluding the stack file itself)
