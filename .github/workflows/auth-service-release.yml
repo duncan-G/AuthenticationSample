@@ -9,9 +9,9 @@ on:
         required: true
         type: choice
         options:
-          - state
           - stage
-        default: 'stage'
+          - prod
+        default: 'prod'
 
   # Automatic trigger on service changes
   push:
