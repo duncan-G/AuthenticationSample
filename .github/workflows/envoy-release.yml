@@ -90,7 +90,7 @@ jobs:
         AUTH_PORT='443'
         GREETER_HOST='greeter_app'
         GREETER_PORT='443'
-        SNI_DOMAIN={{ vars.DOMAIN_NAME }}
+        SNI_DOMAIN=$DOMAIN
 
         STACK_FILE='envoy.stack.release.yaml'
 
