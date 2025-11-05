@@ -82,7 +82,7 @@ jobs:
           aws-region: ${{ steps.vars.outputs.aws_region }}
 
       - name: Build & push image
-        uses: ./.github/actions/build-and-push-dotnet
+        uses: ./.github/workflows/actions/build-and-push-dotnet
         with:
           context:        ${{ inputs.service_path }}
           ecr_repository: ${{ secrets.ECR_REPOSITORY }}
