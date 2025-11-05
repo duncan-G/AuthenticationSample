@@ -91,7 +91,7 @@ get_cert_timestamp() {
 
     local all_match=true
     for f in "${files[@]}"; do
-      local secret_name="$f_${ts}"
+      local secret_name="${f}_${ts}"
       if ! docker secret inspect "$secret_name" &>/dev/null; then
         all_match=false
         break
