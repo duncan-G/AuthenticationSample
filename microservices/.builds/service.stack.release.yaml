@@ -49,4 +49,5 @@ networks:
 
 secrets:
   aspnetapp.pfx:
+    name: aspnetapp.pfx_${TS}
     external: true
