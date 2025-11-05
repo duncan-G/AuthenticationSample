@@ -20,11 +20,8 @@ readonly RENEWAL_THRESHOLD_DAYS=30         # renew when cert expires in <= 30 da
 readonly CERT_VALIDITY_DAYS=45
 CERT_DIR="${CERT_DIR:-/var/lib/certificate-manager/certs}"
 
-# files we generate
-readonly CERT_FILES=("aspnetapp.pfx" "ca.crt" "cert.key" "cert.pem")
 # secrets we maintain (same names)
-readonly DOCKER_SECRETS=("aspnetapp.pfx" "ca.crt" "cert.key" "cert.pem")
-readonly CERT_PASSWORD_KEY="Infrastructure_CERTIFICATE_PASSWORD"
+readonly CERT_PASSWORD_KEYS=("Infrastructure_CERTIFICATE_PASSWORD" "Shared_Kestrel__Certificates__Default__Password")
 
 mkdir -p "$LOG_DIR"
 
@@ -88,6 +85,16 @@ target_dir() {
   fi
 }
 
+latest_cert_dir() {
+  local cert_dir="$(target_dir)"
+  local ts_dirs=($(find "$cert_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E '^[0-9]+$' | sort -nr))
+  if (( ${#ts_dirs[@]} > 0 )); then
+    echo "${cert_dir}/${ts_dirs[0]}"
+  else
+    echo "$cert_dir"
+  fi
+}
+
 ###############################################################################
 # Swarm manager checks
 ###############################################################################
@@ -139,14 +146,12 @@ is_cert_expiring() {
 needs_certificate_renewal() {
   [[ $FORCE == true ]] && return 0
 
-  local dir
-  dir="$(target_dir)"
-  for f in "${CERT_FILES[@]}"; do
-    [[ -f "$dir/$f" ]] || { log "Missing $f"; return 0; }
-  done
+  local dir="$(latest_cert_dir)"
 
   # Check only actual certs
   for f in cert.pem ca.crt; do
+    [[ -f "$dir/$f" ]] || { log "Missing $f"; return 0; }
+
     if is_cert_expiring "$dir/$f" "$RENEWAL_THRESHOLD_DAYS"; then
       log "$f needs renewal"
       return 0
@@ -163,62 +168,90 @@ random_password() { openssl rand -base64 32 | tr -d "=+/" | cut -c1-32; }
 
 generate_certificates() {
   local password="$1" domain="$2"
-  local alt_names
-  alt_names=${DOMAIN_ALT_NAMES:-$domain}
+  local alt_names=${DOMAIN_ALT_NAMES:-$domain}
+  local timestamp=$(date +%s)
   local dir
-  dir="$(target_dir)"
+  dir="$(target_dir)/$timestamp"
   mkdir -p "$dir"
   rm -f "$dir"/*
 
-  log "Generating self-signed certs in $dir for $domain (SANs: ${alt_names})"
+  log "Generating CA and server certs in $dir for $domain (SANs: ${alt_names})"
 
-  # Build minimal OpenSSL config with SANs
-  local openssl_cnf="$dir/openssl.cnf"
+  # 1) Root CA (self-signed, CA:TRUE)
+  openssl genrsa -out "$dir/ca.key" 4096
+  openssl req -x509 -new -nodes -key "$dir/ca.key" -sha256 -days 3650 \
+    -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=${domain} Root CA" \
+    -out "$dir/ca.crt" \
+    -addext "basicConstraints=critical,CA:TRUE,pathlen:1" \
+    -addext "keyUsage=critical,keyCertSign,cRLSign" \
+    -addext "subjectKeyIdentifier=hash"
+
+  # 2) Server key + CSR (with SAN)
+  openssl genrsa -out "$dir/server.key" 2048
+
+  local openssl_cnf="$dir/server.cnf"
   {
-    echo "[req]"
-    echo "distinguished_name = dn"
-    echo "req_extensions = v3_req"
-    echo "prompt = no"
+    echo "[ req ]"
+    echo "default_bits        = 2048"
+    echo "prompt              = no"
+    echo "default_md          = sha256"
+    echo "req_extensions      = req_ext"
+    echo "distinguished_name  = dn"
     echo
-    echo "[dn]"
-    echo "CN = $domain"
+    echo "[ dn ]"
+    echo "C  = US"
+    echo "ST = State"
+    echo "L  = City"
+    echo "O  = Organization"
+    echo "OU = Unit"
+    echo "CN = ${domain}"
     echo
-    echo "[v3_req]"
-    echo "basicConstraints = CA:FALSE"
-    echo "keyUsage = critical, digitalSignature, keyEncipherment"
-    echo "extendedKeyUsage = serverAuth, clientAuth"
+    echo "[ req_ext ]"
     echo "subjectAltName = @alt_names"
     echo
-    echo "[alt_names]"
+    echo "[ alt_names ]"
   } > "$openssl_cnf"
 
   local i=1
   IFS=',' read -ra __san_names <<< "$alt_names"
   for __n in "${__san_names[@]}"; do
-    # trim spaces
     __n="${__n//[[:space:]]/}"
     [[ -n "$__n" ]] && printf 'DNS.%d = %s\n' "$i" "$__n" >> "$openssl_cnf" && ((i++))
   done
 
-  openssl genrsa -out "$dir/cert.key" 2048
-  openssl req -new -key "$dir/cert.key" -out "$dir/cert.csr" \
-    -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=$domain" \
-    -config "$openssl_cnf" -reqexts v3_req
-  openssl x509 -req -in "$dir/cert.csr" -signkey "$dir/cert.key" \
-    -out "$dir/cert.pem" -days "$CERT_VALIDITY_DAYS" \
-    -extfile "$openssl_cnf" -extensions v3_req -sha256
+  {
+    echo
+    echo "[ v3_server ]"
+    echo "basicConstraints = CA:FALSE"
+    echo "keyUsage = critical, digitalSignature, keyEncipherment"
+    echo "extendedKeyUsage = serverAuth, clientAuth"
+    echo "subjectAltName = @alt_names"
+    echo "subjectKeyIdentifier = hash"
+    echo "authorityKeyIdentifier = keyid,issuer"
+  } >> "$openssl_cnf"
 
-  cp "$dir/cert.pem" "$dir/ca.crt"
-  cp "$dir/ca.crt" "$dir/ca.pem"
+  openssl req -new -key "$dir/server.key" -out "$dir/server.csr" -config "$openssl_cnf"
 
+  # 3) Sign server CSR with CA (include SAN + EKU)
+  openssl x509 -req -in "$dir/server.csr" -CA "$dir/ca.crt" -CAkey "$dir/ca.key" -CAcreateserial \
+    -out "$dir/server.crt" -days "${CERT_VALIDITY_DAYS:-825}" -sha256 \
+    -extensions v3_server -extfile "$dir/server.cnf"
+
+  # 4) Create a full chain and export PFX (server + CA)
+  cat "$dir/server.crt" "$dir/ca.crt" > "$dir/server-fullchain.crt"
   openssl pkcs12 -export -out "$dir/aspnetapp.pfx" \
-    -inkey "$dir/cert.key" -in "$dir/cert.pem" \
+    -inkey "$dir/server.key" -in "$dir/server.crt" -certfile "$dir/ca.crt" \
     -passout "pass:$password"
 
-  rm -f "$dir/cert.csr" "$openssl_cnf"
+  # 5) Permissions and expected filenames for Envoy/Docker secrets
+  cp "$dir/server.key" "$dir/cert.key"
+  cp "$dir/server-fullchain.crt" "$dir/cert.pem"
+  # ca.crt is the CA certificate
+
+  rm -f "$dir/server.csr" "$dir/server.cnf" "$dir/ca.srl" 2>/dev/null || true
 
   chmod 600 "$dir"/* 2>/dev/null || true
-  chmod 644 "$dir"/{ca.crt,ca.pem,cert.pem} 2>/dev/null || true
+  chmod 644 "$dir"/{ca.crt,cert.pem,server.crt,server-fullchain.crt} 2>/dev/null || true
 
   log "Certificates generated"
 }
@@ -237,14 +270,18 @@ update_aws_secret() {
       --query SecretString --output text 2>/dev/null); then
 
     local new_json
-    new_json=$(jq --arg k "$CERT_PASSWORD_KEY" --arg v "$password" '. + {($k): $v}' <<<"$current")
+    for key in "${CERT_PASSWORD_KEYS[@]}"; do
+      new_json=$(jq --arg k "$key" --arg v "$password" '. + {($k): $v}' <<<"$current")
+    done
     printf '%s' "$new_json" | aws secretsmanager put-secret-value \
       --secret-id "$AWS_SECRET_NAME" \
       --region "$AWS_REGION" \
       --secret-string file:///dev/stdin >/dev/null
   else
     local new_json
-    new_json=$(jq -n --arg v "$password" '{ "'"$CERT_PASSWORD_KEY"'": $v }')
+    for key in "${CERT_PASSWORD_KEYS[@]}"; do
+      new_json=$(jq -n --arg k "$key" --arg v "$password" '. + {($k): $v}' <<<"$new_json")
+    done
     printf '%s' "$new_json" | aws secretsmanager create-secret \
       --name "$AWS_SECRET_NAME" \
       --region "$AWS_REGION" \
@@ -257,38 +294,39 @@ update_aws_secret() {
 # Docker secrets + service refresh
 ###############################################################################
 update_docker_secrets() {
-  local dir
-  dir="$(target_dir)"
-  log "Updating Docker secrets from $dir"
+  local dir="$(latest_cert_dir)"
+  local ts="$(basename "$dir")"
+  local cert_files=($(find "$dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n'))
 
-  for s in "${DOCKER_SECRETS[@]}"; do
-    if docker secret inspect "$s" &>/dev/null; then
-      docker secret rm "$s" || log "Warning: failed to remove secret $s"
+  for cert_file in "${cert_files[@]}"; do
+    local cert_name=$(basename "$cert_file")
+    if ! docker secret inspect "${cert_name}_${ts}" &>/dev/null; then
+      docker secret create "${cert_name}_${ts}" "$dir/$cert_file" || fatal "Failed to create secret ${cert_name}_${ts}"
     fi
   done
-
-  for f in "${CERT_FILES[@]}"; do
-    if [[ -f "$dir/$f" ]]; then
-      docker secret create "$f" "$dir/$f" || fatal "Failed to create secret $f"
-    else
-      log "Warning: file missing for secret $f"
-    fi
-  done
-
-  log "Docker secrets updated"
 }
 
 restart_services() {
+  local dir="$(latest_cert_dir)"
+  local ts="$(basename "$dir")"
+  local cert_files=($(find "$dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n'))
   local services=("envoy_app" "auth_app" "greeter_app")
-  log "Restarting Swarm services that use certs"
-  for s in "${services[@]}"; do
-    if docker service inspect "$s" &>/dev/null; then
-      docker service update --force "$s" || log "Warning: failed to restart $s"
-    else
-      log "Service $s not found, skipping"
-    fi
+
+  local remove_args=()
+  local add_args=()
+
+
+  for cert_file in "${cert_files[@]}"; do
+    local cert_name=$(basename "$cert_file")
+    remove_args+=("--secret-rm ${cert_name}_${ts}")
+    add_args+=("--secret-add source=${cert_name}_${ts},target=${cert_name}")
   done
-  log "Service restart done"
+
+  docker service update \
+    --force \
+    "${remove_args[@]}" \
+    "${add_args[@]}" \
+    "${services[@]}" || fatal "Failed to update services"
 }
 
 ###############################################################################
@@ -313,7 +351,6 @@ manage_certificates() {
 
   update_aws_secret "$password"
   update_docker_secrets
-  restart_services
 
   status SUCCESS "renewed"
   log "Certificate management done"

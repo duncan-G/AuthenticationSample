@@ -80,8 +80,10 @@ configs:
 
 secrets:
   cert.pem:
-    external: true
+    name: cert.pem_${TS}
   cert.key:
+    name: cert.key_${TS}
     external: true
   ca.crt:
+    name: ca.crt_${TS}
     external: true

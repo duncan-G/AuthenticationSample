@@ -64,29 +64,77 @@ fi
 sleep 5
 
 ###########################
-# Substitute network name (from DynamoDB lock)
+# Substitute network name & cert timestamp
 ###########################
-LEADER_ENV="/etc/leader-manager.env"
-if [[ -f "$LEADER_ENV" ]]; then
-  # shellcheck source=/dev/null
-  source "$LEADER_ENV"
-fi
+get_cert_timestamp() {
+  local cert_dir="/var/lib/certificate-manager/certs"
 
-: "${AWS_REGION:?Missing AWS_REGION (expected in /etc/leader-manager.env)}"
-: "${SWARM_LOCK_TABLE:?Missing SWARM_LOCK_TABLE (expected in /etc/leader-manager.env)}"
-CLUSTER_NAME="auth-sample-cluster"
+  # Get numeric subdirectories, sort by DESC (newest first)
+  local -a ts_dirs found_ts
+  mapfile -t ts_dirs < <(
+    find "$cert_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+    | grep -E '^[0-9]+$' \
+    | sort -nr
+  )
 
-log "Retrieving overlay network name from DynamoDB..."
-lock_json=$(aws --region "$AWS_REGION" dynamodb get-item \
-  --table-name "$SWARM_LOCK_TABLE" \
-  --key '{"cluster_name":{"S":"'"$CLUSTER_NAME"'"}}') || err "Could not read lock item from DynamoDB"
+  # Loop through in DESC order, check folder contents for *_<ts> files
+  for ts in "${ts_dirs[@]}"; do
+    local ts_path="${cert_dir}/${ts}"
 
-NETWORK_NAME=$(jq -r '.Item.swarm_overlay_network_name.S // empty' <<<"$lock_json") || true
-[[ -n $NETWORK_NAME ]] || err "Network name not found in DynamoDB lock table"
-log "✓ Retrieved network name from DynamoDB: $NETWORK_NAME"
+    # List regular files in the timestamp directory
+    mapfile -t files < <(find "$ts_path" -mindepth 1 -maxdepth 1 -type f -printf '%f\n')
+
+    # Must have at least one file, and every file must end with _<ts>
+    if ((${#files[@]} == 0)); then
+      continue
+    fi
+
+    local all_match=true
+    for f in "${files[@]}"; do
+      local secret_name="$f_${ts}"
+      if ! docker secret inspect "$secret_name" &>/dev/null; then
+        all_match=false
+        break
+      fi
+    done
+
+    if $all_match; then
+      echo "$ts"
+      return
+    fi
+  done
+
+  err "No valid certificate timestamp found in $cert_dir (no *_<ts> file sets found)."
+}
+
+get_network_name_from_dynamodb() {
+  local leader_env="/etc/leader-manager.env"
+  if [[ -f "$leader_env" ]]; then
+    # shellcheck source=/dev/null
+    source "$leader_env"
+  fi
+
+  : "${AWS_REGION:?Missing AWS_REGION (expected in $leader_env)}"
+  : "${SWARM_LOCK_TABLE:?Missing SWARM_LOCK_TABLE (expected in $leader_env)}"
+  local cluster_name="auth-sample-cluster"
+
+  log "Retrieving overlay network name from DynamoDB..."
+  lock_json=$(aws --region "$AWS_REGION" dynamodb get-item \
+    --table-name "$SWARM_LOCK_TABLE" \
+    --key '{"cluster_name":{"S":"'"$cluster_name"'"}}') || err "Could not read lock item from DynamoDB"
+
+  local network_name=$(jq -r '.Item.swarm_overlay_network_name.S // empty' <<<"$lock_json") || true
+  [[ -n $network_name ]] || err "Network name not found in DynamoDB lock table"
+  log "✓ Retrieved network name from DynamoDB: $network_name"
+  echo "$network_name"
+}
+
+CERT_TIMESTAMP=$(get_cert_timestamp)
+NETWORK_NAME=$(get_network_name_from_dynamodb)
 
 sed -i \
   -e "s|\${NETWORK_NAME}|${NETWORK_NAME}|g" \
+  -e "s|\${TS}|${CERT_TIMESTAMP}|g" \
   "${ARCHIVE_ROOT}/${STACK_FILE}"
 
 ###########################
