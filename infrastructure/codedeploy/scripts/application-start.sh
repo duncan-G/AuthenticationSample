@@ -26,6 +26,7 @@ source "${ARCHIVE_ROOT}/scripts/env.sh"
 : "${STACK_FILE:?Missing STACK_FILE}"
 : "${SERVICE_NAME:?Missing SERVICE_NAME}"
 : "${VERSION:?Missing VERSION}"
+: "${ENVIRONMENT:?Missing ENVIRONMENT}"
 
 log "Starting ApplicationStart hook for ${SERVICE_NAME}..."
 
@@ -130,13 +131,16 @@ get_network_name_from_dynamodb() {
 CERT_TIMESTAMP=$(get_cert_timestamp)
 NETWORK_NAME=$(get_network_name_from_dynamodb)
 
-echo "CERT_TIMESTAMP: $CERT_TIMESTAMP"
-echo "NETWORK_NAME: $NETWORK_NAME"
+tmp_stack="/tmp/${STACK_FILE}"
+cp "${ARCHIVE_ROOT}/${STACK_FILE}" "$tmp_stack"
 
 sed -i \
   -e "s|\${NETWORK_NAME}|${NETWORK_NAME}|g" \
   -e "s|\${TS}|${CERT_TIMESTAMP}|g" \
-  "${ARCHIVE_ROOT}/${STACK_FILE}"
+  -e "s|\${ENVIRONMENT}|${ENVIRONMENT}|g" \
+  -e "s|\${VERSION}|${VERSION}|g" \
+  -e "s|\${SERVICE_NAME}|${SERVICE_NAME}|g" \
+  "$tmp_stack"
 
 ###########################
 # Verify overlay network
@@ -148,13 +152,9 @@ docker network inspect "$NETWORK_NAME" &>/dev/null \
 ####################################
 # Deploy / update the stack
 ####################################
-stack_src="${ARCHIVE_ROOT}/${STACK_FILE}"
-[[ -f $stack_src ]] || err "Stack file not found: $stack_src"
+[[ -f $tmp_stack ]] || err "Stack file not found: $tmp_stack"
 
-tmp_stack="/tmp/${SERVICE_NAME}-stack.yml"
-cp "$stack_src" "$tmp_stack"
-
-log "Deploying stack '${SERVICE_NAME}'…"
+log "Deploying stack '${SERVICE_NAME}' with compose file: $tmp_stack"
 docker stack deploy --with-registry-auth --compose-file "$tmp_stack" "$SERVICE_NAME"
 
 ####################################
