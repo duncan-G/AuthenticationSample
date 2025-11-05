@@ -38,6 +38,8 @@ for origin in "${ORIGINS[@]}"; do
 done
 export PROCESSED_ORIGINS=$(echo -e "$ORIGIN_YAML" | sed '$d') # Remove last newline
 
+export SNI_DOMAIN="localhost"
+
 if [ "$proxy_containerized_microservices" = true ]; then
     export AUTH_HOST=auth_app
     export AUTH_PORT=443

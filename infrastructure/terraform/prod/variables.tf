@@ -108,8 +108,8 @@ variable "microservices" {
   default     = []
 }
 
-variable "microservices_with_logs" {
-  description = "Subset of microservices with logs"
+variable "microservices_with_container_repos" {
+  description = "Subset of microservices that should have container repositories created in ECR"
   type        = list(string)
   default     = []
 }

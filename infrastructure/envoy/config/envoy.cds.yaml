@@ -23,7 +23,7 @@ resources:
       name: envoy.transport_sockets.tls
       typed_config:
         "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
-        sni: "localhost"
+        sni: "$SNI_DOMAIN"
         common_tls_context:
           alpn_protocols: ["h2"]
           validation_context:
@@ -32,7 +32,7 @@ resources:
             match_typed_subject_alt_names:
             - san_type: DNS
               matcher:
-                exact: "localhost"
+                exact: "$SNI_DOMAIN"
   - "@type": type.googleapis.com/envoy.config.cluster.v3.Cluster
     name: greeter_cluster
     connect_timeout: 1s
@@ -54,7 +54,7 @@ resources:
       name: envoy.transport_sockets.tls
       typed_config:
         "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
-        sni: "localhost"
+        sni: "$SNI_DOMAIN"
         common_tls_context:
           alpn_protocols: ["h2"]
           validation_context:
@@ -63,5 +63,5 @@ resources:
             match_typed_subject_alt_names:
             - san_type: DNS
               matcher:
-                exact: "localhost"
+                exact: "$SNI_DOMAIN"
 

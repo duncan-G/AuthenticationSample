@@ -1,4 +1,4 @@
-name: {{ PASCALCASE_SERVICE_NAME }} Debug Build
+name: {{ PASCALCASE_SERVICE_NAME }} Service Debug
 
 on:
   pull_request:
@@ -10,15 +10,15 @@ on:
       - 'main'
       - 'integration/*'
     paths:
-      - 'Microservices/{{ PASCALCASE_SERVICE_NAME }}/**'
-      - '.github/workflows/{{ SERVICE_NAME }}-debug.yml'
+      - 'microservices/{{ PASCALCASE_SERVICE_NAME }}/**'
+      - '.github/workflows/{{ SERVICE_NAME }}-service-debug.yml'
 jobs:
   build:
 
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./Microservices/{{ PASCALCASE_SERVICE_NAME }}/
+        working-directory: ./microservices/{{ PASCALCASE_SERVICE_NAME }}/
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
@@ -31,7 +31,7 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
-      - name: Test external libraries referenced by solution
+    - name: Test external libraries referenced by solution
       shell: bash
       run: |
         set -euo pipefail

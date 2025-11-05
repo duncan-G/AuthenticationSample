@@ -2,14 +2,17 @@ version: "3.8"
 
 services:
   app:
-    image: $IMAGE_URI
+    image: ${IMAGE_URI}
     environment:
-      ASPNETCORE_URLS: http://+:443
+      ASPNETCORE_URLS: https://+:443
       ASPNETCORE_ENVIRONMENT: Production
       AWS_REGION: ${AWS_REGION}
-      COGNITO_CONFIRMED_USERS_COUNT: ${COGNITO_CONFIRMED_USERS_COUNT}
+      COGNITO_CONFIRMED_USERS_COUNT: 10
     networks:
       - net
+    secrets:
+      - source: aspnetapp.pfx
+        target: /https/aspnetapp.pfx
     deploy:
       labels:
         version: ${VERSION}
@@ -44,13 +47,6 @@ networks:
     name: ${NETWORK_NAME}
     external: true
 
-configs:
-  envoy_config:
-    name:  ${SERVICE_NAME}_envoy_config_${VERSION}
-    external: true
-  envoy_clusters:
-    name: ${SERVICE_NAME}_envoy_cds_config_${VERSION}
-    external: true
-  envoy_routes:
-    name: ${SERVICE_NAME}_envoy_rds_config_${VERSION}
+secrets:
+  aspnetapp.pfx:
     external: true

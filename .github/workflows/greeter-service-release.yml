@@ -1,4 +1,4 @@
-name: '{{ PASCALCASE_SERVICE_NAME }} Service Deployment'
+name: 'Greeter Service Deployment'
 
 on:
   # Manual trigger
@@ -17,11 +17,11 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'microservices/{{ PASCALCASE_SERVICE_NAME }}/**'
-      - '.github/workflows/{{ SERVICE_NAME }}-service-release.yml'
+      - 'microservices/Greeter/**'
+      - '.github/workflows/greeter-service-release.yml'
 
 env:
-  SERVICE_NAME: '{{ SERVICE_NAME }}'
+  SERVICE_NAME: 'greeter'
   
 permissions:
   contents: read
@@ -29,14 +29,14 @@ permissions:
 
 jobs:
   deploy:
-    name: 'Deploy {{ PASCALCASE_SERVICE_NAME }} Service'
+    name: 'Deploy Greeter Service'
     uses: ./.github/workflows/deploy-dotnet-microservice.yml
     with:
-      service_name: '{{ SERVICE_NAME }}'
-      service_path: 'microservices/{{ PASCALCASE_SERVICE_NAME }}'
+      service_name: 'greeter'
+      service_path: 'microservices/Greeter'
       environment: ${{ github.event.inputs.environment || 'prod' }}
-      image_name: '${{ vars.PROJECT_NAME }}/{{ SERVICE_NAME }}'
+      image_name: '${{ vars.PROJECT_NAME }}/greeter'
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }}
-      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.PROJECT_NAME }}/{{ SERVICE_NAME }}-${{ github.event.inputs.environment }}'
+      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.PROJECT_NAME }}/greeter-${{ github.event.inputs.environment }}'

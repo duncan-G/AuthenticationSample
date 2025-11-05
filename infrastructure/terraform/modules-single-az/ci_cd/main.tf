@@ -12,7 +12,7 @@
 #region ECR Repositories (from container-registry.tf)
 
 resource "aws_ecr_repository" "microservices" {
-  for_each = toset(var.microservices)
+  for_each = toset(var.microservices_with_container_repos)
 
   name                 = "${var.project_name}/${each.key}-${var.env}"
   image_tag_mutability = "MUTABLE"
@@ -117,19 +117,6 @@ resource "aws_codedeploy_deployment_group" "microservices" {
       value = "true"
     }
   }
-
-  tags = {
-    Environment = var.env
-    Service     = each.key
-  }
-}
-
-# CloudWatch Log Groups
-resource "aws_cloudwatch_log_group" "codedeploy_logs" {
-  for_each = toset(var.microservices_with_logs)
-
-  name              = "/aws/codedeploy/${var.project_name}-${each.key}-${var.env}"
-  retention_in_days = 14
 
   tags = {
     Environment = var.env

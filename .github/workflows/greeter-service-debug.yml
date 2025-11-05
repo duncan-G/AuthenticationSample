@@ -1,4 +1,4 @@
-name: Auth Service Debug
+name: Greeter Service Debug
 
 on:
   pull_request:
@@ -10,15 +10,15 @@ on:
       - 'main'
       - 'integration/*'
     paths:
-      - 'microservices/Auth/**'
-      - '.github/workflows/auth-service-debug.yml'
+      - 'microservices/Greeter/**'
+      - '.github/workflows/greeter-service-debug.yml'
 jobs:
   build:
 
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./microservices/Auth/
+        working-directory: ./microservices/Greeter/
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
