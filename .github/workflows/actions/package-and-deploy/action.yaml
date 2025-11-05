@@ -58,7 +58,7 @@ runs:
         # Dynamically build sed args so IMAGE_URI is optional
         declare -a sed_args
         if [[ -n "$IMAGE_URI" ]]; then
-          sed_args+=( -e "s|\\$IMAGE_URI|$IMAGE_URI|g" )
+          sed_args+=( -e "s|\${IMAGE_URI}|$IMAGE_URI|g" )
         fi
         sed_args+=( -e "s|\${VERSION}|$VERSION|g" )
         sed_args+=( -e "s|\${SERVICE_NAME}|$SERVICE_NAME|g" )
