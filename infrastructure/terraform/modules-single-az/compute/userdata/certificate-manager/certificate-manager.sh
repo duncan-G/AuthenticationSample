@@ -53,6 +53,7 @@ Env:
   AWS_SECRET_NAME  (required)
   AWS_REGION       (required)
   DOMAIN_NAME      (default: localhost)
+  DOMAIN_ALT_NAMES (optional, comma-separated; used for SANs. Default: DOMAIN_NAME)
 EOF
 }
 
@@ -162,18 +163,50 @@ random_password() { openssl rand -base64 32 | tr -d "=+/" | cut -c1-32; }
 
 generate_certificates() {
   local password="$1" domain="$2"
+  local alt_names
+  alt_names=${DOMAIN_ALT_NAMES:-$domain}
   local dir
   dir="$(target_dir)"
   mkdir -p "$dir"
   rm -f "$dir"/*
 
-  log "Generating self-signed certs in $dir for $domain"
+  log "Generating self-signed certs in $dir for $domain (SANs: ${alt_names})"
+
+  # Build minimal OpenSSL config with SANs
+  local openssl_cnf="$dir/openssl.cnf"
+  {
+    echo "[req]"
+    echo "distinguished_name = dn"
+    echo "req_extensions = v3_req"
+    echo "prompt = no"
+    echo
+    echo "[dn]"
+    echo "CN = $domain"
+    echo
+    echo "[v3_req]"
+    echo "basicConstraints = CA:FALSE"
+    echo "keyUsage = critical, digitalSignature, keyEncipherment"
+    echo "extendedKeyUsage = serverAuth, clientAuth"
+    echo "subjectAltName = @alt_names"
+    echo
+    echo "[alt_names]"
+  } > "$openssl_cnf"
+
+  local i=1
+  IFS=',' read -ra __san_names <<< "$alt_names"
+  for __n in "${__san_names[@]}"; do
+    # trim spaces
+    __n="${__n//[[:space:]]/}"
+    [[ -n "$__n" ]] && printf 'DNS.%d = %s\n' "$i" "$__n" >> "$openssl_cnf" && ((i++))
+  done
 
   openssl genrsa -out "$dir/cert.key" 2048
   openssl req -new -key "$dir/cert.key" -out "$dir/cert.csr" \
-    -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=$domain"
+    -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=$domain" \
+    -config "$openssl_cnf" -reqexts v3_req
   openssl x509 -req -in "$dir/cert.csr" -signkey "$dir/cert.key" \
-    -out "$dir/cert.pem" -days "$CERT_VALIDITY_DAYS"
+    -out "$dir/cert.pem" -days "$CERT_VALIDITY_DAYS" \
+    -extfile "$openssl_cnf" -extensions v3_req -sha256
 
   cp "$dir/cert.pem" "$dir/ca.crt"
   cp "$dir/ca.crt" "$dir/ca.pem"
@@ -182,7 +215,7 @@ generate_certificates() {
     -inkey "$dir/cert.key" -in "$dir/cert.pem" \
     -passout "pass:$password"
 
-  rm -f "$dir/cert.csr"
+  rm -f "$dir/cert.csr" "$openssl_cnf"
 
   chmod 600 "$dir"/* 2>/dev/null || true
   chmod 644 "$dir"/{ca.crt,ca.pem,cert.pem} 2>/dev/null || true
