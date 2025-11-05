@@ -118,19 +118,20 @@ get_network_name_from_dynamodb() {
   : "${SWARM_LOCK_TABLE:?Missing SWARM_LOCK_TABLE (expected in $leader_env)}"
   local cluster_name="auth-sample-cluster"
 
-  log "Retrieving overlay network name from DynamoDB..."
   lock_json=$(aws --region "$AWS_REGION" dynamodb get-item \
     --table-name "$SWARM_LOCK_TABLE" \
     --key '{"cluster_name":{"S":"'"$cluster_name"'"}}') || err "Could not read lock item from DynamoDB"
 
   local network_name=$(jq -r '.Item.swarm_overlay_network_name.S // empty' <<<"$lock_json") || true
   [[ -n $network_name ]] || err "Network name not found in DynamoDB lock table"
-  log "✓ Retrieved network name from DynamoDB: $network_name"
   echo "$network_name"
 }
 
 CERT_TIMESTAMP=$(get_cert_timestamp)
 NETWORK_NAME=$(get_network_name_from_dynamodb)
+
+echo "CERT_TIMESTAMP: $CERT_TIMESTAMP"
+echo "NETWORK_NAME: $NETWORK_NAME"
 
 sed -i \
   -e "s|\${NETWORK_NAME}|${NETWORK_NAME}|g" \
