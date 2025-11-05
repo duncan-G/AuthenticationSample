@@ -1,4 +1,4 @@
-name: Auth Service Debug Build
+name: Auth Service Debug
 
 on:
   pull_request:

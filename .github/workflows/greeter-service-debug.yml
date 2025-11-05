@@ -1,4 +1,4 @@
-name: {{ PASCALCASE_SERVICE_NAME }} Service Debug
+name: Greeter Service Debug
 
 on:
   pull_request:
@@ -10,15 +10,15 @@ on:
       - 'main'
       - 'integration/*'
     paths:
-      - 'microservices/{{ PASCALCASE_SERVICE_NAME }}/**'
-      - '.github/workflows/{{ SERVICE_NAME }}-service-debug.yml'
+      - 'microservices/Greeter/**'
+      - '.github/workflows/greeter-service-debug.yml'
 jobs:
   build:
 
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./microservices/{{ PASCALCASE_SERVICE_NAME }}/
+        working-directory: ./microservices/Greeter/
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET

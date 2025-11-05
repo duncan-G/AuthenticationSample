@@ -43,8 +43,8 @@ validate_service_name_with_checks() {
     fi
     
     # Check if workflow files already exist
-    local debug_workflow=".github/workflows/${service_name}-debug.yml"
-    local release_workflow=".github/workflows/${service_name}-service.yml"
+    local debug_workflow=".github/workflows/${service_name}-service-debug.yml"
+    local release_workflow=".github/workflows/${service_name}-service-release.yml"
     
     if [ -f "$debug_workflow" ] || [ -f "$release_workflow" ]; then
         print_warning "Workflow files already exist:"
@@ -73,8 +73,8 @@ create_service_workflow() {
     
     local debug_template=".github/workflows/templates/service-dotnet-debug-template.yml"
     local release_template=".github/workflows/templates/service-dotnet-release-template.yml"
-    local debug_output=".github/workflows/${service_name}-debug.yml"
-    local release_output=".github/workflows/${service_name}-service.yml"
+    local debug_output=".github/workflows/${service_name}-service-debug.yml"
+    local release_output=".github/workflows/${service_name}-service-release.yml"
     
     print_info "Creating workflows for service: $service_name (PascalCase: $pascal_case_name)"
     
@@ -116,12 +116,12 @@ display_next_steps() {
     print_success "Workflows for $service_name have been created!"
     echo
     print_info "Created files:"
-    echo "  - .github/workflows/${service_name}-debug.yml (PR builds)"
-    echo "  - .github/workflows/${service_name}-service.yml (deployments)"
+    echo "  - .github/workflows/${service_name}-service-debug.yml (PR builds)"
+    echo "  - .github/workflows/${service_name}-service-release.yml (deployments)"
     echo
     print_info "Created GitHub environments:"
-    echo "  - service-staging"
-    echo "  - service-production"
+    echo "  - service-stage"
+    echo "  - service-prod"
     echo
     print_info "Required secrets and variables:"
     echo "  - AWS_ACCOUNT_ID (secret) - Your AWS account ID"
@@ -130,8 +130,8 @@ display_next_steps() {
     echo
     print_info "Next steps:"
     echo "1. Review the generated workflow files:"
-    echo "   .github/workflows/${service_name}-debug.yml"
-    echo "   .github/workflows/${service_name}-service.yml"
+    echo "   .github/workflows/${service_name}-service-debug.yml"
+    echo "   .github/workflows/${service_name}-service-release.yml"
     echo
     echo "2. Verify secrets and variables are set correctly:"
     echo "   - Go to Settings → Secrets and variables → Actions"

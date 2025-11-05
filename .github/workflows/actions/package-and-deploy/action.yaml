@@ -40,7 +40,7 @@ runs:
         if [[ -n "${{ inputs.stack_file_path }}" ]]; then
           cp "${{ inputs.stack_file_path }}" "staging/${{ inputs.stack_file }}"
         else
-          cp "Microservices/.builds/${{ inputs.stack_file }}" "staging/${{ inputs.stack_file }}"
+          cp "microservices/.builds/${{ inputs.stack_file }}" "staging/${{ inputs.stack_file }}"
         fi
 
         export SERVICE_NAME="${{ inputs.service_name }}"
