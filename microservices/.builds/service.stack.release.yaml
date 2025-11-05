@@ -10,6 +10,9 @@ services:
       COGNITO_CONFIRMED_USERS_COUNT: 10
     networks:
       - net
+    secrets:
+      - source: aspnetapp.pfx
+        target: /https/aspnetapp.pfx
     deploy:
       labels:
         version: ${VERSION}
@@ -53,4 +56,8 @@ configs:
     external: true
   envoy_routes:
     name: ${SERVICE_NAME}_envoy_rds_config_${VERSION}
+    external: true
+
+secrets:
+  aspnetapp.pfx:
     external: true
