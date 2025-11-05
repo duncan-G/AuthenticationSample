@@ -15,8 +15,8 @@ variable "microservices" {
   default     = []
 }
 
-variable "microservices_with_logs" {
-  description = "Subset of microservices that should have CloudWatch logs collected via CodeDeploy"
+variable "microservices_with_container_repos" {
+  description = "Subset of microservices that should have container repositories created in ECR"
   type        = list(string)
   default     = []
 }
@@ -64,56 +64,6 @@ resource "aws_codedeploy_app" "microservices" {
     Service     = each.key
   }
 }
-
-# CodeDeploy Deployment Groups
-resource "aws_codedeploy_deployment_group" "microservices" {
-  for_each = toset(var.microservices_with_logs)
-
-  app_name              = aws_codedeploy_app.microservices[each.key].name
-  deployment_group_name = "${var.project_name}-${each.key}-${var.env}-deployment-group"
-  service_role_arn      = aws_iam_role.codedeploy_service_role.arn
-
-  # Deployment configuration
-  deployment_config_name = "CodeDeployDefault.OneAtATime"
-
-  # EC2 instances (using tags to identify instances)
-  ec2_tag_set {
-    ec2_tag_filter {
-      key   = "Environment"
-      type  = "KEY_AND_VALUE"
-      value = var.env
-    }
-  }
-
-  # Restrict deployment to manager role instances only
-  ec2_tag_set {
-    ec2_tag_filter {
-      key   = "Role"
-      type  = "KEY_AND_VALUE"
-      value = "manager"
-    }
-  }
-
-  tags = {
-    Environment = var.env
-    Service     = each.key
-  }
-}
-
-# CloudWatch Log Groups
-resource "aws_cloudwatch_log_group" "codedeploy_logs" {
-  for_each = toset(var.microservices_with_logs)
-
-  name              = "/aws/codedeploy/${var.project_name}-${each.key}-${var.env}"
-  retention_in_days = 14
-
-  tags = {
-    Environment = var.env
-    Service     = each.key
-  }
-}
-
-#endregion
 
 #region IAM Roles
 

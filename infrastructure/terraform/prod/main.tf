@@ -95,7 +95,7 @@ module "ci_cd" {
   codedeploy_bucket_name  = var.codedeploy_bucket_name
   github_repository       = var.github_repository
   microservices           = var.microservices
-  microservices_with_logs = var.microservices_with_logs
+  microservices_with_container_repos = var.microservices_with_container_repos
   account_id              = data.aws_caller_identity.current.account_id
   manager_role_name       = module.compute.manager_role_name
 }

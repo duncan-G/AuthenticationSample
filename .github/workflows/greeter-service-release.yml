@@ -39,4 +39,4 @@ jobs:
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       DEPLOYMENT_BUCKET: ${{ secrets.DEPLOYMENT_BUCKET }}
-      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.PROJECT_NAME }}/greeter'
+      ECR_REPOSITORY: '${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.PROJECT_NAME }}/greeter-${{ github.event.inputs.environment }}'

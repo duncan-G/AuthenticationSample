@@ -40,8 +40,8 @@ variable "microservices" {
   default     = []
 }
 
-variable "microservices_with_logs" {
-  description = "Subset of microservices that should have CloudWatch logs collected via CodeDeploy"
+variable "microservices_with_container_repos" {
+  description = "Subset of microservices that should have container repositories created in ECR"
   type        = list(string)
   default     = []
 }
