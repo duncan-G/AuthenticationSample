@@ -33,13 +33,12 @@ resource "aws_instance" "cache_worker" {
   # Bootstrap using userdata script; prefix environment variables
   user_data_base64 = base64encode(join("\n", [
     "#!/usr/bin/env bash",
-    "export PROJECT_NAME=\"${var.project_name}-${var.env}\"",
+    "export PROJECT_NAME=\"${var.project_name}\"",
     "export AWS_REGION=\"${var.region}\"",
-    # Domain and certificate manager settings for worker certificate service
-    "export DOMAIN_NAME=\"${var.domain_name}\"",
     "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
     "export WORKER_TYPE=\"cache\"",
     "export SWARM_LOCK_TABLE=\"${var.swarm_lock_table}\"",
+    "export ENV=\"${var.env}\"",
     file("${path.module}/../compute/userdata/worker.sh")
   ]))
 

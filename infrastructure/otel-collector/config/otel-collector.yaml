@@ -29,7 +29,7 @@ exporters:
   awsxray:
     region: ${AWS_REGION}
     no_verify_ssl: false
-    
+
   awsemf:
     region: ${AWS_REGION}
     namespace: ${PROJECT_NAME}/app
@@ -37,7 +37,7 @@ exporters:
     metric_declarations:
       - dimensions: [[service.name], [service.name, service.version]]
         metric_name_selectors: [".*"]
-        
+
   awscloudwatchlogs:
     region: ${AWS_REGION}
     num_workers: 2
@@ -61,14 +61,14 @@ service:
     traces:
       receivers:  [otlp]
       processors: [memory_limiter, resource, batch]
-      exporters:  [awsxray, debug]
+      exporters:  [awsxray]
 
     metrics:
       receivers:  [otlp]
       processors: [memory_limiter, resource, batch]
-      exporters:  [awsemf, debug]
+      exporters:  [awsemf]
 
     logs:
       receivers:  [otlp]
       processors: [memory_limiter, resource, batch]
-      exporters:  [awscloudwatchlogs, debug]
+      exporters:  [awscloudwatchlogs]

@@ -142,19 +142,19 @@ install_cloudwatch_agent(){
         "collect_list": [
           {
             "file_path": "$LOG_FILE",
-            "log_group_name": "logs/${PROJECT_NAME}/swarm-manager${ENV:+-${ENV}}",
+            "log_group_name": "/logs/${PROJECT_NAME}/swarm-manager${ENV:+-${ENV}}",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
             "file_path": "/var/log/leader-manager/leader-manager.log",
-            "log_group_name": "logs/${PROJECT_NAME}/leader-manager${ENV:+-${ENV}}",
+            "log_group_name": "/logs/${PROJECT_NAME}/leader-manager${ENV:+-${ENV}}",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
             "file_path": "/var/log/certificate-manager/certificate-manager.log",
-            "log_group_name": "logs/${PROJECT_NAME}/certificate-manager${ENV:+-${ENV}}",
+            "log_group_name": "/logs/${PROJECT_NAME}/certificate-manager${ENV:+-${ENV}}",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           }

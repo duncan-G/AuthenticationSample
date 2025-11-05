@@ -236,7 +236,7 @@ resource "aws_iam_role_policy_attachment" "manager_core" {
 
 # CloudWatch Log Groups for EC2 instances
 resource "aws_cloudwatch_log_group" "manager" {
-  name              = "logs/${var.project_name}/swarm-manager-${var.env}"
+  name              = "/logs/${var.project_name}/swarm-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -246,7 +246,7 @@ resource "aws_cloudwatch_log_group" "manager" {
 }
 
 resource "aws_cloudwatch_log_group" "worker" {
-  name              = "logs/${var.project_name}/swarm-worker-${var.env}"
+  name              = "/logs/${var.project_name}/swarm-worker-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -256,7 +256,7 @@ resource "aws_cloudwatch_log_group" "worker" {
 }
 
 resource "aws_cloudwatch_log_group" "leader_manager" {
-  name              = "logs/${var.project_name}/leader-manager-${var.env}"
+  name              = "/logs/${var.project_name}/leader-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -266,7 +266,7 @@ resource "aws_cloudwatch_log_group" "leader_manager" {
 }
 
 resource "aws_cloudwatch_log_group" "certificate_manager" {
-  name              = "logs/${var.project_name}/certificate-manager-${var.env}"
+  name              = "/logs/${var.project_name}/certificate-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -277,7 +277,7 @@ resource "aws_cloudwatch_log_group" "certificate_manager" {
 
 # CloudWatch Log Group for worker-manager service (env-suffixed, used by worker.sh)
 resource "aws_cloudwatch_log_group" "worker_manager" {
-  name              = "logs/${var.project_name}/worker-manager-${var.env}"
+  name              = "/logs/${var.project_name}/worker-manager-${var.env}"
   retention_in_days = 30
 
   tags = {
@@ -306,7 +306,6 @@ resource "aws_launch_template" "worker" {
     "export PROJECT_NAME=\"${var.project_name}\"",
     "export ENV=\"${var.env}\"",
     "export AWS_REGION=\"${var.region}\"",
-    "export DOMAIN_NAME=\"${var.domain_name}\"",
     "export CODEDEPLOY_BUCKET_NAME=\"${var.codedeploy_bucket_name}\"",
     "export SWARM_LOCK_TABLE=\"${var.swarm_lock_table}\"",
     "export WORKER_TYPE=\"compute\"",
@@ -465,7 +464,7 @@ resource "aws_autoscaling_group" "managers" {
 resource "aws_lb_target_group" "workers" {
   name     = "${var.project_name}-worker-tg-${var.env}"
   port     = 443
-  protocol = "TCP"
+  protocol = "TLS"
   vpc_id   = var.vpc_id
 
   health_check {
