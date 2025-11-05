@@ -1,4 +1,4 @@
-name: '{{ PASCALCASE_SERVICE_NAME }} Service Deployment'
+name: '{{ PASCALCASE_SERVICE_NAME }} Service Release'
 
 on:
   # Manual trigger
