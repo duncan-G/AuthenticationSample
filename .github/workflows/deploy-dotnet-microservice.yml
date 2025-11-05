@@ -13,7 +13,7 @@ on:
         description: Target environment
         required: true
         type: string
-        default: production
+        default: prod
 
       service_path:
         description: Path to the microservice directory
@@ -91,7 +91,7 @@ jobs:
 
       - name: Package & deploy
         id: deploy
-        uses: ./.github/actions/package-and-deploy
+        uses: ./.github/workflows/actions/package-and-deploy
         with:
           service_name: ${{ inputs.service_name }}
           environment:  ${{ inputs.environment }}
