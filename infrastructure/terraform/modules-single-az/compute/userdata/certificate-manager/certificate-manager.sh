@@ -40,7 +40,6 @@ trap 'status FAILED "line $LINENO exited with code $?"; exit 1' ERR
 ###############################################################################
 DAEMON=false
 FORCE=false
-OUTPUT_DIR=""
 
 usage() {
   cat <<EOF
@@ -58,7 +57,6 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --daemon)     DAEMON=true ;;
     --force)      FORCE=true ;;
-    --output-dir) shift; OUTPUT_DIR=${1:-} ;;
     -h|--help)    usage; exit 0 ;;
     *)            usage; exit 1 ;;
   esac
@@ -76,22 +74,11 @@ for c in aws openssl docker jq; do need_cmd "$c"; done
 
 DOMAIN_NAME=${DOMAIN_NAME:-localhost}
 
-# figure target dir once
-target_dir() {
-  if [[ -n "$OUTPUT_DIR" ]]; then
-    echo "$OUTPUT_DIR"
-  else
-    echo "$CERT_DIR"
-  fi
-}
-
 latest_cert_dir() {
-  local cert_dir="$(target_dir)"
-  local ts_dirs=($(find "$cert_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E '^[0-9]+$' | sort -nr))
+  [[ -d "$CERT_DIR" ]] || return 0
+  local ts_dirs=($(find "$CERT_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -E '^[0-9]+$' | sort -nr))
   if (( ${#ts_dirs[@]} > 0 )); then
-    echo "${cert_dir}/${ts_dirs[0]}"
-  else
-    echo "$cert_dir"
+    echo "${CERT_DIR}/${ts_dirs[0]}"
   fi
 }
 
@@ -148,8 +135,12 @@ needs_certificate_renewal() {
 
   local dir="$(latest_cert_dir)"
 
+  echo "$dir"
+  [[ -d "$dir" ]] || { log "Missing directory $dir"; return 0; }
+
   # Check only actual certs
   for f in cert.pem ca.crt; do
+    echo "$dir/$f"
     [[ -f "$dir/$f" ]] || { log "Missing $f"; return 0; }
 
     if is_cert_expiring "$dir/$f" "$RENEWAL_THRESHOLD_DAYS"; then
@@ -171,7 +162,7 @@ generate_certificates() {
   local alt_names=${DOMAIN_ALT_NAMES:-$domain}
   local timestamp=$(date +%s)
   local dir
-  dir="$(target_dir)/$timestamp"
+  dir="$CERT_DIR/$timestamp"
   mkdir -p "$dir"
   rm -rf "$dir"/*
 
@@ -297,40 +288,64 @@ update_aws_secret() {
 ###############################################################################
 update_docker_secrets() {
   local dir="$(latest_cert_dir)"
+  [[ -d "$dir" ]] || { fatal "Missing directory $dir"; }
+
   local ts="$(basename "$dir")"
   local cert_files=($(find "$dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n'))
 
   for cert_file in "${cert_files[@]}"; do
     local cert_name=$(basename "$cert_file")
     if ! docker secret inspect "${cert_name}_${ts}" &>/dev/null; then
-      echo "Creating secret ${cert_name}_${ts}"
-      echo "$dir/$cert_file"
       docker secret create "${cert_name}_${ts}" "$dir/$cert_file" || fatal "Failed to create secret ${cert_name}_${ts}"
     fi
   done
 }
 
 restart_services() {
-  local dir="$(latest_cert_dir)"
-  local ts="$(basename "$dir")"
-  local cert_files=($(find "$dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n'))
-  local services=("envoy_app" "auth_app" "greeter_app")
+  local dir
+  dir="$(latest_cert_dir)"
+  [[ -d "$dir" ]] || { fatal "Missing directory $dir"; }
 
-  local remove_args=()
-  local add_args=()
+  local ts
+  ts="$(basename "$dir")"
 
+  # Collect cert file basenames safely
+  local -a cert_names=()
+  while IFS= read -r -d '' f; do
+    cert_names+=("$(basename "$f")")
+  done < <(find "$dir" -mindepth 1 -maxdepth 1 -type f -print0)
 
-  for cert_file in "${cert_files[@]}"; do
-    local cert_name=$(basename "$cert_file")
-    remove_args+=("--secret-rm ${cert_name}_${ts}")
-    add_args+=("--secret-add source=${cert_name}_${ts},target=${cert_name}")
+  local -a services=("envoy_app" "auth_app" "greeter_app")
+
+  # Build args to add new secrets
+  local -a add_args=()
+  for cert_name in "${cert_names[@]}"; do
+    add_args+=("--secret-add=source=${cert_name}_${ts},target=${cert_name}")
   done
 
-  docker service update \
-    --force \
-    "${remove_args[@]}" \
-    "${add_args[@]}" \
-    "${services[@]}" || fatal "Failed to update services"
+  for service in "${services[@]}"; do
+    local -a remove_args=()
+    # Get current secrets for the service, one per line
+    local -a current_secrets=()
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && current_secrets+=("$line")
+    done < <(docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Secrets}}{{println .SecretName}}{{end}}' "$service")
+
+    # Remove any secret whose base matches one of our cert_names
+    local current_secret secret_base
+    for current_secret in "${current_secrets[@]}"; do
+      secret_base="${current_secret%_*}"
+      if [[ " ${cert_names[*]} " == *" ${secret_base} "* ]]; then
+        remove_args+=("--secret-rm=${current_secret}")
+      fi
+    done
+
+    docker service update \
+      --force \
+      "${remove_args[@]}" \
+      "${add_args[@]}" \
+      "$service" || fatal "Failed to update service ${service}"
+  done
 }
 
 ###############################################################################
@@ -355,6 +370,7 @@ manage_certificates() {
 
   update_aws_secret "$password"
   update_docker_secrets
+  restart_services
 
   status SUCCESS "renewed"
   log "Certificate management done"
