@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   app:
-    image: $IMAGE_URI
+    image: ${IMAGE_URI}
     environment:
       ASPNETCORE_URLS: https://+:443
       ASPNETCORE_ENVIRONMENT: Production
