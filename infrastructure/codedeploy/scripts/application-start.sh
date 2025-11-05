@@ -131,8 +131,7 @@ get_network_name_from_dynamodb() {
 CERT_TIMESTAMP=$(get_cert_timestamp)
 NETWORK_NAME=$(get_network_name_from_dynamodb)
 
-tmp_stack="/tmp/${STACK_FILE}"
-cp "${ARCHIVE_ROOT}/${STACK_FILE}" "$tmp_stack"
+stack_src="${ARCHIVE_ROOT}/${STACK_FILE}"
 
 sed -i \
   -e "s|\${NETWORK_NAME}|${NETWORK_NAME}|g" \
@@ -140,7 +139,7 @@ sed -i \
   -e "s|\${ENVIRONMENT}|${ENVIRONMENT}|g" \
   -e "s|\${VERSION}|${VERSION}|g" \
   -e "s|\${SERVICE_NAME}|${SERVICE_NAME}|g" \
-  "$tmp_stack"
+  "$stack_src"
 
 ###########################
 # Verify overlay network
@@ -152,9 +151,12 @@ docker network inspect "$NETWORK_NAME" &>/dev/null \
 ####################################
 # Deploy / update the stack
 ####################################
-[[ -f $tmp_stack ]] || err "Stack file not found: $tmp_stack"
+[[ -f $stack_src ]] || err "Stack file not found: $stack_src"
 
-log "Deploying stack '${SERVICE_NAME}' with compose file: $tmp_stack"
+tmp_stack="/tmp/${STACK_FILE}"
+cp "$stack_src" "$tmp_stack"
+
+log "Deploying stack '${SERVICE_NAME}'"
 docker stack deploy --with-registry-auth --compose-file "$tmp_stack" "$SERVICE_NAME"
 
 ####################################

@@ -173,7 +173,7 @@ generate_certificates() {
   local dir
   dir="$(target_dir)/$timestamp"
   mkdir -p "$dir"
-  rm -f "$dir"/*
+  rm -rf "$dir"/*
 
   log "Generating CA and server certs in $dir for $domain (SANs: ${alt_names})"
 
@@ -245,6 +245,8 @@ generate_certificates() {
 
   # 5) Permissions and expected filenames for Envoy/Docker secrets
   cp "$dir/server.key" "$dir/cert.key"
+  # Ensure cert.pem is not a directory from any prior incorrect state
+  [ -d "$dir/cert.pem" ] && rm -rf "$dir/cert.pem"
   cp "$dir/server-fullchain.crt" "$dir/cert.pem"
   # ca.crt is the CA certificate
 
