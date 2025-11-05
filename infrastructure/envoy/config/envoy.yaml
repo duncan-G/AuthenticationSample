@@ -67,7 +67,7 @@ static_resources:
                       channel_args:
                         args:
                           grpc.ssl_target_name_override:
-                            string_value: "localhost"
+                            string_value: "$SNI_DOMAIN"
                     timeout: 2s
               - name: envoy.filters.http.local_ratelimit
                 typed_config:
@@ -178,7 +178,7 @@ static_resources:
                       channel_args:
                         args:
                           grpc.ssl_target_name_override:
-                            string_value: "localhost"
+                            string_value: "$SNI_DOMAIN"
                     timeout: 2s
               - name: envoy.filters.http.local_ratelimit
                 typed_config:
