@@ -131,7 +131,7 @@ jobs:
           -e "s|\$AUTH_HOST|${AUTH_HOST}|g" \
           -e "s|\$AUTH_PORT|${AUTH_PORT}|g" \
           -e "s|\$GREETER_HOST|${GREETER_HOST}|g" \
-          -e "s|\$GREETER_PORT|${GREETER_PORT}|g" {} \
+          -e "s|\$GREETER_PORT|${GREETER_PORT}|g" \
           -e "s|\$SNI_DOMAIN|${DOMAIN}|g" {} +
 
         mv staging/configs/$STACK_FILE staging/
