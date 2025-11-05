@@ -117,7 +117,7 @@ jobs:
         export SERVICE_NAME ENVIRONMENT VERSION PROJECT_NAME CERT_PREFIX \
                STACK_FILE SECRET_NAME="${PROJECT_NAME}-secrets" \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=true
+               REQUIRE_TLS=true SNI_DOMAIN=$DOMAIN
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
