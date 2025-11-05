@@ -90,7 +90,6 @@ jobs:
         AUTH_PORT='443'
         GREETER_HOST='greeter_app'
         GREETER_PORT='443'
-        SNI_DOMAIN=$DOMAIN
 
         STACK_FILE='envoy.stack.release.yaml'
 
@@ -117,7 +116,7 @@ jobs:
         export SERVICE_NAME ENVIRONMENT VERSION PROJECT_NAME CERT_PREFIX \
                STACK_FILE SECRET_NAME="${PROJECT_NAME}-secrets" \
                AWS_REGION="${{ vars.AWS_REGION || env.AWS_REGION }}" \
-               REQUIRE_TLS=true SNI_DOMAIN=$DOMAIN
+               REQUIRE_TLS=true
         envsubst < staging/scripts/env.sh > staging/scripts/env.sh.tmp
         mv staging/scripts/env.sh.tmp staging/scripts/env.sh
         chmod +x staging/scripts/env.sh
@@ -132,7 +131,8 @@ jobs:
           -e "s|\$AUTH_HOST|${AUTH_HOST}|g" \
           -e "s|\$AUTH_PORT|${AUTH_PORT}|g" \
           -e "s|\$GREETER_HOST|${GREETER_HOST}|g" \
-          -e "s|\$GREETER_PORT|${GREETER_PORT}|g" {} +
+          -e "s|\$GREETER_PORT|${GREETER_PORT}|g" {} \
+          -e "s|\$SNI_DOMAIN|${DOMAIN}|g" {} +
 
         mv staging/configs/$STACK_FILE staging/
 
