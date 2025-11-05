@@ -1,4 +1,4 @@
-name: 'Greeter Service Deployment'
+name: 'Greeter Service Release'
 
 on:
   # Manual trigger
