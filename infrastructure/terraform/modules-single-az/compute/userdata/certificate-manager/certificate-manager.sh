@@ -303,6 +303,8 @@ update_docker_secrets() {
   for cert_file in "${cert_files[@]}"; do
     local cert_name=$(basename "$cert_file")
     if ! docker secret inspect "${cert_name}_${ts}" &>/dev/null; then
+      echo "Creating secret ${cert_name}_${ts}"
+      echo "$dir/$cert_file"
       docker secret create "${cert_name}_${ts}" "$dir/$cert_file" || fatal "Failed to create secret ${cert_name}_${ts}"
     fi
   done

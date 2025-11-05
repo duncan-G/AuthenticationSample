@@ -81,6 +81,7 @@ configs:
 secrets:
   cert.pem:
     name: cert.pem_${TS}
+    external: true
   cert.key:
     name: cert.key_${TS}
     external: true
