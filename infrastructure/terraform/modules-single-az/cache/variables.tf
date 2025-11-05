@@ -64,13 +64,6 @@ variable "worker_iam_instance_profile_name" {
   type        = string
 }
 
-# Optional: domain used by certificate manager and TLS materials
-variable "domain_name" {
-  description = "Primary domain name used for certificates"
-  type        = string
-  default     = ""
-}
-
 # Optional: S3 bucket and key for certificate-manager.sh distribution
 variable "codedeploy_bucket_name" {
   description = "S3 bucket name hosting certificate-manager.sh"

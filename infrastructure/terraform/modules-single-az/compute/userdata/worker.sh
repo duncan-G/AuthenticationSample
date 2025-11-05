@@ -16,7 +16,7 @@ set -Eeuo pipefail
 shopt -s inherit_errexit || true
 
 readonly LOG_FILE="${LOG_FILE:-/var/log/docker-worker-setup.log}"
-readonly PROJECT_NAME="${PROJECT_NAME:-docker-worker}"
+readonly PROJECT_NAME="${PROJECT_NAME}"
 readonly SETUP_USER="${SETUP_USER:-ec2-user}"
 
 timestamp(){ date "+%Y-%m-%d %H:%M:%S"; }
@@ -87,13 +87,13 @@ install_cloudwatch_agent(){
         "collect_list": [
           {
             "file_path": "$LOG_FILE",
-            "log_group_name": "logs/${PROJECT_NAME}/swarm-worker${ENV:+-${ENV}}",
+            "log_group_name": "/logs/${PROJECT_NAME}/swarm-worker-${ENV}",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           },
           {
             "file_path": "/var/log/worker-manager/worker-manager.log",
-            "log_group_name": "logs/${PROJECT_NAME}/worker-manager${ENV:+-${ENV}}",
+            "log_group_name": "/logs/${PROJECT_NAME}/worker-manager-${ENV}",
             "log_stream_name": "{instance_id}",
             "timestamp_format": "%Y-%m-%d %H:%M:%S"
           }

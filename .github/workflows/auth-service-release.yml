@@ -9,9 +9,9 @@ on:
         required: true
         type: choice
         options:
-          - staging
-          - production
-        default: 'production'
+          - state
+          - stage
+        default: 'stage'
 
   # Automatic trigger on service changes
   push:
@@ -34,7 +34,7 @@ jobs:
     with:
       service_name: 'auth'
       service_path: 'microservices/Auth'
-      environment: ${{ github.event.inputs.environment || 'production' }}
+      environment: ${{ github.event.inputs.environment || 'prod' }}
       image_name: '${{ vars.PROJECT_NAME }}/auth'
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}

@@ -81,6 +81,7 @@ module "cache" {
   instance_security_group_id       = module.network.instance_security_group_id
   worker_iam_instance_profile_name = module.compute.worker_iam_instance_profile_name
   swarm_lock_table                 = module.database.swarm_cluster_lock_table_name
+  codedeploy_bucket_name           = var.codedeploy_bucket_name
 }
 
 # CI/CD (ECR, CodeDeploy, IAM)
